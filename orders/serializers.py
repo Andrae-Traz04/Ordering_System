@@ -1,6 +1,36 @@
 from rest_framework import serializers
-from .models import Customer, Order, OrderItem, StatusHistory
+from django.contrib.auth.models import User
+from .models import UserProfile, Customer, Order, OrderItem, StatusHistory
 
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+    role = serializers.ChoiceField(
+        choices=['customer', 'owner', 'admin'], write_only=True
+    )
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'password', 'role']
+
+    def create(self, validated_data):
+        role = validated_data.pop('role')
+        user = User.objects.create_user(**validated_data)
+        UserProfile.objects.create(user=user, role=role)
+        return user
+
+
+class UserSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='profile.role', read_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'role']
+
+
+# ── Customer ──────────────────────────────────────────────────────────────────
 
 class CustomerSerializer(serializers.ModelSerializer):
     order_count = serializers.SerializerMethodField()
@@ -13,6 +43,8 @@ class CustomerSerializer(serializers.ModelSerializer):
         return obj.orders.count()
 
 
+# ── Order ─────────────────────────────────────────────────────────────────────
+
 class OrderItemSerializer(serializers.ModelSerializer):
     subtotal = serializers.ReadOnlyField()
 
@@ -22,9 +54,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class StatusHistorySerializer(serializers.ModelSerializer):
+    changed_by_username = serializers.CharField(
+        source='changed_by.username', read_only=True, default='system'
+    )
+
     class Meta:
         model = StatusHistory
-        fields = ['id', 'from_status', 'to_status', 'changed_at', 'note']
+        fields = ['id', 'from_status', 'to_status', 'changed_at', 'note', 'changed_by_username']
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -34,6 +70,9 @@ class OrderSerializer(serializers.ModelSerializer):
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
     item_count = serializers.SerializerMethodField()
+    created_by_username = serializers.CharField(
+        source='created_by.username', read_only=True, default=''
+    )
 
     class Meta:
         model = Order
@@ -41,11 +80,9 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'customer', 'customer_name',
             'customer_email', 'customer_phone', 'status', 'notes',
             'total_amount', 'created_at', 'updated_at',
-            'items', 'status_history', 'item_count',
+            'items', 'status_history', 'item_count', 'created_by_username',
         ]
-        read_only_fields = [
-            'order_number', 'total_amount', 'created_at', 'updated_at'
-        ]
+        read_only_fields = ['order_number', 'total_amount', 'created_at', 'updated_at']
 
     def get_item_count(self, obj):
         return obj.items.count()
@@ -66,9 +103,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             'customer_phone', 'notes', 'total_amount', 'status',
             'created_at', 'items',
         ]
-        read_only_fields = [
-            'id', 'order_number', 'total_amount', 'status', 'created_at'
-        ]
+        read_only_fields = ['id', 'order_number', 'total_amount', 'status', 'created_at']
 
     def validate_items(self, items):
         if not items:
@@ -85,13 +120,21 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         customer_name = validated_data.pop('customer_name')
         customer_email = validated_data.pop('customer_email')
         customer_phone = validated_data.pop('customer_phone', '')
+        user = self.context.get('user')
 
         customer, _ = Customer.objects.get_or_create(
             email=customer_email,
             defaults={'name': customer_name, 'phone': customer_phone},
         )
 
-        order = Order.objects.create(customer=customer, **validated_data)
+        # Link customer to user if customer role
+        if user and not customer.user:
+            customer.user = user
+            customer.save()
+
+        order = Order.objects.create(
+            customer=customer, created_by=user, **validated_data
+        )
 
         total = 0
         for item_data in items_data:
@@ -105,9 +148,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             order=order,
             from_status=None,
             to_status='pending',
+            changed_by=user,
             note='Order created',
         )
-
         return order
 
 
@@ -120,11 +163,10 @@ class StatusUpdateSerializer(serializers.Serializer):
     def validate(self, data):
         order = self.context['order']
         new_status = data['status']
-
         if not order.can_transition_to(new_status):
             valid = Order.VALID_TRANSITIONS.get(order.status, [])
             raise serializers.ValidationError(
                 f"Cannot transition from '{order.status}' to '{new_status}'. "
-                f"Valid next status: {valid if valid else 'none — order is already completed'}."
+                f"Valid next: {valid if valid else 'none — order is completed'}."
             )
         return data
