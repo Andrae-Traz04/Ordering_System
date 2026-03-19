@@ -1,4 +1,11 @@
+<<<<<<< HEAD
 """Backward-compatible serializer exports.
+=======
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from django.db import transaction
+from .models import UserProfile, Customer, Order, OrderItem, StatusHistory, Review
+>>>>>>> 3aae3f42e430126718dcc0e972d6b711c4334e07
 
 This file keeps existing imports working while implementation is split into
 focused serializer modules.
