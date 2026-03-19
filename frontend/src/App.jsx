@@ -36,7 +36,7 @@ export default function App() {
         } />
 
         <Route path="orders/create" element={
-          <PrivateRoute roles={['customer', 'admin']}><CreateOrder /></PrivateRoute>
+          <PrivateRoute roles={['customer', 'owner', 'admin']}><CreateOrder /></PrivateRoute>
         } />
 
         <Route path="orders/:id" element={
