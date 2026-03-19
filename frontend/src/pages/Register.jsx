@@ -21,15 +21,30 @@ export default function Register() {
     setLoading(true)
     setError('')
     try {
-      await registerUser(form.username, form.password, form.role)
-      navigate('/dashboard')
+      const user = await registerUser(form.username, form.password, form.role)
+      // Navigate based on role if needed, currently all go to dashboard
+      // Using replace: true prevents going back to register page
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       console.error(err)
       const data = err.response?.data
-      // If the error is an object (common in DRF), flatten it
-      const msg = data && typeof data === 'object' 
-        ? Object.values(data).flat().join(', ') 
-        : 'Registration failed.'
+      let msg = 'Registration failed. ' + err.message
+      
+      if (err.response) {
+        if (data) {
+           if (typeof data === 'string') {
+             msg = data
+           } else if (typeof data === 'object') {
+             // Combine all error messages
+             msg = Object.values(data).flat().join(' ')
+           }
+        } else {
+           msg = `Error ${err.response.status}: ${err.response.statusText}`
+        }
+      } else if (err.request) {
+        msg = 'No response from server. Is Django running?'
+      }
+
       setError(msg)
     } finally {
       setLoading(false)
