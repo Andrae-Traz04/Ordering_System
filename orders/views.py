@@ -5,12 +5,16 @@ from rest_framework.authtoken.models import Token
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Sum
-from .models import UserProfile, Customer, Order, StatusHistory
+from django.utils import timezone
+from datetime import timedelta
+from .models import UserProfile, Customer, Order, StatusHistory, Review
 from .serializers import (
     RegisterSerializer, UserSerializer, CustomerSerializer,
     OrderSerializer, OrderCreateSerializer, StatusUpdateSerializer,
+    ReviewSerializer,
 )
 
 
@@ -83,13 +87,12 @@ class OrderListCreateView(APIView):
     def get(self, request):
         role = get_role(request.user)
         orders = Order.objects.select_related('customer').prefetch_related(
-            'items', 'status_history'
+            'items', 'status_history', 'review'
         )
 
-        # Customers only see their own orders
         if role == 'customer':
             orders = orders.filter(created_by=request.user)
-        
+
         status_filter = request.query_params.get('status')
         if status_filter:
             orders = orders.filter(status=status_filter)
@@ -126,7 +129,7 @@ class OrderDetailView(APIView):
     def get_object(self, pk, user):
         role = get_role(user)
         qs = Order.objects.select_related('customer').prefetch_related(
-            'items', 'status_history'
+            'items', 'status_history', 'review'
         )
         if role == 'customer':
             qs = qs.filter(created_by=user)
@@ -253,8 +256,86 @@ class UserListView(APIView):
                 {'error': 'Only admins can view users.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        users = UserSerializer(
-            __import__('django.contrib.auth.models', fromlist=['User']).User.objects.all(),
-            many=True
-        )
-        return Response({'users': users.data})
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response({'users': serializer.data})
+
+
+# ── Review View ───────────────────────────────────────────────────────────────
+
+class ReviewView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.created_by != request.user:
+            return Response(
+                {'error': 'You can only review your own orders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != 'completed':
+            return Response(
+                {'error': 'You can only review completed orders.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if hasattr(order, 'review'):
+            return Response(
+                {'error': 'You have already reviewed this order.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = ReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(order=order, customer=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ── Notification View ─────────────────────────────────────────────────────────
+
+class NotificationView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role = get_role(request.user)
+        notifications = []
+
+        if role in ['owner', 'admin']:
+            # New pending orders in last 24 hours
+            recent = timezone.now() - timedelta(hours=24)
+            new_orders = Order.objects.filter(
+                status='pending',
+                created_at__gte=recent
+            ).order_by('-created_at')
+
+            for o in new_orders:
+                notifications.append({
+                    'id': f"order-{o.id}",
+                    'type': 'new_order',
+                    'message': f"New order {o.order_number} from {o.customer.name}",
+                    'order_id': o.id,
+                    'created_at': o.created_at,
+                })
+
+        elif role == 'customer':
+            # Completed orders for this customer
+            completed = Order.objects.filter(
+                created_by=request.user,
+                status='completed',
+            ).order_by('-updated_at')[:10]
+
+            for o in completed:
+                notifications.append({
+                    'id': f"completed-{o.id}",
+                    'type': 'order_completed',
+                    'message': f"Your order {o.order_number} has been completed! Please leave a review.",
+                    'order_id': o.id,
+                    'created_at': o.updated_at,
+                })
+
+        return Response({'notifications': notifications, 'count': len(notifications)})

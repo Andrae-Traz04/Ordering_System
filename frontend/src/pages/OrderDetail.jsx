@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchOrder, updateStatus, deleteOrder } from '@/api/ordersApi'
+import { fetchOrder, updateStatus, deleteOrder, submitReview } from '@/api/ordersApi'
+import { useAuth } from '@/context/AuthContext'
 import StatusBadge from '@/components/StatusBadge'
 import Stepper from '@/components/Stepper'
 
@@ -17,16 +18,55 @@ const NEXT_LABEL = {
   completed: 'Mark as Completed',
 }
 
+function StarRating({ value, onChange, readonly }) {
+  const [hovered, setHovered] = useState(0)
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {[1, 2, 3, 4, 5].map(star => (
+        <span
+          key={star}
+          onClick={() => !readonly && onChange && onChange(star)}
+          onMouseEnter={() => !readonly && setHovered(star)}
+          onMouseLeave={() => !readonly && setHovered(0)}
+          style={{
+            fontSize: 32,
+            cursor: readonly ? 'default' : 'pointer',
+            color: star <= (hovered || value) ? '#f59e0b' : '#e8e8f0',
+            transition: 'color 0.1s',
+            userSelect: 'none',
+          }}
+        >
+          ★
+        </span>
+      ))}
+      {!readonly && (
+        <span style={{ fontSize: 13, color: '#7c7ca0', alignSelf: 'center', marginLeft: 8 }}>
+          {value === 1 ? 'Poor' : value === 2 ? 'Fair' : value === 3 ? 'Good' : value === 4 ? 'Very Good' : 'Excellent'}
+        </span>
+      )}
+    </div>
+  )
+}
+
 export default function OrderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [order, setOrder] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [updating, setUpdating] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { user } = useAuth()
+
+  const [order, setOrder]           = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [updating, setUpdating]     = useState(false)
+  const [deleting, setDeleting]     = useState(false)
+  const [error, setError]           = useState('')
+  const [success, setSuccess]       = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Review state
+  const [reviewRating, setReviewRating]   = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewError, setReviewError]     = useState('')
+  const [reviewSuccess, setReviewSuccess] = useState('')
 
   const load = () => {
     fetchOrder(id)
@@ -40,8 +80,7 @@ export default function OrderDetail() {
   const advance = async () => {
     const next = NEXT[order.status]
     if (!next) return
-    setUpdating(true)
-    setError('')
+    setUpdating(true); setError('')
     try {
       const r = await updateStatus(id, next, `Advanced to ${next}`)
       setOrder(r.data)
@@ -67,15 +106,41 @@ export default function OrderDetail() {
     }
   }
 
-  if (loading) return <div className="loading"><div className="spinner" /><span>Loading...</span></div>
-  if (!order)  return <div className="alert alert-error">{error}</div>
+  const handleReview = async (e) => {
+    e.preventDefault()
+    setReviewLoading(true); setReviewError(''); setReviewSuccess('')
+    try {
+      await submitReview(id, { rating: reviewRating, comment: reviewComment })
+      setReviewSuccess('Review submitted! Thank you. 🎉')
+      load()
+    } catch (err) {
+      const data = err.response?.data
+      const msg = data ? Object.values(data).flat().join(', ') : 'Failed to submit review.'
+      setReviewError(msg)
+    } finally {
+      setReviewLoading(false)
+    }
+  }
 
-  const nextStatus = NEXT[order.status]
+  if (loading) return <div className="loading"><div className="spinner" /><span>Loading...</span></div>
+  if (!order)  return <div className="alert alert-error">{error || 'Order not found.'}</div>
+
+  const nextStatus  = NEXT[order.status]
+  const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin'
+  const isAdmin        = user?.role === 'admin'
+  const isCustomer     = user?.role === 'customer'
+  const isMyOrder      = order.created_by_id === user?.id
+  const canReview      = isCustomer && isMyOrder && order.status === 'completed' && !order.review
+  const hasReview      = !!order.review
 
   return (
     <div style={{ maxWidth: 800 }}>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', marginBottom: 20,
+      }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span className="font-mono" style={{ fontSize: 18 }}>{order.order_number}</span>
@@ -83,6 +148,9 @@ export default function OrderDetail() {
           </div>
           <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
             Created {new Date(order.created_at).toLocaleString()}
+            {order.created_by_username && (
+              <span> by <strong>{order.created_by_username}</strong></span>
+            )}
           </div>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/orders')}>
@@ -93,23 +161,35 @@ export default function OrderDetail() {
       {error   && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">✓ {success}</div>}
 
-      {/* Stepper */}
+      {/* Stepper + Workflow */}
       <div className="card">
         <div className="card-header"><h3>Order Workflow</h3></div>
         <div className="card-body">
           <Stepper currentStatus={order.status} />
-          {nextStatus
-            ? <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button className="btn btn-success" onClick={advance} disabled={updating}>
-                  {updating ? 'Updating...' : `→ ${NEXT_LABEL[nextStatus]}`}
-                </button>
-              </div>
-            : <div className="alert alert-success">✓ This order has been completed</div>
-          }
+
+          {/* Owner/Admin can advance status */}
+          {isOwnerOrAdmin && nextStatus && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-success" onClick={advance} disabled={updating}>
+                {updating ? 'Updating...' : `→ ${NEXT_LABEL[nextStatus]}`}
+              </button>
+            </div>
+          )}
+
+          {/* Customer sees status info only */}
+          {isCustomer && nextStatus && (
+            <div className="alert alert-info" style={{ marginTop: 0 }}>
+              ⏳ Your order is being processed. We will update you soon!
+            </div>
+          )}
+
+          {!nextStatus && (
+            <div className="alert alert-success">✓ This order has been completed</div>
+          )}
         </div>
       </div>
 
-      {/* Customer */}
+      {/* Customer Details */}
       <div className="card">
         <div className="card-header"><h3>Customer Details</h3></div>
         <div className="card-body">
@@ -129,7 +209,7 @@ export default function OrderDetail() {
               </div>
             )}
             {order.notes && (
-              <div className="detail-field">
+              <div className="detail-field" style={{ gridColumn: '1 / -1' }}>
                 <span className="detail-label">Notes</span>
                 <span className="detail-value">{order.notes}</span>
               </div>
@@ -138,15 +218,17 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      {/* Items */}
+      {/* Order Items */}
       <div className="card">
         <div className="card-header"><h3>Order Items ({order.item_count})</h3></div>
         <div className="card-body">
           <table>
             <thead>
               <tr>
-                <th>Product</th><th>Qty</th>
-                <th>Unit Price</th><th>Subtotal</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Subtotal</th>
               </tr>
             </thead>
             <tbody>
@@ -187,6 +269,9 @@ export default function OrderDetail() {
                   </div>
                   <div className="history-time">
                     {new Date(h.changed_at).toLocaleString()}
+                    {h.changed_by_username && (
+                      <span> by <strong>{h.changed_by_username}</strong></span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -195,30 +280,116 @@ export default function OrderDetail() {
         </div>
       )}
 
-      {/* Delete */}
-      <div className="card">
-        <div className="card-body">
-          {!confirmDelete
-            ? <button className="btn btn-danger btn-sm"
-                onClick={() => setConfirmDelete(true)}>
-                🗑 Delete Order
-              </button>
-            : <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
-                  Are you sure? This cannot be undone.
-                </span>
-                <button className="btn btn-danger btn-sm"
-                  onClick={handleDelete} disabled={deleting}>
-                  {deleting ? 'Deleting...' : 'Yes, Delete'}
-                </button>
-                <button className="btn btn-ghost btn-sm"
-                  onClick={() => setConfirmDelete(false)}>
-                  Cancel
-                </button>
+      {/* Review — Customer submits, Owner/Admin reads */}
+      {(canReview || (hasReview && (isMyOrder || isOwnerOrAdmin))) && (
+        <div className="card">
+          <div className="card-header">
+            <h3>⭐ {hasReview ? 'Customer Review' : 'Leave a Review'}</h3>
+          </div>
+          <div className="card-body">
+            {hasReview ? (
+              /* Show existing review */
+              <div>
+                <StarRating value={order.review.rating} readonly />
+                <div style={{ marginTop: 12, fontSize: 14, color: '#1a1a2e', lineHeight: 1.6 }}>
+                  {order.review.comment
+                    ? `"${order.review.comment}"`
+                    : <em style={{ color: '#aaa' }}>No comment left.</em>
+                  }
+                </div>
+                <div style={{ fontSize: 11, color: '#aaa', marginTop: 10 }}>
+                  By <strong>{order.review.customer_username}</strong> on{' '}
+                  {new Date(order.review.created_at).toLocaleDateString()}
+                </div>
               </div>
-          }
+            ) : canReview ? (
+              /* Review form for customer */
+              <form onSubmit={handleReview}>
+                {reviewError   && <div className="alert alert-error">{reviewError}</div>}
+                {reviewSuccess && <div className="alert alert-success">{reviewSuccess}</div>}
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{
+                    display: 'block', marginBottom: 10,
+                    fontWeight: 600, fontSize: 13, color: '#4a4a6a',
+                  }}>
+                    Your Rating *
+                  </label>
+                  <StarRating value={reviewRating} onChange={setReviewRating} />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label>Comment (optional)</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Share your experience with this order..."
+                    value={reviewComment}
+                    onChange={e => setReviewComment(e.target.value)}
+                    style={{
+                      padding: '9px 13px',
+                      border: '1.5px solid #e8e8f0',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontFamily: 'inherit',
+                      width: '100%',
+                      resize: 'vertical',
+                      transition: 'border-color 0.15s',
+                    }}
+                    onFocus={e => e.target.style.borderColor = '#6c63ff'}
+                    onBlur={e => e.target.style.borderColor = '#e8e8f0'}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={reviewLoading}
+                >
+                  {reviewLoading ? 'Submitting...' : '⭐ Submit Review'}
+                </button>
+              </form>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Delete — Admin only */}
+      {isAdmin && (
+        <div className="card">
+          <div className="card-body">
+            {!confirmDelete
+              ? (
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  🗑 Delete Order
+                </button>
+              )
+              : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                    Are you sure? This cannot be undone.
+                  </span>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? 'Deleting...' : 'Yes, Delete'}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )
+            }
+          </div>
+        </div>
+      )}
     </div>
   )
 }

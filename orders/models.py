@@ -99,4 +99,19 @@ class StatusHistory(models.Model):
         ordering = ['-changed_at']
 
     def __str__(self):
-        return f"{self.order.order_number}: {self.from_status} → {self.to_status}"
+        return f"{self.order.order_number}: {self.from_status} -> {self.to_status}"
+
+
+class Review(models.Model):
+    order = models.OneToOneField(
+        Order, on_delete=models.CASCADE, related_name='review'
+    )
+    customer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='reviews'
+    )
+    rating = models.PositiveSmallIntegerField()  # 1-5
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Review for {self.order.order_number} - {self.rating} stars"

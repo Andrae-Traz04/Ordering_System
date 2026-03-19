@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Order, OrderItem, StatusHistory
+from .models import Customer, Order, OrderItem, StatusHistory, UserProfile, Review
 
 
 class OrderItemInline(admin.TabularInline):
@@ -35,3 +35,15 @@ class OrderItemAdmin(admin.ModelAdmin):
 @admin.register(StatusHistory)
 class StatusHistoryAdmin(admin.ModelAdmin):
     list_display = ['order', 'from_status', 'to_status', 'changed_at']
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'role']
+    list_filter = ['role']
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ['order', 'customer', 'rating', 'created_at']
+    list_filter = ['rating']

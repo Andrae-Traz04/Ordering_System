@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile, Customer, Order, OrderItem, StatusHistory
+from .models import UserProfile, Customer, Order, OrderItem, StatusHistory, Review
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -63,9 +63,26 @@ class StatusHistorySerializer(serializers.ModelSerializer):
         fields = ['id', 'from_status', 'to_status', 'changed_at', 'note', 'changed_by_username']
 
 
+class ReviewSerializer(serializers.ModelSerializer):
+    customer_username = serializers.CharField(source='customer.username', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
+
+    class Meta:
+        model = Review
+        fields = ['id', 'order', 'order_number', 'rating', 'comment',
+                  'created_at', 'customer_username']
+        read_only_fields = ['id', 'created_at', 'customer_username', 'order_number']
+
+    def validate_rating(self, value):
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value
+
+
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_history = StatusHistorySerializer(many=True, read_only=True)
+    review = ReviewSerializer(read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
@@ -73,6 +90,7 @@ class OrderSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(
         source='created_by.username', read_only=True, default=''
     )
+    created_by_id = serializers.IntegerField(source='created_by.id', read_only=True)
 
     class Meta:
         model = Order
@@ -80,7 +98,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'customer', 'customer_name',
             'customer_email', 'customer_phone', 'status', 'notes',
             'total_amount', 'created_at', 'updated_at',
-            'items', 'status_history', 'item_count', 'created_by_username',
+            'items', 'status_history', 'item_count',
+            'created_by_username', 'created_by_id', 'review',
         ]
         read_only_fields = ['order_number', 'total_amount', 'created_at', 'updated_at']
 
@@ -127,7 +146,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             defaults={'name': customer_name, 'phone': customer_phone},
         )
 
-        # Link customer to user if customer role
         if user and not customer.user:
             customer.user = user
             customer.save()
@@ -167,6 +185,6 @@ class StatusUpdateSerializer(serializers.Serializer):
             valid = Order.VALID_TRANSITIONS.get(order.status, [])
             raise serializers.ValidationError(
                 f"Cannot transition from '{order.status}' to '{new_status}'. "
-                f"Valid next: {valid if valid else 'none — order is completed'}."
+                f"Valid next: {valid if valid else 'none - order is completed'}."
             )
         return data

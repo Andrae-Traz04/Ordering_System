@@ -1,8 +1,6 @@
 import axios from 'axios'
 
-const API = axios.create({
-  baseURL: '/api',
-})
+const API = axios.create({ baseURL: '/api' })
 
 // Attach token to every request automatically
 API.interceptors.request.use((config) => {
@@ -43,3 +41,7 @@ export const updateNotes  = (id, notes)   => API.patch(`/orders/${id}/`, { notes
 export const fetchSummary   = ()  => API.get('/orders/summary/')
 export const fetchCustomers = ()  => API.get('/customers/')
 export const fetchUsers     = ()  => API.get('/users/')
+
+// Notifications & Reviews
+export const fetchNotifications = () => API.get('/notifications/')
+export const submitReview = (orderId, data) => API.post(`/orders/${orderId}/review/`, data)
