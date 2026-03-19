@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.shortcuts import render                  # ← needed for admin_panel
 from rest_framework import status
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.authtoken.models import Token
@@ -7,10 +8,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Customer, Order, OrderItem, StatusHistory, Review, UserProfile
+from .models import Customer, Order, StatusHistory, Review, UserProfile
 from .serializers import (
     RegisterSerializer,
-    UserSerializer,
     CustomerSerializer,
     OrderSerializer,
     OrderCreateSerializer,
@@ -29,13 +29,19 @@ def get_role(user):
     except UserProfile.DoesNotExist:
         return 'customer'
 
-
 def is_owner_or_admin(user):
     return get_role(user) in ['owner', 'admin']
 
-
 def is_admin(user):
     return get_role(user) == 'admin'
+
+
+# ─────────────────────────────────────────────
+#  ADMIN PANEL  (serves docs.html)
+# ─────────────────────────────────────────────
+
+def admin_panel(request):
+    return render(request, 'docs.html')
 
 
 # ─────────────────────────────────────────────
@@ -67,14 +73,12 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         password = request.data.get('password', '')
-
         user = authenticate(username=username, password=password)
         if not user:
             return Response(
                 {'error': 'Invalid username or password.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-
         token, _ = Token.objects.get_or_create(user=user)
         return Response({
             'token': token.key,
@@ -118,23 +122,19 @@ class OrderListCreateView(APIView):
     def get(self, request):
         role = get_role(request.user)
 
-        # Customers see only their own orders
         if role == 'customer':
             orders = Order.objects.filter(created_by=request.user).order_by('-created_at')
         else:
             orders = Order.objects.all().order_by('-created_at')
 
-        # Optional filters
-        search = request.query_params.get('search', '')
+        search        = request.query_params.get('search', '')
         status_filter = request.query_params.get('status', '')
 
         if search:
-            orders = orders.filter(
-                order_number__icontains=search
-            ) | orders.filter(
-                customer__name__icontains=search
-            ) | orders.filter(
-                customer__email__icontains=search
+            orders = (
+                orders.filter(order_number__icontains=search) |
+                orders.filter(customer__name__icontains=search) |
+                orders.filter(customer__email__icontains=search)
             )
 
         if status_filter:
@@ -166,11 +166,8 @@ class OrderDetailView(APIView):
             order = Order.objects.get(pk=pk)
         except Order.DoesNotExist:
             return None
-
-        # Customers can only see their own orders
         if get_role(user) == 'customer' and order.created_by != user:
             return None
-
         return order
 
     def get(self, request, pk):
@@ -183,10 +180,7 @@ class OrderDetailView(APIView):
         order = self.get_order(pk, request.user)
         if not order:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Only update notes
-        notes = request.data.get('notes', order.notes)
-        order.notes = notes
+        order.notes = request.data.get('notes', order.notes)
         order.save()
         return Response(OrderSerializer(order).data)
 
@@ -214,7 +208,6 @@ class OrderStatusUpdateView(APIView):
                 {'detail': 'Only owners or admins can update order status.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-
         try:
             order = Order.objects.get(pk=pk)
         except Order.DoesNotExist:
@@ -241,7 +234,6 @@ class OrderStatusUpdateView(APIView):
             changed_by=request.user,
             note=note,
         )
-
         return Response(OrderSerializer(order).data)
 
 
@@ -251,29 +243,21 @@ class OrderSummaryView(APIView):
 
     def get(self, request):
         role = get_role(request.user)
-
-        if role == 'customer':
-            orders = Order.objects.filter(created_by=request.user)
-        else:
-            orders = Order.objects.all()
-
-        total_orders    = orders.count()
-        total_revenue   = sum(o.total_amount for o in orders)
-        completed       = orders.filter(status='completed')
-        completed_revenue = sum(o.total_amount for o in completed)
-
-        by_status = {
-            'pending':    orders.filter(status='pending').count(),
-            'processing': orders.filter(status='processing').count(),
-            'shipped':    orders.filter(status='shipped').count(),
-            'completed':  orders.filter(status='completed').count(),
-        }
-
+        orders = (
+            Order.objects.filter(created_by=request.user)
+            if role == 'customer'
+            else Order.objects.all()
+        )
         return Response({
-            'total_orders':        total_orders,
-            'total_revenue':       total_revenue,
-            'completed_revenue':   completed_revenue,
-            'by_status':           by_status,
+            'total_orders':      orders.count(),
+            'total_revenue':     sum(o.total_amount for o in orders),
+            'completed_revenue': sum(o.total_amount for o in orders.filter(status='completed')),
+            'by_status': {
+                'pending':    orders.filter(status='pending').count(),
+                'processing': orders.filter(status='processing').count(),
+                'shipped':    orders.filter(status='shipped').count(),
+                'completed':  orders.filter(status='completed').count(),
+            },
         })
 
 
@@ -291,7 +275,7 @@ class CustomerListView(APIView):
                 {'detail': 'Permission denied.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        customers = Customer.objects.all().order_by('-created_at')
+        customers  = Customer.objects.all().order_by('-created_at')
         serializer = CustomerSerializer(customers, many=True)
         return Response({'customers': serializer.data})
 
@@ -307,15 +291,12 @@ class UserListView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         users = User.objects.all().order_by('id')
-        data  = [
-            {
-                'id':       u.id,
-                'username': u.username,
-                'role':     get_role(u),
-            }
-            for u in users
-        ]
-        return Response({'users': data})
+        return Response({
+            'users': [
+                {'id': u.id, 'username': u.username, 'role': get_role(u)}
+                for u in users
+            ]
+        })
 
 
 # ─────────────────────────────────────────────
@@ -327,13 +308,11 @@ class ReviewView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
-        # Only customers can leave reviews
         if get_role(request.user) != 'customer':
             return Response(
                 {'detail': 'Only customers can leave reviews.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-
         try:
             order = Order.objects.get(pk=pk, created_by=request.user)
         except Order.DoesNotExist:
@@ -344,13 +323,11 @@ class ReviewView(APIView):
                 {'detail': 'You can only review completed orders.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         if hasattr(order, 'review'):
             return Response(
                 {'detail': 'You have already reviewed this order.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         serializer = ReviewSerializer(data=request.data)
         if serializer.is_valid():
             Review.objects.create(
@@ -375,13 +352,11 @@ class NotificationView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
-        role = get_role(request.user)
+        role          = get_role(request.user)
         notifications = []
 
         if role in ['owner', 'admin']:
-            # Notify about new pending orders
-            pending_orders = Order.objects.filter(status='pending').order_by('-created_at')[:10]
-            for order in pending_orders:
+            for order in Order.objects.filter(status='pending').order_by('-created_at')[:10]:
                 notifications.append({
                     'id':         f'new-order-{order.id}',
                     'type':       'new_order',
@@ -391,12 +366,9 @@ class NotificationView(APIView):
                 })
 
         if role == 'customer':
-            # Notify customer about their order status changes
-            histories = StatusHistory.objects.filter(
+            for h in StatusHistory.objects.filter(
                 order__created_by=request.user
-            ).order_by('-changed_at')[:10]
-
-            for h in histories:
+            ).order_by('-changed_at')[:10]:
                 notifications.append({
                     'id':         f'status-{h.id}',
                     'type':       'status_update',
