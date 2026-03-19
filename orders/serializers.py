@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.db import transaction
 from .models import UserProfile, Customer, Order, OrderItem, StatusHistory
 
 
@@ -17,17 +18,24 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         role = validated_data.pop('role')
-        user = User.objects.create_user(**validated_data)
-        UserProfile.objects.create(user=user, role=role)
+        with transaction.atomic():
+            user = User.objects.create_user(**validated_data)
+            UserProfile.objects.create(user=user, role=role)
         return user
 
 
 class UserSerializer(serializers.ModelSerializer):
-    role = serializers.CharField(source='profile.role', read_only=True)
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'role']
+
+    def get_role(self, obj):
+        try:
+            return obj.profile.role
+        except Exception:
+            return 'admin' if obj.is_superuser else None
 
 
 # ── Customer ──────────────────────────────────────────────────────────────────
