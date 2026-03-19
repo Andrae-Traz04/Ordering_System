@@ -1,11 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-<<<<<<< HEAD
 from django.db import transaction
-from .models import UserProfile, Customer, Order, OrderItem, StatusHistory
-=======
 from .models import UserProfile, Customer, Order, OrderItem, StatusHistory, Review
->>>>>>> d084a3fef75c38e4e4187b5eead8640af89eacb0
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
