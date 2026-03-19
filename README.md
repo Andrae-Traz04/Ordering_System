@@ -24,29 +24,34 @@ Built with Django REST Framework (backend) and React + Vite (frontend).
 ---
 
 ## Project Structure
+
 ```
 ordering system/
-├── config/                  # Django project settings
+├── config/                      # Django project settings
 │   ├── settings.py
 │   ├── urls.py
 │   └── wsgi.py
-├── orders/                  # Main Django app
+├── orders/                      # Main Django app
 │   ├── migrations/
+│   ├── templates/
+│   │   └── api/
+│   │       └── docs.html        # Custom HTML admin panel
 │   ├── admin.py
-│   ├── models.py            # Database models
-│   ├── serializers.py       # DRF serializers
-│   ├── views.py             # API views
-│   └── urls.py              # API routes
-├── frontend/                # React + Vite app
+│   ├── models.py                # Database models
+│   ├── serializers.py           # DRF serializers
+│   ├── views.py                 # API views
+│   └── urls.py                  # API routes
+├── frontend/                    # React + Vite app
 │   ├── src/
 │   │   ├── api/
 │   │   │   └── ordersApi.js     # All API calls (axios)
 │   │   ├── components/
-│   │   │   ├── Layout.jsx       # Sidebar + topbar
-│   │   │   ├── StatusBadge.jsx  # Status color badge
-│   │   │   └── Stepper.jsx      # Workflow stepper UI
+│   │   │   ├── Layout.jsx           # Sidebar + topbar
+│   │   │   ├── NotificationBell.jsx # Notification dropdown
+│   │   │   ├── StatusBadge.jsx      # Status color badge
+│   │   │   └── Stepper.jsx          # Workflow stepper UI
 │   │   ├── context/
-│   │   │   └── AuthContext.jsx  # Global auth state
+│   │   │   └── AuthContext.jsx      # Global auth state
 │   │   ├── pages/
 │   │   │   ├── Login.jsx
 │   │   │   ├── Register.jsx
@@ -71,7 +76,7 @@ ordering system/
 ## Setup Instructions
 
 ### Requirements
-Make sure you have these installed on your machine before starting:
+Make sure you have these installed before starting:
 - Python 3.10 or higher → https://www.python.org/downloads/
 - Node.js 18 or higher → https://nodejs.org/
 - Git → https://git-scm.com/
@@ -86,12 +91,10 @@ cd "ordering system"
 
 ---
 
-### Step 2 — Create a virtual environment
+### Step 2 — Create and activate virtual environment
 ```bash
 python -m venv .venv
 ```
-
-Activate it:
 
 **Windows (Git Bash or PowerShell):**
 ```bash
@@ -108,7 +111,7 @@ source .venv/Scripts/activate
 source .venv/bin/activate
 ```
 
-You should see `(.venv)` at the start of your terminal line. Keep this active for all backend commands.
+You should see `(.venv)` at the start of your terminal line.
 
 ---
 
@@ -124,7 +127,7 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
-This creates all the database tables. You should see a list of `OK` messages.
+You should see a list of `OK` messages.
 
 ---
 
@@ -133,18 +136,13 @@ This creates all the database tables. You should see a list of `OK` messages.
 python manage.py runserver
 ```
 
-The backend API will be available at:
-```
-http://127.0.0.1:8000/api/
-```
-
-Keep this terminal running. Open a new terminal for the frontend.
+Backend runs at → `http://127.0.0.1:8000`
 
 ---
 
 ### Step 6 — Install frontend dependencies
 
-Open a new terminal, make sure you are in the project root, then:
+Open a new terminal:
 ```bash
 cd frontend
 npm install
@@ -157,10 +155,7 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at:
-```
-http://localhost:5173
-```
+Frontend runs at → `http://localhost:5173`
 
 ---
 
@@ -168,8 +163,9 @@ http://localhost:5173
 
 | URL | Description |
 |-----|-------------|
-| http://localhost:5173 | Frontend (React app) |
-| http://127.0.0.1:8000/api/ | Backend API root (DRF) |
+| http://localhost:5173 | React frontend |
+| http://127.0.0.1:8000/api/ | Backend API root |
+| http://127.0.0.1:8000/api/panel/ | Custom HTML admin panel |
 | http://127.0.0.1:8000/admin/ | Django admin panel |
 
 > **Note:** Both servers must be running at the same time — Django on port 8000 and Vite on port 5173.
@@ -184,24 +180,25 @@ http://localhost:5173
 
 | Role | What you can do |
 |------|----------------|
-| **Customer** | Create orders, view only your own orders |
+| **Customer** | Create orders, view only your own orders, leave reviews on completed orders |
 | **Owner** | View all orders, advance order status |
 | **Admin** | Full access — view all orders, advance status, delete orders, view all users |
 
-4. Click **Create Account** — you will be redirected to the dashboard automatically.
+4. Click **Sign Up** — you will be redirected to the dashboard automatically.
 
 ---
 
 ## How the Workflow Works
 
 Orders follow a strict one-way status progression:
+
 ```
 Pending → Processing → Shipped → Completed
 ```
 
-- You **cannot skip steps** — trying to go from Pending directly to Shipped will be rejected by the backend with an error message.
-- You **cannot go backwards** — once an order is Completed it stays Completed.
-- Only **Owner** and **Admin** roles can advance order status.
+- You **cannot skip steps** — going from Pending directly to Shipped will be rejected.
+- You **cannot go backwards** — once Completed it stays Completed.
+- Only **Owner** and **Admin** can advance order status.
 - Only **Admin** can delete orders.
 - **Customers** can only see and manage their own orders.
 
@@ -209,8 +206,7 @@ Pending → Processing → Shipped → Completed
 
 ## API Endpoints
 
-All endpoints are prefixed with `/api/`.
-Protected endpoints require a token in the request header:
+All protected endpoints require a token in the request header:
 ```
 Authorization: Token <your-token>
 ```
@@ -221,37 +217,49 @@ Authorization: Token <your-token>
 | POST | /api/auth/register/ | Public | Register a new user |
 | POST | /api/auth/login/ | Public | Login and receive token |
 | POST | /api/auth/logout/ | Authenticated | Logout and delete token |
-| GET | /api/auth/me/ | Authenticated | Get current user info |
+| GET  | /api/auth/me/ | Authenticated | Get current user info |
 
 ### Orders
 | Method | Endpoint | Access | Description |
 |--------|----------|--------|-------------|
-| GET | /api/orders/ | Authenticated | List orders (customers see own only) |
-| POST | /api/orders/ | Authenticated | Create a new order |
-| GET | /api/orders/{id}/ | Authenticated | Get order details |
-| PATCH | /api/orders/{id}/ | Authenticated | Update order notes |
+| GET    | /api/orders/ | Authenticated | List orders (customers see own only) |
+| POST   | /api/orders/ | Authenticated | Create a new order |
+| GET    | /api/orders/{id}/ | Authenticated | Get order details |
+| PATCH  | /api/orders/{id}/ | Authenticated | Update order notes |
 | DELETE | /api/orders/{id}/ | Admin only | Delete an order |
-| POST | /api/orders/{id}/status/ | Owner, Admin | Advance order status |
-| GET | /api/orders/summary/ | Authenticated | Get order count and revenue stats |
+| POST   | /api/orders/{id}/status/ | Owner, Admin | Advance order status |
+| GET    | /api/orders/summary/ | Authenticated | Get order count and revenue stats |
+| POST   | /api/orders/{id}/review/ | Customer | Leave a review on completed order |
 
 ### Customers & Users
 | Method | Endpoint | Access | Description |
 |--------|----------|--------|-------------|
 | GET | /api/customers/ | Owner, Admin | List all customers |
 | GET | /api/users/ | Admin only | List all registered users |
+| GET | /api/notifications/ | Authenticated | Get notifications |
 
 ---
 
 ## Django Admin Panel
 
-To access the admin panel you need a superuser account.
-
-Create one by running (only needs to be done once):
+To access the Django admin you need a superuser account:
 ```bash
 python manage.py createsuperuser
 ```
 
-Then go to http://127.0.0.1:8000/admin/ and log in.
+Then go to http://127.0.0.1:8000/admin/
+
+---
+
+## Testing with Multiple Users
+
+Since each browser window shares the same localStorage, use separate windows per user:
+
+| User | Browser |
+|------|---------|
+| Admin | Chrome (normal window) |
+| Owner | Chrome Incognito (Ctrl+Shift+N) |
+| Customer | Firefox or Edge |
 
 ---
 
@@ -264,7 +272,7 @@ Make sure you activated the virtual environment first (Step 2).
 Run `pip install -r requirements.txt` again inside the activated virtual environment.
 
 **CORS error in browser console**
-Make sure Django server is running on port 8000. Check that `corsheaders` is in `INSTALLED_APPS` and `CorsMiddleware` is at the top of `MIDDLEWARE` in `config/settings.py`.
+Make sure `corsheaders` is in `INSTALLED_APPS` and `CorsMiddleware` is at the top of `MIDDLEWARE` in `config/settings.py`.
 
 **`npm: command not found`**
 Node.js is not installed. Download it from https://nodejs.org/
@@ -273,24 +281,22 @@ Node.js is not installed. Download it from https://nodejs.org/
 Make sure both servers are running — Django on 8000 AND Vite on 5173.
 
 **Login says invalid credentials**
-Register an account first at http://localhost:5173/register.
+Register an account first at http://localhost:5173/register
 
 ---
 
 ## Two Terminals Required
 
-This project needs two terminals running simultaneously:
-
 **Terminal 1 — Django Backend:**
 ```bash
-# from project root
 source .venv/Scripts/activate
 python manage.py runserver
 ```
 
 **Terminal 2 — React Frontend:**
 ```bash
-# from project root
 cd frontend
 npm run dev
-```
+```got
+
+okay kayo
