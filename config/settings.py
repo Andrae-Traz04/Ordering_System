@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'orders',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -80,4 +81,11 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Order Processing Workflow API',
+    'DESCRIPTION': 'API for managing orders with workflow state machine.',
+    'VERSION': '1.0.0',
 }
