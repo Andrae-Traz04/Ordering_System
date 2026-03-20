@@ -23,13 +23,13 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150)
-    email = serializers.EmailField()
-    first_name = serializers.CharField(max_length=150)
-    last_name = serializers.CharField(max_length=150)
-    password = serializers.CharField(min_length=6, write_only=True)
+    username         = serializers.CharField(max_length=150)
+    email            = serializers.EmailField()
+    first_name       = serializers.CharField(max_length=150)
+    last_name        = serializers.CharField(max_length=150)
+    password         = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
-    role     = serializers.ChoiceField(
+    role             = serializers.ChoiceField(
         choices=['customer', 'owner', 'admin'],
         default='customer'
     )
@@ -56,7 +56,8 @@ class RegisterSerializer(serializers.Serializer):
         role = validated_data.pop('role', 'customer')
         validated_data.pop('confirm_password', None)
         first_name = validated_data.get('first_name', '').strip()
-        last_name = validated_data.get('last_name', '').strip()
+        last_name  = validated_data.get('last_name', '').strip()
+
         user = User.objects.create_user(
             username=validated_data['username'],
             password=validated_data['password'],
@@ -70,9 +71,9 @@ class RegisterSerializer(serializers.Serializer):
             Customer.objects.get_or_create(
                 email=user.email,
                 defaults={
-                    'name': f"{first_name} {last_name}".strip() or user.username,
+                    'name':  f"{first_name} {last_name}".strip() or user.username,
                     'phone': '',
-                    'user': user,
+                    'user':  user,
                 }
             )
 
@@ -186,14 +187,11 @@ class OrderSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 
 class OrderCreateSerializer(serializers.Serializer):
-    # Customer fields — creates or reuses by email
     customer_name  = serializers.CharField(max_length=200)
     customer_email = serializers.EmailField()
     customer_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     notes          = serializers.CharField(required=False, allow_blank=True)
-
-    # Items
-    items = OrderItemSerializer(many=True)
+    items          = OrderItemSerializer(many=True)
 
     def validate_items(self, value):
         if not value:
@@ -207,13 +205,15 @@ class OrderCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         request = self.context.get('request')
 
-        # Get or create Customer record
+        # ── FIX: No 'user' in defaults to avoid UNIQUE constraint error ──
+        # The Customer.user field is OneToOne — linking it here causes a crash
+        # when the same logged-in user creates a second order with a different email.
         customer, _ = Customer.objects.get_or_create(
             email=validated_data['customer_email'],
             defaults={
                 'name':  validated_data['customer_name'],
                 'phone': validated_data.get('customer_phone', ''),
-                'user':  request.user if request else None,
+                # 'user' intentionally excluded here
             }
         )
 
@@ -271,7 +271,7 @@ class StatusUpdateSerializer(serializers.Serializer):
 
 
 # ─────────────────────────────────────────────
-#  EXPORTS  (keeps existing imports working)
+#  EXPORTS
 # ─────────────────────────────────────────────
 
 __all__ = [
