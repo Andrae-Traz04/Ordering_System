@@ -390,7 +390,7 @@ export default function CustomerDashboard() {
                 {/* Search + Filter */}
                 <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍</span>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍︎</span>
                     <input
                       value={search}
                       onChange={e => setSearch(e.target.value)}
