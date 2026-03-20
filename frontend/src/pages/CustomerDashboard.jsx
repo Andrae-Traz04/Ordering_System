@@ -30,6 +30,7 @@ const PRODUCTS = [
   { id: 6, name: 'Smartwatch',     emoji: '⌚', price: 89,  category: 'Electronics', badge: 'Best Seller', desc: 'Find the best price'             },
   { id: 7, name: 'Remote Control', emoji: '📱', price: 31,  category: 'Electronics', badge: null,          desc: 'Best universal remote'           },
   { id: 8, name: 'Laptop',         emoji: '💻', price: 451, category: 'Electronics', badge: 'Popular',     desc: 'The best laptops deals'          },
+  { id: 9, name: 'Lipstick',       emoji: '💄', price: 200, category: 'Beauty',      badge: 'Popular',     desc: 'For kissable lips'          },
 ]
 
 const CATEGORIES = ['All', 'Electronics', 'Beauty', 'Fitness', 'Gifts', 'Kitchen']
@@ -370,7 +371,7 @@ export default function CustomerDashboard() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: C.softBg, padding: 5, borderRadius: 14, width: 'fit-content' }}>
-          {[{ key: 'shop', label: '🛍️ Shop' }, { key: 'orders', label: '📋 My Orders' }].map(t => (
+          {[{ key: 'shop', label: 'Shop' }, { key: 'orders', label: 'My Orders' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '9px 20px', borderRadius: 10, border: 'none',
               background: tab === t.key ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})` : 'transparent',
