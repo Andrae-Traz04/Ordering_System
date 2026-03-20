@@ -265,9 +265,15 @@ export default function CustomerDashboard() {
     if (cart.length === 0) return
     setPlacing(true)
     try {
+      // Ensure email is always valid format
+      const rawEmail = user?.email || ""
+      const safeEmail = rawEmail.includes("@")
+        ? rawEmail
+        : `${(user?.username || "customer").replace(/[^a-zA-Z0-9]/g, "")}@orders.local`
+
       const payload = {
         customer_name:  user?.username || 'Customer',
-        customer_email: user?.email    || `${user?.username}@orders.local`,
+        customer_email: safeEmail,
         customer_phone: '',
         notes:          '',
         items: cart.map(i => ({
@@ -390,7 +396,7 @@ export default function CustomerDashboard() {
                 {/* Search + Filter */}
                 <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍︎</span>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍</span>
                     <input
                       value={search}
                       onChange={e => setSearch(e.target.value)}
