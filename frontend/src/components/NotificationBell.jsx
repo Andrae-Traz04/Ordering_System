@@ -1,221 +1,174 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchNotifications } from '@/api/ordersApi'
+import { IconBell, IconPackage, IconCheckCircle, IconEmpty } from '@/components/IconLibrary'
 
 export default function NotificationBell() {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
   const [readIds, setReadIds] = useState(() => {
-    const saved = localStorage.getItem('readNotifications')
-    return saved ? JSON.parse(saved) : []
+    try {
+      const saved = localStorage.getItem('readNotifications')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
   })
   const dropdownRef = useRef(null)
+  const loadTimeoutRef = useRef(null)
 
-  const load = () => {
-    fetchNotifications()
-      .then(r => setNotifications(r.data.notifications))
-      .catch(() => {})
-  }
+  // Memoized unread count
+  const unreadCount = useMemo(
+    () => notifications.filter(n => !readIds.includes(n.id)).length,
+    [notifications, readIds]
+  )
 
-  useEffect(() => {
-    load()
-    // Reload when tab regains focus
-    const onFocus = () => load()
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [])
+  // Memoized notification icons
+  const notificationIcons = useMemo(() => ({
+    'new_order': <IconPackage color="#EA580C" size={18} strokeWidth={2} />,
+    'order_completed': <IconCheckCircle color="#10B981" size={18} strokeWidth={2} />,
+    'default': <IconPackage color="#7C3AED" size={18} strokeWidth={2} />
+  }), [])
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  const getNotificationIcon = useCallback((type) => {
+    return notificationIcons[type] || notificationIcons['default']
+  }, [notificationIcons])
 
-  const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length
-
-  const markAllRead = () => {
-    const allIds = notifications.map(n => n.id)
-    localStorage.setItem('readNotifications', JSON.stringify(allIds))
-    setReadIds(allIds)
-  }
-
-  const handleClick = (n) => {
-    const updated = [...readIds, n.id]
-    localStorage.setItem('readNotifications', JSON.stringify(updated))
-    setReadIds(updated)
-    setOpen(false)
-    navigate(`/orders/${n.order_id}`)
-  }
-
-  const formatTime = (str) => {
+  const formatTime = useCallback((str) => {
     const diff = Math.floor((Date.now() - new Date(str)) / 1000)
     if (diff < 60) return 'just now'
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
     return new Date(str).toLocaleDateString()
-  }
+  }, [])
+
+  const load = useCallback(() => {
+    fetchNotifications()
+      .then(r => {
+        if (r.data?.notifications) {
+          setNotifications(r.data.notifications)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Load notifications on mount and window focus
+  useEffect(() => {
+    load()
+    
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current)
+    }
+  }, [load])
+
+  // Handle outside click
+  useEffect(() => {
+    if (!open) return
+
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const updateReadStatus = useCallback((notificationId) => {
+    setReadIds(prev => {
+      if (prev.includes(notificationId)) return prev
+      const updated = [...prev, notificationId]
+      localStorage.setItem('readNotifications', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
+  const markAllRead = useCallback(() => {
+    const allIds = notifications.map(n => n.id)
+    localStorage.setItem('readNotifications', JSON.stringify(allIds))
+    setReadIds(allIds)
+  }, [notifications])
+
+  const handleNotificationClick = useCallback((n) => {
+    updateReadStatus(n.id)
+    setOpen(false)
+    navigate(`/orders/${n.order_id}`)
+  }, [updateReadStatus, navigate])
+
+  const handleBellClick = useCallback(() => {
+    setOpen(prev => !prev)
+    if (!open) load()
+  }, [open, load])
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative' }}>
+    <div className="notification-container" ref={dropdownRef}>
       {/* Bell Button */}
       <button
-        onClick={() => { setOpen(!open); if (!open) load() }}
-        style={{
-          position: 'relative',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: 20,
-          padding: '4px 8px',
-          borderRadius: 8,
-          transition: 'background 0.15s',
-        }}
-        title="Notifications"
+        onClick={handleBellClick}
+        className="notification-bell-btn"
+        title={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
       >
-        🔔
+        <IconBell size={20} color="#2D1F6E" />
         {unreadCount > 0 && (
-          <span style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            background: '#ef4444',
-            color: '#fff',
-            fontSize: 10,
-            fontWeight: 700,
-            width: 16,
-            height: 16,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
+          <div className="notification-badge">
             {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
+          </div>
         )}
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div style={{
-          position: 'absolute',
-          right: 0,
-          top: '100%',
-          marginTop: 8,
-          width: 340,
-          background: '#fff',
-          borderRadius: 12,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-          border: '1px solid #e8e8f0',
-          zIndex: 100,
-          overflow: 'hidden',
-        }}>
+        <div className="notification-dropdown">
           {/* Header */}
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid #f0f0f8',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>
-              Notifications{' '}
+          <div className="notification-header">
+            <div className="notification-header-left">
+              <span className="notification-title">Notifications</span>
               {unreadCount > 0 && (
-                <span style={{
-                  background: '#ef4444',
-                  color: '#fff',
-                  fontSize: 10,
-                  padding: '1px 6px',
-                  borderRadius: 10,
-                  marginLeft: 4,
-                }}>
-                  {unreadCount}
-                </span>
+                <span className="notification-unread-badge">{unreadCount}</span>
               )}
-            </span>
+            </div>
             {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                style={{
-                  fontSize: 11,
-                  color: '#6c63ff',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
-              >
+              <button onClick={markAllRead} className="notification-clear-btn">
                 Mark all read
               </button>
             )}
           </div>
 
-          {/* List */}
-          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
-            {notifications.length === 0
-              ? (
-                <div style={{
-                  padding: '40px 20px',
-                  textAlign: 'center',
-                  color: '#aaa',
-                  fontSize: 13,
-                }}>
-                  <div style={{ fontSize: 30, marginBottom: 8 }}>🔕</div>
-                  No notifications yet
+          {/* List - shows history or empty state only if completely cleared */}
+          <div className="notification-list">
+            {notifications.length === 0 ? (
+              <div className="notification-empty">
+                <div className="notification-empty-icon">
+                  <IconEmpty size={40} color="#9B8FC0" />
                 </div>
-              )
-              : notifications.map(n => {
-                  const isRead = readIds.includes(n.id)
-                  return (
-                    <div
-                      key={n.id}
-                      onClick={() => handleClick(n)}
-                      style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid #f5f5fa',
-                        cursor: 'pointer',
-                        background: isRead ? '#fff' : '#f5f5ff',
-                        transition: 'background 0.15s',
-                        display: 'flex',
-                        gap: 10,
-                        alignItems: 'flex-start',
-                      }}
-                    >
-                      <span style={{ fontSize: 18, marginTop: 2 }}>
-                        {n.type === 'new_order' ? '📦' : '✅'}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{
-                          fontSize: 13,
-                          color: '#1a1a2e',
-                          fontWeight: isRead ? 400 : 600,
-                          lineHeight: 1.4,
-                        }}>
-                          {n.message}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#aaa', marginTop: 3 }}>
-                          {formatTime(n.created_at)}
-                        </div>
-                      </div>
-                      {!isRead && (
-                        <div style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: '#6c63ff',
-                          marginTop: 5,
-                          flexShrink: 0,
-                        }} />
-                      )}
+                <div className="notification-empty-text">No notifications yet</div>
+              </div>
+            ) : (
+              notifications.map(n => {
+                const isRead = readIds.includes(n.id)
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    className={`notification-item${isRead ? '' : ' unread'}`}
+                  >
+                    <div className="notification-icon-wrapper">
+                      {getNotificationIcon(n.type)}
                     </div>
-                  )
-                })
-            }
+                    <div className="notification-content">
+                      <div className="notification-message">{n.message}</div>
+                      <div className="notification-time">{formatTime(n.created_at)}</div>
+                    </div>
+                    {!isRead && <div className="notification-dot" />}
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
       )}

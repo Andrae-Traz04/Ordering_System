@@ -1,6 +1,18 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import NotificationBell from '@/components/NotificationBell'
+import {
+  IconDashboard,
+  IconOrders,
+  IconPlus,
+  IconCustomers,
+  IconUsers,
+  IconLogout,
+  IconWorkflowPending,
+  IconWorkflowProcessing,
+  IconWorkflowShipped,
+  IconWorkflowCompleted,
+} from '@/components/IconLibrary'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -11,36 +23,35 @@ export default function Layout() {
     navigate('/login')
   }
 
-  // Role-based navigation items
+  // Role-based navigation items with icon components
   const roleNavItems = {
     customer: [
-      { to: '/dashboard', icon: '⊞', label: 'Dashboard' },
-      { to: '/orders', icon: '📋', label: 'Orders' },
-      { to: '/orders/create', icon: '+', label: 'New Order' },
+      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/orders/create', icon: IconPlus, label: 'New Order' },
     ],
     owner: [
-      { to: '/dashboard', icon: '⊞', label: 'Dashboard' },
-      { to: '/orders', icon: '📋', label: 'Orders' },
-      { to: '/customers', icon: '👥', label: 'Customers' },
+      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/customers', icon: IconCustomers, label: 'Customers' },
     ],
     admin: [
-      { to: '/dashboard', icon: '⊞', label: 'Dashboard' },
-      { to: '/orders', icon: '📋', label: 'Orders' },
-      { to: '/orders/create', icon: '+', label: 'New Order' },
-      { to: '/customers', icon: '👥', label: 'Customers' },
-      { to: '/users', icon: '🔑', label: 'Users' },
+      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/orders/create', icon: IconPlus, label: 'New Order' },
+      { to: '/customers', icon: IconCustomers, label: 'Customers' },
+      { to: '/users', icon: IconUsers, label: 'Users' },
     ],
   }
 
   const navItems = roleNavItems[user?.role] || roleNavItems.customer
 
-  const WORKFLOW = ['Pending', 'Processing', 'Shipped', 'Completed']
-  const WORKFLOW_DOTS = {
-    Pending:    '#F59E0B',
-    Processing: '#6C47FF',
-    Shipped:    '#9B6DFF',
-    Completed:  '#10B981',
-  }
+  const WORKFLOW = [
+    { label: 'Pending', color: '#F59E0B', icon: IconWorkflowPending },
+    { label: 'Processing', color: '#6C47FF', icon: IconWorkflowProcessing },
+    { label: 'Shipped', color: '#9B6DFF', icon: IconWorkflowShipped },
+    { label: 'Completed', color: '#10B981', icon: IconWorkflowCompleted },
+  ]
 
   return (
     <>
@@ -151,7 +162,11 @@ export default function Layout() {
         }
 
         .amu-nav-icon {
-          font-size: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
           flex-shrink: 0;
         }
 
@@ -211,10 +226,12 @@ export default function Layout() {
 
         .amu-workflow-row:last-child { margin-bottom: 0; }
 
-        .amu-workflow-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
+        .amu-workflow-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
           flex-shrink: 0;
         }
 
@@ -225,8 +242,9 @@ export default function Layout() {
         }
 
         .amu-workflow-arrow {
-          font-size: 11px;
+          font-size: 10px;
           color: #D8D0F0;
+          margin-left: 2px;
         }
 
         /* ── User footer ─────────────────────────── */
@@ -277,14 +295,21 @@ export default function Layout() {
           border: none;
           color: #D0C8EE;
           cursor: pointer;
-          font-size: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           flex-shrink: 0;
           transition: color 0.15s;
           padding: 4px;
           border-radius: 6px;
+          width: 28px;
+          height: 28px;
         }
 
-        .amu-logout-btn:hover { color: #9B6DFF; }
+        .amu-logout-btn:hover { 
+          color: #9B6DFF;
+          background: rgba(155, 109, 255, 0.08);
+        }
 
         /* ── Main area ───────────────────────────── */
         .amu-main {
@@ -346,6 +371,10 @@ export default function Layout() {
           box-shadow: 0 7px 20px rgba(124,58,237,0.35);
         }
 
+        .amu-new-order-btn svg {
+          display: flex;
+        }
+
         /* ── Content ─────────────────────────────── */
         .amu-content {
           flex: 1;
@@ -374,16 +403,21 @@ export default function Layout() {
 
           {/* Nav links - Role Based */}
           <nav className="amu-nav">
-            {navItems.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) => `amu-nav-item${isActive ? ' active' : ''}`}
-              >
-                <span className="amu-nav-icon">{item.icon}</span>
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
+            {navItems.map(item => {
+              const IconComponent = item.icon
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => `amu-nav-item${isActive ? ' active' : ''}`}
+                >
+                  <span className="amu-nav-icon">
+                    <IconComponent size={18} color={item.isActive ? '#7C3AED' : '#9B8FC0'} />
+                  </span>
+                  <span>{item.label}</span>
+                </NavLink>
+              )
+            })}
           </nav>
 
           {/* Role Badge */}
@@ -397,13 +431,20 @@ export default function Layout() {
           {/* Workflow legend */}
           <div className="amu-workflow">
             <div className="amu-workflow-title">Workflow</div>
-            {WORKFLOW.map((s, i) => (
-              <div key={s} className="amu-workflow-row">
-                <div className="amu-workflow-dot" style={{ background: WORKFLOW_DOTS[s] }} />
-                <span className="amu-workflow-label" style={{ color: WORKFLOW_DOTS[s] }}>{s}</span>
-                {i < WORKFLOW.length - 1 && <span className="amu-workflow-arrow">↓</span>}
-              </div>
-            ))}
+            {WORKFLOW.map((item, i) => {
+              const IconComponent = item.icon
+              return (
+                <div key={item.label} className="amu-workflow-row">
+                  <div className="amu-workflow-icon">
+                    <IconComponent color={item.color} size={18} />
+                  </div>
+                  <span className="amu-workflow-label" style={{ color: item.color }}>
+                    {item.label}
+                  </span>
+                  {i < WORKFLOW.length - 1 && <span className="amu-workflow-arrow">↓</span>}
+                </div>
+              )
+            })}
           </div>
 
           {/* User */}
@@ -417,7 +458,13 @@ export default function Layout() {
                 {user?.role || 'customer'}
               </div>
             </div>
-            <button className="amu-logout-btn" onClick={handleLogout} title="Logout">⏻</button>
+            <button 
+              className="amu-logout-btn" 
+              onClick={handleLogout} 
+              title="Logout"
+            >
+              <IconLogout size={18} />
+            </button>
           </div>
 
         </aside>
@@ -430,9 +477,12 @@ export default function Layout() {
             <span className="amu-topbar-title">Order Processing System</span>
             <div className="amu-topbar-actions">
               <NotificationBell />
-              <button className="amu-new-order-btn" onClick={() => navigate('/orders/create')}>
-                <span style={{ fontSize: 16 }}>+</span> New Order
-              </button>
+              {user?.role !== 'owner' && (
+                <button className="amu-new-order-btn" onClick={() => navigate('/orders/create')}>
+                  <IconPlus size={16} color="#fff" strokeWidth={2.5} />
+                  New Order
+                </button>
+              )}
             </div>
           </div>
 
