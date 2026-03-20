@@ -23,7 +23,7 @@ export default function Layout() {
     navigate('/login')
   }
 
-  // Role-based navigation items with icon components
+  // ── Role-based navigation - Analytics focused ──
   const roleNavItems = {
     customer: [
       { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
@@ -36,9 +36,8 @@ export default function Layout() {
       { to: '/customers', icon: IconCustomers, label: 'Customers' },
     ],
     admin: [
-      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/dashboard', icon: IconDashboard, label: 'Analytics' },
       { to: '/orders', icon: IconOrders, label: 'Orders' },
-      { to: '/orders/create', icon: IconPlus, label: 'New Order' },
       { to: '/customers', icon: IconCustomers, label: 'Customers' },
       { to: '/users', icon: IconUsers, label: 'Users' },
     ],
@@ -477,7 +476,8 @@ export default function Layout() {
             <span className="amu-topbar-title">Order Processing System</span>
             <div className="amu-topbar-actions">
               <NotificationBell />
-              {user?.role !== 'owner' && (
+              {/* Only customers can create orders - NOT admins or owners */}
+              {user?.role === 'customer' && (
                 <button className="amu-new-order-btn" onClick={() => navigate('/orders/create')}>
                   <IconPlus size={16} color="#fff" strokeWidth={2.5} />
                   New Order
