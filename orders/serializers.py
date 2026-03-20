@@ -24,7 +24,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
     password = serializers.CharField(min_length=6, write_only=True)
+    confirm_password = serializers.CharField(min_length=6, write_only=True)
     role     = serializers.ChoiceField(
         choices=['customer', 'owner', 'admin'],
         default='customer'
@@ -35,13 +39,43 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("Username already taken.")
         return value
 
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("Email already registered.")
+        return normalized
+
+    def validate(self, attrs):
+        if attrs.get('password') != attrs.get('confirm_password'):
+            raise serializers.ValidationError({
+                'confirm_password': ['Passwords do not match.']
+            })
+        return attrs
+
     def create(self, validated_data):
         role = validated_data.pop('role', 'customer')
+        validated_data.pop('confirm_password', None)
+        first_name = validated_data.get('first_name', '').strip()
+        last_name = validated_data.get('last_name', '').strip()
         user = User.objects.create_user(
             username=validated_data['username'],
             password=validated_data['password'],
+            email=validated_data['email'],
+            first_name=first_name,
+            last_name=last_name,
         )
         UserProfile.objects.create(user=user, role=role)
+
+        if role == 'customer':
+            Customer.objects.get_or_create(
+                email=user.email,
+                defaults={
+                    'name': f"{first_name} {last_name}".strip() or user.username,
+                    'phone': '',
+                    'user': user,
+                }
+            )
+
         return user
 
 

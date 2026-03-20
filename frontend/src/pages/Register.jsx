@@ -11,17 +11,38 @@ const roleInfo = {
 export default function Register() {
   const { register: registerUser } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: '', password: '', role: 'customer' })
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    username: '',
+    password: '',
+    confirm_password: '',
+    role: 'customer',
+  })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const submit = async (e) => {
     e.preventDefault()
     if (!form.role) { setError('Please select a role.'); return }
+    if (form.password !== form.confirm_password) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    const payload = {
+      ...form,
+      username: form.username.trim(),
+      email: form.email.trim().toLowerCase(),
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
+    }
+
     setLoading(true)
     setError('')
     try {
-      const user = await registerUser(form.username, form.password, form.role)
+      await registerUser(payload)
       // Navigate based on role if needed, currently all go to dashboard
       // Using replace: true prevents going back to register page
       navigate('/dashboard', { replace: true })
@@ -67,6 +88,44 @@ export default function Register() {
         {error && <div className="error-pill">{error}</div>}
 
         <form onSubmit={submit}>
+          <div className="input-row">
+            <div className="input-group">
+              <label>First name</label>
+              <input
+                type="text"
+                className="capsule-input"
+                placeholder="Enter first name"
+                value={form.first_name}
+                onChange={e => setForm({ ...form, first_name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label>Last name</label>
+              <input
+                type="text"
+                className="capsule-input"
+                placeholder="Enter last name"
+                value={form.last_name}
+                onChange={e => setForm({ ...form, last_name: e.target.value })}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label>Email</label>
+            <input
+              type="email"
+              className="capsule-input"
+              placeholder="you@example.com"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              required
+            />
+          </div>
+
           <div className="input-group">
             <label>Username</label>
             <input
@@ -87,6 +146,18 @@ export default function Register() {
               placeholder="Create a password"
               value={form.password}
               onChange={e => setForm({ ...form, password: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Confirm password</label>
+            <input
+              type="password"
+              className="capsule-input"
+              placeholder="Re-enter your password"
+              value={form.confirm_password}
+              onChange={e => setForm({ ...form, confirm_password: e.target.value })}
               required
             />
           </div>
@@ -139,10 +210,11 @@ export default function Register() {
         .register-visual-refresh {
           display: flex;
           height: 100vh;
+          min-height: 100dvh;
           width: 100vw;
           font-family: 'Poppins', sans-serif;
           background: #fff;
-          overflow: hidden;
+          overflow-x: hidden;
         }
 
         /* --- Left Side: Form --- */
@@ -154,6 +226,8 @@ export default function Register() {
           justify-content: center;
           max-width: 600px;
           margin: 0 auto; /* Center if screen is wide */
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
           animation: slideInLeft 0.6s ease-out;
         }
 
@@ -199,6 +273,12 @@ export default function Register() {
         /* Inputs */
         .input-group {
           margin-bottom: 20px;
+        }
+
+        .input-row {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
         }
         .input-group label {
           display: block;
@@ -349,6 +429,7 @@ export default function Register() {
         /* Responsive */
         @media (max-width: 900px) {
           .visual-form { padding: 40px 30px; }
+          .input-row { grid-template-columns: 1fr; gap: 0; }
         }
       `}</style>
     </div>
