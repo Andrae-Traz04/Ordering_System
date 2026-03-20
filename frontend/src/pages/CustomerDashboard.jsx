@@ -1,10 +1,46 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import {
-  fetchOrders,
-  fetchSummary,
-  fetchNotifications,
-} from '../api/ordersApi'
+import { fetchOrders, fetchSummary, createOrder } from '../api/ordersApi'
+
+// ── Color Palette ────────────────────────────────────────────────
+const C = {
+  primary:   '#7C3AED',
+  primary2:  '#9B6DFF',
+  softBg:    '#F3EEFF',
+  softBg2:   '#EDEAFF',
+  border:    '#F0EBFF',
+  border2:   '#E0D8FF',
+  dark:      '#2D1F6E',
+  mid:       '#9B8FC0',
+  light:     '#C4B8E8',
+  white:     '#fff',
+  success:   '#10B981',
+  successBg: '#ECFDF5',
+  warn:      '#F59E0B',
+  warnBg:    '#FFFBEB',
+}
+
+// ── Sample Products ──────────────────────────────────────────────
+const PRODUCTS = [
+  { id: 1, name: 'Gift Box',       emoji: '🎁', price: 14,  category: 'Gifts',      badge: 'Best Seller', desc: 'Premium gift box set'            },
+  { id: 2, name: 'Face Cream',     emoji: '🧴', price: 23,  category: 'Beauty',     badge: 'New',         desc: 'Moisturize & take care'          },
+  { id: 3, name: 'Dumbbell Set',   emoji: '🏋️', price: 17,  category: 'Fitness',    badge: null,          desc: 'Exercise dumbbells'              },
+  { id: 4, name: 'Digital Camera', emoji: '📷', price: 314, category: 'Electronics',badge: 'Popular',     desc: 'Choose between DSLR, mirrorless' },
+  { id: 5, name: 'Coffee Cup',     emoji: '☕', price: 3,   category: 'Kitchen',    badge: 'New',         desc: 'Coffee cup with lid'             },
+  { id: 6, name: 'Smartwatch',     emoji: '⌚', price: 89,  category: 'Electronics',badge: 'Best Seller', desc: 'Find the best price'             },
+  { id: 7, name: 'Remote Control', emoji: '📱', price: 31,  category: 'Electronics',badge: null,          desc: 'Best universal remote'           },
+  { id: 8, name: 'Laptop',         emoji: '💻', price: 451, category: 'Electronics',badge: 'Popular',     desc: 'The best laptops deals'          },
+]
+
+const CATEGORIES = ['All', 'Electronics', 'Beauty', 'Fitness', 'Gifts', 'Kitchen']
+
+const STATUS_META = {
+  Pending:    { color: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B' },
+  Processing: { color: '#6C47FF', bg: '#EDEAFF', dot: '#6C47FF' },
+  Shipped:    { color: '#9B6DFF', bg: '#F3EEFF', dot: '#9B6DFF' },
+  Completed:  { color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 function useCountUp(target, delay = 0) {
@@ -42,16 +78,32 @@ function toArray(data) {
   return []
 }
 
-// ── Sub-components ───────────────────────────────────────────────
-function StatCard({ label, value, icon, prefix = '', delay, accentBg }) {
+// ── StatusPill ───────────────────────────────────────────────────
+function StatusPill({ status }) {
+  const m = STATUS_META[status] || STATUS_META.Pending
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: m.bg, color: m.color,
+      padding: '4px 11px', borderRadius: 20,
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.dot, flexShrink: 0 }} />
+      {status}
+    </span>
+  )
+}
+
+// ── StatCard ─────────────────────────────────────────────────────
+function StatCard({ label, value, icon, delay, accentBg }) {
   const n = useCountUp(value, delay)
   return (
     <div style={{
-      background: '#fff', borderRadius: 18, padding: '22px 20px',
-      border: '1.5px solid #F0EBFF',
+      background: C.white, borderRadius: 18, padding: '20px 18px',
+      border: `1.5px solid ${C.border}`,
       boxShadow: '0 2px 14px rgba(155,109,255,0.07)',
       position: 'relative', overflow: 'hidden',
-      animation: 'dashFadeUp 0.5s ease both', animationDelay: `${delay}ms`,
+      animation: 'fadeUp 0.5s ease both', animationDelay: `${delay}ms`,
       transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'default',
     }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(155,109,255,0.14)' }}
@@ -59,56 +111,159 @@ function StatCard({ label, value, icon, prefix = '', delay, accentBg }) {
     >
       <div style={{
         position: 'absolute', top: 0, right: 0,
-        width: 68, height: 68, background: accentBg || '#F3EEFF',
-        borderRadius: '0 18px 0 68px',
+        width: 60, height: 60, background: accentBg || C.softBg,
+        borderRadius: '0 18px 0 60px',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
-        padding: '10px 10px 0 0', fontSize: 18,
+        padding: '8px 8px 0 0', fontSize: 16,
       }}>{icon}</div>
-      <p style={{ fontSize: 10, fontWeight: 700, color: '#C4B8E8', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 8 }}>{label}</p>
-      <p style={{ fontSize: 32, fontWeight: 800, color: '#2D1F6E', letterSpacing: '-0.02em', lineHeight: 1 }}>
-        {prefix}{typeof n === 'number' ? n.toLocaleString() : 0}
+      <p style={{ fontSize: 10, fontWeight: 700, color: C.light, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
+      <p style={{ fontSize: 28, fontWeight: 800, color: C.dark, letterSpacing: '-0.02em', lineHeight: 1 }}>
+        {typeof n === 'number' ? n.toLocaleString() : 0}
       </p>
     </div>
   )
 }
 
-// ── Main Dashboard ───────────────────────────────────────────────
-export default function Dashboard() {
-  const { user } = useAuth()
+// ── Cart Sidebar ─────────────────────────────────────────────────
+function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placing }) {
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0)
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(45,31,110,0.18)', zIndex: 200, backdropFilter: 'blur(2px)' }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 360,
+        background: C.white, zIndex: 201,
+        boxShadow: '-8px 0 40px rgba(124,58,237,0.15)',
+        display: 'flex', flexDirection: 'column',
+        animation: 'slideIn 0.25s ease',
+      }}>
+        <div style={{ padding: '20px 22px 16px', borderBottom: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: C.dark }}>
+            🛒 My Cart <span style={{ fontSize: 13, color: C.mid, fontWeight: 600 }}>({cart.length} items)</span>
+          </h2>
+          <button onClick={onClose} style={{ background: C.softBg, border: 'none', borderRadius: 10, width: 32, height: 32, fontSize: 16, cursor: 'pointer', color: C.primary }}>✕</button>
+        </div>
 
-  const [orders,        setOrders]        = useState([])
-  const [summary,       setSummary]       = useState({})
-  const [notifications, setNotifications] = useState([])
-  const [loading,       setLoading]       = useState(true)
-  const [error,         setError]         = useState(null)
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 22px' }}>
+          {cart.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: C.light }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🛒</div>
+              <p style={{ fontWeight: 600 }}>Your cart is empty</p>
+            </div>
+          ) : cart.map(item => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1.5px solid ${C.border}` }}>
+              <div style={{ width: 48, height: 48, background: C.softBg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                {item.emoji}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
+                <p style={{ fontSize: 12, color: C.primary, fontWeight: 700 }}>₱{item.price}</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => onUpdateQty(item.id, item.qty - 1)} style={{ width: 26, height: 26, borderRadius: 8, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>−</button>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.dark, minWidth: 18, textAlign: 'center' }}>{item.qty}</span>
+                <button onClick={() => onUpdateQty(item.id, item.qty + 1)} style={{ width: 26, height: 26, borderRadius: 8, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>+</button>
+              </div>
+              <button onClick={() => onRemove(item.id)} style={{ background: '#FFF0F0', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#CC2200', fontSize: 13 }}>🗑</button>
+            </div>
+          ))}
+        </div>
+
+        {cart.length > 0 && (
+          <div style={{ padding: '16px 22px', borderTop: `1.5px solid ${C.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.mid }}>Total</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: C.dark }}>₱{total.toLocaleString()}</span>
+            </div>
+            <button onClick={onPlaceOrder} disabled={placing} style={{
+              width: '100%', padding: '13px', borderRadius: 14,
+              background: placing ? C.light : `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+              color: C.white, border: 'none',
+              fontWeight: 800, fontSize: 15, cursor: placing ? 'wait' : 'pointer',
+              fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(124,58,237,0.3)',
+            }}>
+              {placing ? '⏳ Placing Order…' : '✅ Place Order'}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+// ── Main Component ───────────────────────────────────────────────
+export default function CustomerDashboard() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  const [tab,          setTab]          = useState('shop')
+  const [orders,       setOrders]       = useState([])
+  const [summary,      setSummary]      = useState({})
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState(null)
+  const [cart,         setCart]         = useState([])
+  const [cartOpen,     setCartOpen]     = useState(false)
+  const [placing,      setPlacing]      = useState(false)
+  const [orderSuccess, setOrderSuccess] = useState(false)
+  const [category,     setCategory]     = useState('All')
+  const [search,       setSearch]       = useState('')
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     try {
-      const [ordersRes, summaryRes, notifRes] = await Promise.all([
-        fetchOrders(),
-        fetchSummary(),
-        fetchNotifications(),
-      ])
+      const [ordersRes, summaryRes] = await Promise.all([fetchOrders(), fetchSummary()])
       setOrders(toArray(ordersRes.data))
       setSummary(summaryRes.data ?? {})
-      setNotifications(toArray(notifRes.data))
-    } catch {
-      setError('Failed to load dashboard data.')
-    } finally {
-      setLoading(false)
-    }
+    } catch { setError('Failed to load data.') }
+    finally  { setLoading(false) }
   }, [])
 
   useEffect(() => { load() }, [load])
 
   const stats = {
-    total:      summary.total_orders ?? orders.length,
-    pending:    summary.pending      ?? orders.filter(o => o.status === 'Pending').length,
-    processing: summary.processing   ?? orders.filter(o => o.status === 'Processing').length,
-    shipped:    summary.shipped      ?? orders.filter(o => o.status === 'Shipped').length,
-    completed:  summary.completed    ?? orders.filter(o => o.status === 'Completed').length,
+    total:     summary.total_orders ?? orders.length,
+    pending:   summary.pending      ?? orders.filter(o => o.status === 'Pending').length,
+    shipped:   summary.shipped      ?? orders.filter(o => o.status === 'Shipped').length,
+    completed: summary.completed    ?? orders.filter(o => o.status === 'Completed').length,
+  }
+
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0)
+
+  const filteredProducts = PRODUCTS.filter(p =>
+    (category === 'All' || p.category === category) &&
+    (search === '' || p.name.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  const addToCart = (product) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === product.id)
+      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
+      return [...prev, { ...product, qty: 1 }]
+    })
+  }
+
+  const updateQty = (id, qty) => {
+    if (qty <= 0) setCart(prev => prev.filter(i => i.id !== id))
+    else setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i))
+  }
+
+  const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id))
+
+  const placeOrder = async () => {
+    if (cart.length === 0) return
+    setPlacing(true)
+    try {
+      const items = cart.map(i => ({ product: i.name, quantity: i.qty, price: i.price }))
+      await createOrder({ items, total_price: cart.reduce((s, i) => s + i.price * i.qty, 0) })
+      setCart([])
+      setCartOpen(false)
+      setOrderSuccess(true)
+      setTimeout(() => setOrderSuccess(false), 4000)
+      await load()
+      setTab('orders')
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Failed to place order. Please try again.')
+    } finally { setPlacing(false) }
   }
 
   const greeting = (() => {
@@ -119,108 +274,259 @@ export default function Dashboard() {
   return (
     <>
       <style>{`
-        @keyframes dashFadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes dashSpin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin    { to   { transform:rotate(360deg) } }
+        @keyframes slideIn { from { transform:translateX(100%) } to { transform:translateX(0) } }
+        @keyframes popIn   { from { opacity:0; transform:scale(0.9) } to { opacity:1; transform:scale(1) } }
       `}</style>
 
       <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 14 }}>
 
-        {/* Page header */}
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          marginBottom: 28, animation: 'dashFadeUp 0.4s ease both', flexWrap: 'wrap', gap: 12,
-        }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12, animation: 'fadeUp 0.4s ease both' }}>
           <div>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#C4B8E8', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 5 }}>
-              Overview
-            </p>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#2D1F6E', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.light, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>My Store</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: C.dark, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
               {greeting}, {user?.username || 'there'} 👋
             </h1>
-            <p style={{ marginTop: 5, fontSize: 13, color: '#9B8FC0', fontWeight: 500 }}>
-              Here's what's happening with your orders today.
-            </p>
+            <p style={{ marginTop: 4, fontSize: 13, color: C.mid, fontWeight: 500 }}>Browse products, manage your cart and track orders.</p>
           </div>
-          <button
-            onClick={load}
-            style={{
-              background: '#F3EEFF', border: '1.5px solid #E0D8FF',
-              borderRadius: 12, padding: '9px 16px',
-              color: '#9B6DFF', fontWeight: 700, fontSize: 13,
-              cursor: 'pointer', fontFamily: 'inherit',
-              transition: 'background 0.15s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#EDE9FE'}
-            onMouseLeave={e => e.currentTarget.style.background = '#F3EEFF'}
-          >
-            ↻ Refresh
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={load} style={{ background: C.softBg, border: `1.5px solid ${C.border2}`, borderRadius: 12, padding: '9px 16px', color: C.primary, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              ↻ Refresh
+            </button>
+            <button onClick={() => setCartOpen(true)} style={{
+              background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+              border: 'none', borderRadius: 12, padding: '9px 18px',
+              color: C.white, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
+              boxShadow: '0 4px 14px rgba(124,58,237,0.3)',
+            }}>
+              🛒 Cart
+              {cartCount > 0 && (
+                <span style={{ background: C.warn, color: C.white, borderRadius: '50%', width: 20, height: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Success Toast */}
+        {orderSuccess && (
+          <div style={{ background: C.successBg, border: '1.5px solid #6EE7B7', borderRadius: 14, padding: '12px 18px', marginBottom: 18, color: '#065F46', fontSize: 13, fontWeight: 700, animation: 'popIn 0.3s ease' }}>
+            ✅ Order placed successfully! You can track it in My Orders.
+          </div>
+        )}
 
         {/* Error */}
         {error && (
-          <div style={{
-            background: '#FFF0F0', border: '1.5px solid #FFD0CC', borderRadius: 14,
-            padding: '12px 18px', marginBottom: 20, color: '#CC2200',
-            fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
-          }}>
+          <div style={{ background: '#FFF0F0', border: '1.5px solid #FFD0CC', borderRadius: 14, padding: '12px 18px', marginBottom: 18, color: '#CC2200', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             ⚠️ {error}
-            <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#9B6DFF', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
-              Retry
-            </button>
+            <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.primary, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Retry</button>
           </div>
         )}
+
+        {/* Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 22 }}>
+          <StatCard label="My Orders"  value={stats.total}     icon="📦" delay={60}  accentBg={C.softBg}    />
+          <StatCard label="Pending"    value={stats.pending}   icon="⏳" delay={110} accentBg={C.warnBg}    />
+          <StatCard label="Shipped"    value={stats.shipped}   icon="🚚" delay={160} accentBg={C.softBg2}   />
+          <StatCard label="Completed"  value={stats.completed} icon="✅" delay={210} accentBg={C.successBg} />
+          <StatCard label="Cart Items" value={cartCount}       icon="🛒" delay={260} accentBg={C.softBg}    />
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: C.softBg, padding: 5, borderRadius: 14, width: 'fit-content' }}>
+          {[{ key: 'shop', label: 'Shop' }, { key: 'orders', label: 'My Orders' }].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              padding: '9px 20px', borderRadius: 10, border: 'none',
+              background: tab === t.key ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})` : 'transparent',
+              color: tab === t.key ? C.white : C.mid,
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'all 0.15s',
+              boxShadow: tab === t.key ? '0 4px 12px rgba(124,58,237,0.25)' : 'none',
+            }}>{t.label}</button>
+          ))}
+        </div>
 
         {/* Loading */}
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 14 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid #F0EBFF', borderTopColor: '#9B6DFF', animation: 'dashSpin 0.8s linear infinite' }} />
-            <span style={{ color: '#C4B8E8', fontWeight: 600 }}>Loading dashboard…</span>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: `3px solid ${C.border}`, borderTopColor: C.primary2, animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ color: C.light, fontWeight: 600 }}>Loading…</span>
           </div>
         ) : (
           <>
-            {/* Stat cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 20 }}>
-              <StatCard label="Total Orders"  value={stats.total}      icon="📦" delay={80}  accentBg="#F3EEFF" />
-              <StatCard label="Pending"       value={stats.pending}    icon="⏳" delay={130} accentBg="#FFFBEB" />
-              <StatCard label="Processing"    value={stats.processing} icon="⚙️" delay={180} accentBg="#EDEAFF" />
-              <StatCard label="Shipped"       value={stats.shipped}    icon="🚚" delay={230} accentBg="#F3EEFF" />
-              <StatCard label="Completed"     value={stats.completed}  icon="✅" delay={280} accentBg="#ECFDF5" />
-            </div>
-
-            {/* Notifications */}
-            {notifications.length > 0 && (
-              <div style={{
-                marginTop: 20, background: '#fff', borderRadius: 20,
-                border: '1.5px solid #F0EBFF',
-                boxShadow: '0 2px 16px rgba(155,109,255,0.07)',
-                overflow: 'hidden',
-                animation: 'dashFadeUp 0.5s ease both', animationDelay: '320ms',
-              }}>
-                <div style={{ padding: '16px 22px 12px', borderBottom: '1.5px solid #F7F4FF' }}>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#2D1F6E' }}>Notifications</h2>
+            {/* ── SHOP TAB ── */}
+            {tab === 'shop' && (
+              <div style={{ animation: 'fadeUp 0.4s ease both' }}>
+                {/* Search + Filter */}
+                <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍︎</span>
+                    <input
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Search products…"
+                      style={{ width: '100%', padding: '10px 14px 10px 36px', borderRadius: 12, border: `1.5px solid ${C.border2}`, background: C.white, fontSize: 13, color: C.dark, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                    {CATEGORIES.map(cat => (
+                      <button key={cat} onClick={() => setCategory(cat)} style={{
+                        padding: '7px 14px', borderRadius: 20, border: 'none',
+                        background: category === cat ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})` : C.softBg,
+                        color: category === cat ? C.white : C.mid,
+                        fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                      }}>{cat}</button>
+                    ))}
+                  </div>
                 </div>
-                {notifications.slice(0, 5).map((n, i) => (
-                  <div key={n.id ?? i} style={{
-                    padding: '12px 22px', display: 'flex', alignItems: 'flex-start', gap: 12,
-                    borderBottom: i < Math.min(notifications.length, 5) - 1 ? '1.5px solid #FAF8FF' : 'none',
-                    background: n.is_read ? 'transparent' : '#FAF8FF',
-                  }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 4, background: n.is_read ? '#E5E0F8' : '#9B6DFF' }} />
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 13, color: '#2D1F6E', fontWeight: n.is_read ? 500 : 700, lineHeight: 1.4 }}>{n.message}</p>
-                      <p style={{ fontSize: 11, color: '#C4B8E8', marginTop: 2 }}>{timeAgo(n.created_at)}</p>
+
+                {/* Product Grid */}
+                {filteredProducts.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px 0', color: C.light }}>
+                    <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
+                    <p style={{ fontWeight: 600 }}>No products found</p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                    {filteredProducts.map((product, i) => {
+                      const inCart = cart.find(c => c.id === product.id)
+                      return (
+                        <div key={product.id} style={{
+                          background: C.white, borderRadius: 18,
+                          border: `1.5px solid ${C.border}`,
+                          boxShadow: '0 2px 12px rgba(155,109,255,0.07)',
+                          overflow: 'hidden',
+                          animation: 'fadeUp 0.4s ease both', animationDelay: `${i * 50}ms`,
+                          transition: 'transform 0.2s, box-shadow 0.2s',
+                          display: 'flex', flexDirection: 'column',
+                        }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(124,58,237,0.14)' }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 2px 12px rgba(155,109,255,0.07)' }}
+                        >
+                          {/* Image */}
+                          <div style={{ background: C.softBg, height: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 52, position: 'relative' }}>
+                            {product.emoji}
+                            {product.badge && (
+                              <span style={{
+                                position: 'absolute', top: 10, right: 10,
+                                background: product.badge === 'New' ? C.successBg : product.badge === 'Best Seller' ? C.warnBg : C.softBg2,
+                                color: product.badge === 'New' ? C.success : product.badge === 'Best Seller' ? C.warn : C.primary,
+                                fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20,
+                              }}>{product.badge}</span>
+                            )}
+                          </div>
+
+                          {/* Info */}
+                          <div style={{ padding: '14px 14px 0' }}>
+                            <p style={{ fontSize: 13, fontWeight: 800, color: C.dark, marginBottom: 3 }}>{product.name}</p>
+                            <p style={{ fontSize: 11, color: C.mid, marginBottom: 10, lineHeight: 1.4 }}>{product.desc}</p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: 18, fontWeight: 800, color: C.primary }}>₱{product.price}</span>
+                              <span style={{ fontSize: 10, color: C.light, fontWeight: 600 }}>{product.category}</span>
+                            </div>
+                          </div>
+
+                          {/* Add to Cart */}
+                          <div style={{ padding: '12px 14px 14px', marginTop: 'auto' }}>
+                            {inCart ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <button onClick={() => updateQty(product.id, inCart.qty - 1)} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 16 }}>−</button>
+                                <span style={{ fontSize: 14, fontWeight: 800, color: C.dark, minWidth: 24, textAlign: 'center' }}>{inCart.qty}</span>
+                                <button onClick={() => updateQty(product.id, inCart.qty + 1)} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 16 }}>+</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => addToCart(product)} style={{
+                                width: '100%', padding: '10px', borderRadius: 12, border: 'none',
+                                background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+                                color: C.white, fontWeight: 700, fontSize: 12,
+                                cursor: 'pointer', fontFamily: 'inherit',
+                                boxShadow: '0 3px 10px rgba(124,58,237,0.25)',
+                              }}>🛒 Add to Cart</button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── ORDERS TAB ── */}
+            {tab === 'orders' && (
+              <div style={{ animation: 'fadeUp 0.4s ease both' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 800, color: C.dark }}>My Orders</h2>
+                  <button onClick={() => setTab('shop')} style={{
+                    background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+                    border: 'none', borderRadius: 12, padding: '9px 18px',
+                    color: C.white, fontWeight: 700, fontSize: 13,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: '0 3px 12px rgba(124,58,237,0.25)',
+                  }}>+ New Order</button>
+                </div>
+
+                {orders.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '60px 0', background: C.white, borderRadius: 20, border: `1.5px solid ${C.border}` }}>
+                    <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+                    <p style={{ color: C.light, fontWeight: 600, marginBottom: 14 }}>No orders yet</p>
+                    <button onClick={() => setTab('shop')} style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`, border: 'none', borderRadius: 12, padding: '10px 22px', color: C.white, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      Start Shopping
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ background: C.white, borderRadius: 20, border: `1.5px solid ${C.border}`, overflow: 'hidden', boxShadow: '0 2px 16px rgba(155,109,255,0.07)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 110px 130px 100px', padding: '10px 20px', gap: 12, background: '#FAF8FF', borderBottom: `1.5px solid ${C.border}` }}>
+                      {['Order ID', 'Date', 'Total', 'Status', 'Action'].map(h => (
+                        <span key={h} style={{ fontSize: 10, fontWeight: 700, color: C.light, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</span>
+                      ))}
+                    </div>
+                    {orders.map((o, i) => (
+                      <div key={o.id} style={{
+                        display: 'grid', gridTemplateColumns: '100px 1fr 110px 130px 100px',
+                        padding: '13px 20px', gap: 12, alignItems: 'center',
+                        borderBottom: i < orders.length - 1 ? `1.5px solid #FAF8FF` : 'none',
+                        animation: 'fadeUp 0.4s ease both', animationDelay: `${i * 40}ms`,
+                        transition: 'background 0.15s',
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#FAF8FF'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>#{o.id}</span>
+                        <span style={{ fontSize: 12, color: C.mid }}>{timeAgo(o.created_at)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₱{parseFloat(o.total_price ?? 0).toLocaleString()}</span>
+                        <StatusPill status={o.status} />
+                        <button onClick={() => navigate(`/orders/${o.id}`)} style={{ background: C.softBg, border: `1.5px solid ${C.border2}`, borderRadius: 10, padding: '5px 12px', color: C.primary, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          View →
+                        </button>
+                      </div>
+                    ))}
+                    <div style={{ padding: '10px 20px', borderTop: `1.5px solid ${C.border}`, background: '#FAF8FF' }}>
+                      <span style={{ fontSize: 12, color: C.light, fontWeight: 600 }}>Showing {orders.length} order{orders.length !== 1 ? 's' : ''}</span>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* Cart Sidebar */}
+      {cartOpen && (
+        <CartSidebar
+          cart={cart}
+          onClose={() => setCartOpen(false)}
+          onUpdateQty={updateQty}
+          onRemove={removeFromCart}
+          onPlaceOrder={placeOrder}
+          placing={placing}
+        />
+      )}
     </>
   )
 }
