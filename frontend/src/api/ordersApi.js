@@ -2,14 +2,12 @@ import axios from 'axios'
 
 const API = axios.create({ baseURL: '/api' })
 
-// Attach token to every request automatically
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) config.headers.Authorization = `Token ${token}`
   return config
 })
 
-// Redirect to login on 401
 API.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -28,19 +26,28 @@ export const login    = (data) => API.post('/auth/login/', data)
 export const logout   = ()     => API.post('/auth/logout/')
 export const fetchMe  = ()     => API.get('/auth/me/')
 
+// Products
+export const fetchProducts = (params = {}) => API.get('/products/', { params })
+export const fetchProduct  = (id)          => API.get(`/products/${id}/`)
+export const createProduct = (data)        => API.post('/products/', data)
+export const updateProduct = (id, data)    => API.patch(`/products/${id}/`, data)
+export const deleteProduct = (id)          => API.delete(`/products/${id}/`)
+
 // Orders
 export const fetchOrders  = (params = {}) => API.get('/orders/', { params })
 export const fetchOrder   = (id)          => API.get(`/orders/${id}/`)
 export const createOrder  = (data)        => API.post('/orders/', data)
-export const updateStatus = (id, status, note = '') =>
-  API.post(`/orders/${id}/status/`, { status, note })
+export const updateStatus = (id, status, note = '') => API.post(`/orders/${id}/status/`, { status, note })
 export const deleteOrder  = (id)          => API.delete(`/orders/${id}/`)
 export const updateNotes  = (id, notes)   => API.patch(`/orders/${id}/`, { notes })
 
-// Summary & Customers
+// Summary & Lists
 export const fetchSummary   = ()  => API.get('/orders/summary/')
 export const fetchCustomers = ()  => API.get('/customers/')
 export const fetchUsers     = ()  => API.get('/users/')
+
+// Admin: update user role
+export const updateUserRole = (userId, role) => API.patch(`/users/${userId}/role/`, { role })
 
 // Notifications & Reviews
 export const fetchNotifications = () => API.get('/notifications/')

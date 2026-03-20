@@ -4,7 +4,6 @@ import NotificationBell from '@/components/NotificationBell'
 import {
   IconDashboard,
   IconOrders,
-  IconPlus,
   IconCustomers,
   IconUsers,
   IconLogout,
@@ -36,11 +35,10 @@ export default function Layout() {
       { to: '/customers', icon: IconCustomers,  label: 'Customers' },
     ],
     admin: [
-      { to: '/dashboard', icon: IconDashboard,  label: 'Analytics'  },
-      { to: '/orders',    icon: IconOrders,     label: 'Orders'     },
-      { to: '/orders/create', icon: IconPlus,   label: 'New Order'  },
-      { to: '/customers', icon: IconCustomers,  label: 'Customers'  },
-      { to: '/users',     icon: IconUsers,      label: 'Users'      },
+      { to: '/dashboard', icon: IconDashboard, label: 'Analytics'  },
+      { to: '/orders',    icon: IconOrders,    label: 'Orders'     },
+      { to: '/customers', icon: IconCustomers, label: 'Customers'  },
+      { to: '/users',     icon: IconUsers,     label: 'Users'      },
     ],
   }
 
@@ -349,28 +347,6 @@ export default function Layout() {
           gap: 12px;
         }
 
-        .amu-new-order-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          background: linear-gradient(135deg, #9B6DFF 0%, #7C3AED 100%);
-          border: none;
-          border-radius: 12px;
-          padding: 9px 18px;
-          color: #fff;
-          font-weight: 700;
-          font-size: 13px;
-          cursor: pointer;
-          font-family: 'Plus Jakarta Sans', sans-serif;
-          box-shadow: 0 4px 14px rgba(124,58,237,0.25);
-          transition: transform 0.15s, box-shadow 0.15s;
-        }
-
-        .amu-new-order-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 7px 20px rgba(124,58,237,0.35);
-        }
-
         /* ── Content ─────────────────────────────── */
         .amu-content {
           flex: 1;
@@ -469,13 +445,6 @@ export default function Layout() {
             <span className="amu-topbar-title">Order Processing System</span>
             <div className="amu-topbar-actions">
               <NotificationBell />
-              {/* ✅ Only admin sees New Order button — customers use cart on dashboard */}
-              {user?.role === 'admin' && (
-                <button className="amu-new-order-btn" onClick={() => navigate('/orders/create')}>
-                  <IconPlus size={16} color="#fff" strokeWidth={2.5} />
-                  New Order
-                </button>
-              )}
             </div>
           </div>
 

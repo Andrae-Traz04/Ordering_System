@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
-from .models import UserProfile, Customer, Order, OrderItem, StatusHistory, Review
+from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review
 
 
 # ─────────────────────────────────────────────
@@ -53,7 +53,7 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        role = validated_data.pop('role', 'customer')
+        role       = validated_data.pop('role', 'customer')
         validated_data.pop('confirm_password', None)
         first_name = validated_data.get('first_name', '').strip()
         last_name  = validated_data.get('last_name', '').strip()
@@ -67,6 +67,7 @@ class RegisterSerializer(serializers.Serializer):
         )
         UserProfile.objects.create(user=user, role=role)
 
+        # Auto-create Customer record for customer role
         if role == 'customer':
             Customer.objects.get_or_create(
                 email=user.email,
@@ -78,6 +79,30 @@ class RegisterSerializer(serializers.Serializer):
             )
 
         return user
+
+
+# ─────────────────────────────────────────────
+#  PRODUCT SERIALIZER
+# ─────────────────────────────────────────────
+
+class ProductSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Product
+        fields = [
+            'id', 'name', 'description', 'price', 'category',
+            'emoji', 'badge', 'is_active', 'created_by_username', 'created_at',
+        ]
+
+    def get_created_by_username(self, obj):
+        return obj.created_by.username if obj.created_by else None
+
+
+class ProductCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Product
+        fields = ['name', 'description', 'price', 'category', 'emoji', 'badge', 'is_active']
 
 
 # ─────────────────────────────────────────────
@@ -148,7 +173,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 # ─────────────────────────────────────────────
-#  ORDER SERIALIZER  (read — list & detail)
+#  ORDER SERIALIZER  (read)
 # ─────────────────────────────────────────────
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -156,16 +181,13 @@ class OrderSerializer(serializers.ModelSerializer):
     status_history = StatusHistorySerializer(many=True, read_only=True)
     review         = ReviewSerializer(read_only=True)
 
-    # Flattened customer fields for the frontend
     customer_name  = serializers.CharField(source='customer.name',  read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
 
-    # Creator info
     created_by_id       = serializers.IntegerField(source='created_by.id',       read_only=True)
     created_by_username = serializers.CharField(source='created_by.username',     read_only=True)
 
-    # Convenience counts
     item_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -186,12 +208,19 @@ class OrderSerializer(serializers.ModelSerializer):
 #  ORDER CREATE SERIALIZER  (write)
 # ─────────────────────────────────────────────
 
+class OrderItemInputSerializer(serializers.Serializer):
+    product_id   = serializers.IntegerField(required=False, allow_null=True)
+    product_name = serializers.CharField(max_length=200)
+    quantity     = serializers.IntegerField(min_value=1)
+    unit_price   = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+
 class OrderCreateSerializer(serializers.Serializer):
     customer_name  = serializers.CharField(max_length=200)
     customer_email = serializers.EmailField()
     customer_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     notes          = serializers.CharField(required=False, allow_blank=True)
-    items          = OrderItemSerializer(many=True)
+    items          = OrderItemInputSerializer(many=True)
 
     def validate_items(self, value):
         if not value:
@@ -205,30 +234,33 @@ class OrderCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         request = self.context.get('request')
 
-        # ── FIX: No 'user' in defaults to avoid UNIQUE constraint error ──
-        # The Customer.user field is OneToOne — linking it here causes a crash
-        # when the same logged-in user creates a second order with a different email.
+        # Get or create Customer — NO user in defaults to avoid UNIQUE constraint
         customer, _ = Customer.objects.get_or_create(
             email=validated_data['customer_email'],
             defaults={
                 'name':  validated_data['customer_name'],
                 'phone': validated_data.get('customer_phone', ''),
-                # 'user' intentionally excluded here
             }
         )
 
-        # Create the Order
         order = Order.objects.create(
             customer=customer,
             created_by=request.user if request else None,
             notes=validated_data.get('notes', ''),
         )
 
-        # Create OrderItems and calculate total
         total = 0
         for item_data in validated_data['items']:
+            product = None
+            if item_data.get('product_id'):
+                try:
+                    product = Product.objects.get(pk=item_data['product_id'])
+                except Product.DoesNotExist:
+                    pass
+
             item = OrderItem.objects.create(
                 order=order,
+                product=product,
                 product_name=item_data['product_name'],
                 quantity=item_data['quantity'],
                 unit_price=item_data['unit_price'],
@@ -238,13 +270,12 @@ class OrderCreateSerializer(serializers.Serializer):
         order.total_amount = total
         order.save()
 
-        # Record initial status history
         StatusHistory.objects.create(
             order=order,
             from_status=None,
             to_status='pending',
             changed_by=request.user if request else None,
-            note='Order created',
+            note='Order placed',
         )
 
         return order
@@ -277,6 +308,8 @@ class StatusUpdateSerializer(serializers.Serializer):
 __all__ = [
     'RegisterSerializer',
     'UserSerializer',
+    'ProductSerializer',
+    'ProductCreateSerializer',
     'CustomerSerializer',
     'OrderItemSerializer',
     'StatusHistorySerializer',

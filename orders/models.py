@@ -29,6 +29,34 @@ class Customer(models.Model):
         return f"{self.name} ({self.email})"
 
 
+# ── NEW: Product model ───────────────────────────────────────────────────────
+class Product(models.Model):
+    CATEGORY_CHOICES = [
+        ('Electronics', 'Electronics'),
+        ('Beauty', 'Beauty'),
+        ('Fitness', 'Fitness'),
+        ('Gifts', 'Gifts'),
+        ('Kitchen', 'Kitchen'),
+        ('Others', 'Others'),
+    ]
+
+    name        = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    price       = models.DecimalField(max_digits=10, decimal_places=2)
+    category    = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Others')
+    emoji       = models.CharField(max_length=10, blank=True, default='📦')
+    badge       = models.CharField(max_length=50, blank=True)  # e.g. "New", "Best Seller"
+    is_active   = models.BooleanField(default=True)
+    created_by  = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='products'
+    )
+    created_at  = models.DateTimeField(auto_now_add=True)
+    updated_at  = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} (₱{self.price})"
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -38,10 +66,10 @@ class Order(models.Model):
     ]
 
     VALID_TRANSITIONS = {
-        'pending': ['processing'],
+        'pending':    ['processing'],
         'processing': ['shipped'],
-        'shipped': ['completed'],
-        'completed': [],
+        'shipped':    ['completed'],
+        'completed':  [],
     }
 
     order_number = models.CharField(max_length=20, unique=True, editable=False)
@@ -51,11 +79,11 @@ class Order(models.Model):
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders'
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    notes = models.TextField(blank=True)
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    notes        = models.TextField(blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    updated_at   = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
         if not self.order_number:
@@ -70,10 +98,13 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    order        = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product      = models.ForeignKey(
+        Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='order_items'
+    )
     product_name = models.CharField(max_length=200)
-    quantity = models.PositiveIntegerField(default=1)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity     = models.PositiveIntegerField(default=1)
+    unit_price   = models.DecimalField(max_digits=10, decimal_places=2)
 
     @property
     def subtotal(self):
@@ -88,12 +119,12 @@ class StatusHistory(models.Model):
         Order, on_delete=models.CASCADE, related_name='status_history'
     )
     from_status = models.CharField(max_length=20, blank=True, null=True)
-    to_status = models.CharField(max_length=20)
-    changed_by = models.ForeignKey(
+    to_status   = models.CharField(max_length=20)
+    changed_by  = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True
     )
     changed_at = models.DateTimeField(auto_now_add=True)
-    note = models.TextField(blank=True)
+    note       = models.TextField(blank=True)
 
     class Meta:
         ordering = ['-changed_at']
@@ -103,14 +134,10 @@ class StatusHistory(models.Model):
 
 
 class Review(models.Model):
-    order = models.OneToOneField(
-        Order, on_delete=models.CASCADE, related_name='review'
-    )
-    customer = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='reviews'
-    )
-    rating = models.PositiveSmallIntegerField()  # 1-5
-    comment = models.TextField(blank=True)
+    order    = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='review')
+    customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')
+    rating   = models.PositiveSmallIntegerField()  # 1-5
+    comment  = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

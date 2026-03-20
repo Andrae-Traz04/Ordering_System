@@ -13,11 +13,9 @@ def api_root(request, format=None):
         'login':          reverse('login',             request=request),
         'logout':         reverse('logout',            request=request),
         'me':             reverse('me',                request=request),
+        'products':       reverse('product-list',      request=request),
         'orders':         reverse('order-list-create', request=request),
         'orders_summary': reverse('order-summary',     request=request),
-        'order_detail':   'http://127.0.0.1:8000/api/orders/{id}/',
-        'order_status':   'http://127.0.0.1:8000/api/orders/{id}/status/',
-        'order_review':   'http://127.0.0.1:8000/api/orders/{id}/review/',
         'customers':      reverse('customer-list',     request=request),
         'users':          reverse('user-list',         request=request),
         'notifications':  reverse('notifications',     request=request),
@@ -25,10 +23,7 @@ def api_root(request, format=None):
 
 
 urlpatterns = [
-    # API root
     path('', api_root, name='api-root'),
-
-    # Admin panel HTML
     path('panel/', views.admin_panel, name='admin-panel'),
 
     # Auth
@@ -36,6 +31,10 @@ urlpatterns = [
     path('auth/login/',    views.LoginView.as_view(),    name='login'),
     path('auth/logout/',   views.LogoutView.as_view(),   name='logout'),
     path('auth/me/',       views.MeView.as_view(),       name='me'),
+
+    # Products
+    path('products/',          views.ProductListCreateView.as_view(), name='product-list'),
+    path('products/<int:pk>/', views.ProductDetailView.as_view(),     name='product-detail'),
 
     # Orders
     path('orders/',                 views.OrderListCreateView.as_view(),   name='order-list-create'),
@@ -45,8 +44,9 @@ urlpatterns = [
     path('orders/<int:pk>/review/', views.ReviewView.as_view(),            name='order-review'),
 
     # Customers & Users
-    path('customers/',  views.CustomerListView.as_view(), name='customer-list'),
-    path('users/',      views.UserListView.as_view(),     name='user-list'),
+    path('customers/',             views.CustomerListView.as_view(),   name='customer-list'),
+    path('users/',                 views.UserListView.as_view(),        name='user-list'),
+    path('users/<int:pk>/role/',   views.UserRoleUpdateView.as_view(), name='user-role-update'),
 
     # Notifications
     path('notifications/', views.NotificationView.as_view(), name='notifications'),
