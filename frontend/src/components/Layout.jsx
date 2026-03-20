@@ -23,33 +23,34 @@ export default function Layout() {
     navigate('/login')
   }
 
-  // ── Role-based navigation - Analytics focused ──
+  // ── Role-based navigation ──
   const roleNavItems = {
     customer: [
       { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
-      { to: '/orders', icon: IconOrders, label: 'Orders' },
-      { to: '/orders/create', icon: IconPlus, label: 'New Order' },
+      { to: '/orders',    icon: IconOrders,    label: 'Orders'    },
+      // ✅ Removed: New Order — customers use cart on dashboard instead
     ],
     owner: [
-      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
-      { to: '/orders', icon: IconOrders, label: 'Orders' },
-      { to: '/customers', icon: IconCustomers, label: 'Customers' },
+      { to: '/dashboard', icon: IconDashboard,  label: 'Dashboard' },
+      { to: '/orders',    icon: IconOrders,     label: 'Orders'    },
+      { to: '/customers', icon: IconCustomers,  label: 'Customers' },
     ],
     admin: [
-      { to: '/dashboard', icon: IconDashboard, label: 'Analytics' },
-      { to: '/orders', icon: IconOrders, label: 'Orders' },
-      { to: '/customers', icon: IconCustomers, label: 'Customers' },
-      { to: '/users', icon: IconUsers, label: 'Users' },
+      { to: '/dashboard', icon: IconDashboard,  label: 'Analytics'  },
+      { to: '/orders',    icon: IconOrders,     label: 'Orders'     },
+      { to: '/orders/create', icon: IconPlus,   label: 'New Order'  },
+      { to: '/customers', icon: IconCustomers,  label: 'Customers'  },
+      { to: '/users',     icon: IconUsers,      label: 'Users'      },
     ],
   }
 
   const navItems = roleNavItems[user?.role] || roleNavItems.customer
 
   const WORKFLOW = [
-    { label: 'Pending', color: '#F59E0B', icon: IconWorkflowPending },
+    { label: 'Pending',    color: '#F59E0B', icon: IconWorkflowPending    },
     { label: 'Processing', color: '#6C47FF', icon: IconWorkflowProcessing },
-    { label: 'Shipped', color: '#9B6DFF', icon: IconWorkflowShipped },
-    { label: 'Completed', color: '#10B981', icon: IconWorkflowCompleted },
+    { label: 'Shipped',    color: '#9B6DFF', icon: IconWorkflowShipped    },
+    { label: 'Completed',  color: '#10B981', icon: IconWorkflowCompleted  },
   ]
 
   return (
@@ -195,8 +196,8 @@ export default function Layout() {
         }
 
         .amu-role-customer { color: #3B82F6; }
-        .amu-role-owner { color: #EA580C; }
-        .amu-role-admin { color: #10B981; }
+        .amu-role-owner    { color: #EA580C; }
+        .amu-role-admin    { color: #10B981; }
 
         /* ── Workflow legend ─────────────────────── */
         .amu-workflow {
@@ -305,7 +306,7 @@ export default function Layout() {
           height: 28px;
         }
 
-        .amu-logout-btn:hover { 
+        .amu-logout-btn:hover {
           color: #9B6DFF;
           background: rgba(155, 109, 255, 0.08);
         }
@@ -370,10 +371,6 @@ export default function Layout() {
           box-shadow: 0 7px 20px rgba(124,58,237,0.35);
         }
 
-        .amu-new-order-btn svg {
-          display: flex;
-        }
-
         /* ── Content ─────────────────────────────── */
         .amu-content {
           flex: 1;
@@ -400,7 +397,7 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* Nav links - Role Based */}
+          {/* Nav links */}
           <nav className="amu-nav">
             {navItems.map(item => {
               const IconComponent = item.icon
@@ -457,11 +454,7 @@ export default function Layout() {
                 {user?.role || 'customer'}
               </div>
             </div>
-            <button 
-              className="amu-logout-btn" 
-              onClick={handleLogout} 
-              title="Logout"
-            >
+            <button className="amu-logout-btn" onClick={handleLogout} title="Logout">
               <IconLogout size={18} />
             </button>
           </div>
@@ -476,8 +469,8 @@ export default function Layout() {
             <span className="amu-topbar-title">Order Processing System</span>
             <div className="amu-topbar-actions">
               <NotificationBell />
-              {/* Only customers can create orders - NOT admins or owners */}
-              {user?.role === 'customer' && (
+              {/* ✅ Only admin sees New Order button — customers use cart on dashboard */}
+              {user?.role === 'admin' && (
                 <button className="amu-new-order-btn" onClick={() => navigate('/orders/create')}>
                   <IconPlus size={16} color="#fff" strokeWidth={2.5} />
                   New Order
