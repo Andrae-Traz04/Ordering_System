@@ -4,6 +4,7 @@ import Layout from '@/components/Layout'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import Dashboard from '@/pages/Dashboard'
+import OwnerDashboard from './pages/OwnerDashboard'
 import Orders from '@/pages/Orders'
 import CreateOrder from '@/pages/CreateOrder'
 import OrderDetail from '@/pages/OrderDetail'
@@ -15,6 +16,17 @@ function PrivateRoute({ children, roles }) {
   if (!user) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return children
+}
+
+// Dashboard router - shows OwnerDashboard for owners, regular Dashboard for others
+function DashboardComponent() {
+  const { user } = useAuth()
+  
+  if (user?.role === 'owner') {
+    return <OwnerDashboard />
+  }
+  
+  return <Dashboard />
 }
 
 export default function App() {
@@ -29,7 +41,8 @@ export default function App() {
         <PrivateRoute><Layout /></PrivateRoute>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        {/* Dashboard - Routes to OwnerDashboard for owners, regular Dashboard for others */}
+        <Route path="dashboard" element={<DashboardComponent />} />
 
         <Route path="orders" element={
           <PrivateRoute><Orders /></PrivateRoute>

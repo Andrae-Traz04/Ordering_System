@@ -11,13 +11,28 @@ export default function Layout() {
     navigate('/login')
   }
 
-  const navItems = [
-    { to: '/dashboard',     icon: '⊞',  label: 'Dashboard', roles: ['customer', 'owner', 'admin'] },
-    { to: '/orders',        icon: '📋', label: 'Orders',    roles: ['customer', 'owner', 'admin'] },
-    { to: '/orders/create', icon: '+',  label: 'New Order', roles: ['customer', 'owner', 'admin'] },
-    { to: '/customers',     icon: '👥', label: 'Customers', roles: ['owner', 'admin'] },
-    { to: '/users',         icon: '🔑', label: 'Users',     roles: ['admin'] },
-  ].filter(item => item.roles.includes(user?.role))
+  // Role-based navigation items
+  const roleNavItems = {
+    customer: [
+      { to: '/dashboard', icon: '⊞', label: 'Dashboard' },
+      { to: '/orders', icon: '📋', label: 'Orders' },
+      { to: '/orders/create', icon: '+', label: 'New Order' },
+    ],
+    owner: [
+      { to: '/dashboard', icon: '⊞', label: 'Dashboard' },
+      { to: '/orders', icon: '📋', label: 'Orders' },
+      { to: '/customers', icon: '👥', label: 'Customers' },
+    ],
+    admin: [
+      { to: '/dashboard', icon: '⊞', label: 'Dashboard' },
+      { to: '/orders', icon: '📋', label: 'Orders' },
+      { to: '/orders/create', icon: '+', label: 'New Order' },
+      { to: '/customers', icon: '👥', label: 'Customers' },
+      { to: '/users', icon: '🔑', label: 'Users' },
+    ],
+  }
+
+  const navItems = roleNavItems[user?.role] || roleNavItems.customer
 
   const WORKFLOW = ['Pending', 'Processing', 'Shipped', 'Completed']
   const WORKFLOW_DOTS = {
@@ -139,6 +154,35 @@ export default function Layout() {
           font-size: 15px;
           flex-shrink: 0;
         }
+
+        /* ── Role Badge ──────────────────────────── */
+        .amu-role-badge {
+          margin: 0 10px 14px;
+          background: #F7F4FF;
+          border-radius: 12px;
+          padding: 10px 12px;
+          border: 1.5px solid #EDE9FE;
+          text-align: center;
+        }
+
+        .amu-role-label {
+          font-size: 9px;
+          font-weight: 700;
+          color: #C4B8E8;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+        }
+
+        .amu-role-text {
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: capitalize;
+        }
+
+        .amu-role-customer { color: #3B82F6; }
+        .amu-role-owner { color: #EA580C; }
+        .amu-role-admin { color: #10B981; }
 
         /* ── Workflow legend ─────────────────────── */
         .amu-workflow {
@@ -323,12 +367,12 @@ export default function Layout() {
           <div className="amu-brand">
             <div className="amu-brand-icon">✨</div>
             <div>
-              <div className="amu-brand-name">AMU Bowls</div>
+              <div className="amu-brand-name">Ordering</div>
               <div className="amu-brand-sub">Workflow System</div>
             </div>
           </div>
 
-          {/* Nav links */}
+          {/* Nav links - Role Based */}
           <nav className="amu-nav">
             {navItems.map(item => (
               <NavLink
@@ -341,6 +385,14 @@ export default function Layout() {
               </NavLink>
             ))}
           </nav>
+
+          {/* Role Badge */}
+          <div className="amu-role-badge">
+            <div className="amu-role-label">Current Role</div>
+            <div className={`amu-role amu-role-${user?.role || 'customer'}`}>
+              {user?.role || 'Customer'}
+            </div>
+          </div>
 
           {/* Workflow legend */}
           <div className="amu-workflow">
@@ -361,9 +413,7 @@ export default function Layout() {
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div className="amu-username">{user?.username || 'User'}</div>
-              <div className="amu-role" style={{
-                color: user?.role === 'admin' ? '#059669' : user?.role === 'owner' ? '#d97706' : '#9B6DFF'
-              }}>
+              <div className={`amu-role amu-role-${user?.role || 'customer'}`}>
                 {user?.role || 'customer'}
               </div>
             </div>
