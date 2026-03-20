@@ -21,16 +21,15 @@ const C = {
   warnBg:    '#FFFBEB',
 }
 
-// ── Sample Products ──────────────────────────────────────────────
 const PRODUCTS = [
-  { id: 1, name: 'Gift Box',       emoji: '🎁', price: 14,  category: 'Gifts',      badge: 'Best Seller', desc: 'Premium gift box set'            },
-  { id: 2, name: 'Face Cream',     emoji: '🧴', price: 23,  category: 'Beauty',     badge: 'New',         desc: 'Moisturize & take care'          },
-  { id: 3, name: 'Dumbbell Set',   emoji: '🏋️', price: 17,  category: 'Fitness',    badge: null,          desc: 'Exercise dumbbells'              },
-  { id: 4, name: 'Digital Camera', emoji: '📷', price: 314, category: 'Electronics',badge: 'Popular',     desc: 'Choose between DSLR, mirrorless' },
-  { id: 5, name: 'Coffee Cup',     emoji: '☕', price: 3,   category: 'Kitchen',    badge: 'New',         desc: 'Coffee cup with lid'             },
-  { id: 6, name: 'Smartwatch',     emoji: '⌚', price: 89,  category: 'Electronics',badge: 'Best Seller', desc: 'Find the best price'             },
-  { id: 7, name: 'Remote Control', emoji: '📱', price: 31,  category: 'Electronics',badge: null,          desc: 'Best universal remote'           },
-  { id: 8, name: 'Laptop',         emoji: '💻', price: 451, category: 'Electronics',badge: 'Popular',     desc: 'The best laptops deals'          },
+  { id: 1, name: 'Gift Box',       emoji: '🎁', price: 14,  category: 'Gifts',       badge: 'Best Seller', desc: 'Premium gift box set'            },
+  { id: 2, name: 'Face Cream',     emoji: '🧴', price: 23,  category: 'Beauty',      badge: 'New',         desc: 'Moisturize & take care'          },
+  { id: 3, name: 'Dumbbell Set',   emoji: '🏋️', price: 17,  category: 'Fitness',     badge: null,          desc: 'Exercise dumbbells'              },
+  { id: 4, name: 'Digital Camera', emoji: '📷', price: 314, category: 'Electronics', badge: 'Popular',     desc: 'Choose between DSLR, mirrorless' },
+  { id: 5, name: 'Coffee Cup',     emoji: '☕', price: 3,   category: 'Kitchen',     badge: 'New',         desc: 'Coffee cup with lid'             },
+  { id: 6, name: 'Smartwatch',     emoji: '⌚', price: 89,  category: 'Electronics', badge: 'Best Seller', desc: 'Find the best price'             },
+  { id: 7, name: 'Remote Control', emoji: '📱', price: 31,  category: 'Electronics', badge: null,          desc: 'Best universal remote'           },
+  { id: 8, name: 'Laptop',         emoji: '💻', price: 451, category: 'Electronics', badge: 'Popular',     desc: 'The best laptops deals'          },
 ]
 
 const CATEGORIES = ['All', 'Electronics', 'Beauty', 'Fitness', 'Gifts', 'Kitchen']
@@ -40,6 +39,11 @@ const STATUS_META = {
   Processing: { color: '#6C47FF', bg: '#EDEAFF', dot: '#6C47FF' },
   Shipped:    { color: '#9B6DFF', bg: '#F3EEFF', dot: '#9B6DFF' },
   Completed:  { color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
+  // lowercase variants (backend returns lowercase)
+  pending:    { color: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B' },
+  processing: { color: '#6C47FF', bg: '#EDEAFF', dot: '#6C47FF' },
+  shipped:    { color: '#9B6DFF', bg: '#F3EEFF', dot: '#9B6DFF' },
+  completed:  { color: '#10B981', bg: '#ECFDF5', dot: '#10B981' },
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -73,14 +77,16 @@ function timeAgo(dateStr) {
 }
 
 function toArray(data) {
-  if (Array.isArray(data)) return data
+  if (Array.isArray(data))          return data
   if (Array.isArray(data?.results)) return data.results
+  if (Array.isArray(data?.orders))  return data.orders
   return []
 }
 
 // ── StatusPill ───────────────────────────────────────────────────
 function StatusPill({ status }) {
-  const m = STATUS_META[status] || STATUS_META.Pending
+  const m = STATUS_META[status] || STATUS_META.pending
+  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Pending'
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -89,7 +95,7 @@ function StatusPill({ status }) {
       fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', whiteSpace: 'nowrap',
     }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.dot, flexShrink: 0 }} />
-      {status}
+      {label}
     </span>
   )
 }
@@ -137,6 +143,7 @@ function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placi
         display: 'flex', flexDirection: 'column',
         animation: 'slideIn 0.25s ease',
       }}>
+        {/* Header */}
         <div style={{ padding: '20px 22px 16px', borderBottom: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ fontSize: 18, fontWeight: 800, color: C.dark }}>
             🛒 My Cart <span style={{ fontSize: 13, color: C.mid, fontWeight: 600 }}>({cart.length} items)</span>
@@ -144,6 +151,7 @@ function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placi
           <button onClick={onClose} style={{ background: C.softBg, border: 'none', borderRadius: 10, width: 32, height: 32, fontSize: 16, cursor: 'pointer', color: C.primary }}>✕</button>
         </div>
 
+        {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 22px' }}>
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 0', color: C.light }}>
@@ -169,6 +177,7 @@ function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placi
           ))}
         </div>
 
+        {/* Footer */}
         {cart.length > 0 && (
           <div style={{ padding: '16px 22px', borderTop: `1.5px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -220,11 +229,13 @@ export default function CustomerDashboard() {
 
   useEffect(() => { load() }, [load])
 
+  // ── Backend returns by_status.pending (lowercase) ──
+  const byStatus = summary.by_status ?? {}
   const stats = {
-    total:     summary.total_orders ?? orders.length,
-    pending:   summary.pending      ?? orders.filter(o => o.status === 'Pending').length,
-    shipped:   summary.shipped      ?? orders.filter(o => o.status === 'Shipped').length,
-    completed: summary.completed    ?? orders.filter(o => o.status === 'Completed').length,
+    total:     summary.total_orders  ?? orders.length,
+    pending:   byStatus.pending      ?? orders.filter(o => o.status === 'pending').length,
+    shipped:   byStatus.shipped      ?? orders.filter(o => o.status === 'shipped').length,
+    completed: byStatus.completed    ?? orders.filter(o => o.status === 'completed').length,
   }
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
@@ -249,12 +260,23 @@ export default function CustomerDashboard() {
 
   const removeFromCart = (id) => setCart(prev => prev.filter(i => i.id !== id))
 
+  // ── placeOrder — matches backend OrderCreateSerializer exactly ──
   const placeOrder = async () => {
     if (cart.length === 0) return
     setPlacing(true)
     try {
-      const items = cart.map(i => ({ product: i.name, quantity: i.qty, price: i.price }))
-      await createOrder({ items, total_price: cart.reduce((s, i) => s + i.price * i.qty, 0) })
+      const payload = {
+        customer_name:  user?.username || 'Customer',
+        customer_email: user?.email    || `${user?.username}@orders.local`,
+        customer_phone: '',
+        notes:          '',
+        items: cart.map(i => ({
+          product_name: i.name,
+          quantity:     i.qty,
+          unit_price:   i.price,
+        })),
+      }
+      await createOrder(payload)
       setCart([])
       setCartOpen(false)
       setOrderSuccess(true)
@@ -262,7 +284,11 @@ export default function CustomerDashboard() {
       await load()
       setTab('orders')
     } catch (err) {
-      alert(err?.response?.data?.detail || 'Failed to place order. Please try again.')
+      const data = err?.response?.data
+      const msg  = data
+        ? Object.values(data).flat().join(', ')
+        : 'Failed to place order. Please try again.'
+      alert(msg)
     } finally { setPlacing(false) }
   }
 
@@ -314,8 +340,8 @@ export default function CustomerDashboard() {
 
         {/* Success Toast */}
         {orderSuccess && (
-          <div style={{ background: C.successBg, border: '1.5px solid #6EE7B7', borderRadius: 14, padding: '12px 18px', marginBottom: 18, color: '#065F46', fontSize: 13, fontWeight: 700, animation: 'popIn 0.3s ease' }}>
-            ✅ Order placed successfully! You can track it in My Orders.
+          <div style={{ background: C.successBg, border: '1.5px solid #6EE7B7', borderRadius: 14, padding: '12px 18px', marginBottom: 18, color: '#065F46', fontSize: 13, fontWeight: 700, animation: 'popIn 0.3s ease', display: 'flex', alignItems: 'center', gap: 8 }}>
+            ✅ Order placed successfully! The owner has been notified and will process it shortly.
           </div>
         )}
 
@@ -338,7 +364,7 @@ export default function CustomerDashboard() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: C.softBg, padding: 5, borderRadius: 14, width: 'fit-content' }}>
-          {[{ key: 'shop', label: 'Shop' }, { key: 'orders', label: 'My Orders' }].map(t => (
+          {[{ key: 'shop', label: '🛍️ Shop' }, { key: 'orders', label: '📋 My Orders' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
               padding: '9px 20px', borderRadius: 10, border: 'none',
               background: tab === t.key ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})` : 'transparent',
@@ -364,7 +390,7 @@ export default function CustomerDashboard() {
                 {/* Search + Filter */}
                 <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍︎</span>
+                    <span style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: C.light }}>🔍</span>
                     <input
                       value={search}
                       onChange={e => setSearch(e.target.value)}
@@ -498,7 +524,9 @@ export default function CustomerDashboard() {
                       >
                         <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>#{o.id}</span>
                         <span style={{ fontSize: 12, color: C.mid }}>{timeAgo(o.created_at)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>₱{parseFloat(o.total_price ?? 0).toLocaleString()}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
+                          ₱{parseFloat(o.total_amount ?? o.total_price ?? 0).toLocaleString()}
+                        </span>
                         <StatusPill status={o.status} />
                         <button onClick={() => navigate(`/orders/${o.id}`)} style={{ background: C.softBg, border: `1.5px solid ${C.border2}`, borderRadius: 10, padding: '5px 12px', color: C.primary, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
                           View →
@@ -506,7 +534,9 @@ export default function CustomerDashboard() {
                       </div>
                     ))}
                     <div style={{ padding: '10px 20px', borderTop: `1.5px solid ${C.border}`, background: '#FAF8FF' }}>
-                      <span style={{ fontSize: 12, color: C.light, fontWeight: 600 }}>Showing {orders.length} order{orders.length !== 1 ? 's' : ''}</span>
+                      <span style={{ fontSize: 12, color: C.light, fontWeight: 600 }}>
+                        Showing {orders.length} order{orders.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
                   </div>
                 )}

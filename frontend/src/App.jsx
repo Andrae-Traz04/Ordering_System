@@ -19,23 +19,11 @@ function PrivateRoute({ children, roles }) {
   return children
 }
 
-// ── Dashboard Router ──────────────────────────────────────────
-// Routes to different dashboards based on user role:
-// - Admin:    AdminDashboard (manage all orders, full system access)
-// - Owner:    OwnerDashboard (manage orders and customers)
-// - Customer: CustomerDashboard (view own orders only)
+// ── Dashboard Router ─────────────────────────────────────────
 function DashboardComponent() {
   const { user } = useAuth()
-  
-  if (user?.role === 'admin') {
-    return <AdminDashboard />
-  }
-  
-  if (user?.role === 'owner') {
-    return <OwnerDashboard />
-  }
-  
-  // Default for customers and other roles
+  if (user?.role === 'admin')  return <AdminDashboard />
+  if (user?.role === 'owner')  return <OwnerDashboard />
   return <CustomerDashboard />
 }
 
@@ -49,28 +37,23 @@ export default function App() {
       <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" replace />} />
 
       {/* Protected Routes */}
-      <Route path="/" element={
-        <PrivateRoute><Layout /></PrivateRoute>
-      }>
+      <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        
-        {/* Dashboard - Role-based routing */}
-        {/* ✅ Admin → AdminDashboard (all orders, full control) */}
-        {/* ✅ Owner → OwnerDashboard (business dashboard) */}
-        {/* ✅ Customer → CustomerDashboard (personal orders) */}
+
+        {/* Dashboard - role-based */}
         <Route path="dashboard" element={<DashboardComponent />} />
 
-        {/* Orders - All authenticated users can view */}
+        {/* Orders - all authenticated users */}
         <Route path="orders" element={
           <PrivateRoute><Orders /></PrivateRoute>
         } />
 
-        {/* Create Order - Customer & Admin only (NOT Owner) */}
+        {/* Create Order - Admin only (customers use cart instead) */}
         <Route path="orders/create" element={
-          <PrivateRoute roles={['customer', 'admin']}><CreateOrder /></PrivateRoute>
+          <PrivateRoute roles={['admin']}><CreateOrder /></PrivateRoute>
         } />
 
-        {/* Order Detail - All authenticated users can view */}
+        {/* Order Detail - all authenticated users */}
         <Route path="orders/:id" element={
           <PrivateRoute><OrderDetail /></PrivateRoute>
         } />
@@ -86,7 +69,7 @@ export default function App() {
         } />
       </Route>
 
-      {/* Catch all - redirect to dashboard */}
+      {/* Catch all */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )
