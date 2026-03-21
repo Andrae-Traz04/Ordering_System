@@ -1,134 +1,236 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { fetchOrders, fetchProducts, createOrder } from '@/api/ordersApi'
+import { fetchOrders, fetchProducts, createOrder } from '../api/ordersApi'
 
-// ── Design tokens ────────────────────────────────────────────────
+// ── Color Palette ────────────────────────────────────────────────
 const C = {
-  primary:  '#0ea5e9',
-  primary2: '#0284c7',
-  soft:     '#f0f9ff',
-  soft2:    '#e0f2fe',
-  border:   '#e2e8f0',
-  border2:  '#bae6fd',
-  dark:     '#0f172a',
-  mid:      '#64748b',
-  light:    '#94a3b8',
-  white:    '#ffffff',
-  bg:       '#f8fafc',
-  green:    '#10b981',
-  greenBg:  '#ecfdf5',
-  red:      '#ef4444',
-  redBg:    '#fef2f2',
-  amber:    '#f59e0b',
-  amberBg:  '#fffbeb',
-  purple:   '#8b5cf6',
-  purpleBg: '#f5f3ff',
+  primary:   '#7C3AED',
+  primary2:  '#9B6DFF',
+  softBg:    '#F3EEFF',
+  softBg2:   '#EDEAFF',
+  border:    '#F0EBFF',
+  border2:   '#E0D8FF',
+  dark:      '#2D1F6E',
+  mid:       '#9B8FC0',
+  light:     '#C4B8E8',
+  white:     '#fff',
+  pageBg:    '#FAF8FF',
+  success:   '#10B981',
+  successBg: '#ECFDF5',
+  warn:      '#F59E0B',
+  warnBg:    '#FFFBEB',
+  red:       '#ef4444',
+  redBg:     '#fef2f2',
 }
 
-const STATUS = {
-  pending:    { color: C.amber,   bg: C.amberBg,  label: 'Pending'    },
-  processing: { color: C.primary, bg: C.soft,     label: 'Processing' },
-  shipped:    { color: C.purple,  bg: C.purpleBg, label: 'Shipped'    },
-  completed:  { color: C.green,   bg: C.greenBg,  label: 'Completed'  },
+const CATEGORIES = ['All', 'Electronics', 'Beauty', 'Fitness', 'Gifts', 'Kitchen', 'Others']
+
+const STATUS_META = {
+  pending:    { color: '#F59E0B', bg: '#FFFBEB', dot: '#F59E0B', label: 'Pending'    },
+  processing: { color: '#6C47FF', bg: '#EDEAFF', dot: '#6C47FF', label: 'Processing' },
+  shipped:    { color: '#9B6DFF', bg: '#F3EEFF', dot: '#9B6DFF', label: 'Shipped'    },
+  completed:  { color: '#10B981', bg: '#ECFDF5', dot: '#10B981', label: 'Completed'  },
 }
 
-const CATEGORIES = ['All','Electronics','Beauty','Fitness','Gifts','Kitchen','Others']
-
-// ── SVG Icons ────────────────────────────────────────────────────
-const Icon = ({ d, size=16, color='currentColor' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    {Array.isArray(d) ? d.map((p,i) => <path key={i} d={p}/>) : <path d={d}/>}
-  </svg>
-)
-
-const Icons = {
-  shop:     ['M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z','M3 6h18','M16 10a4 4 0 01-8 0'],
-  orders:   ['M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2','M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
-  cart:     ['M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z','M3 6h18','M16 10a4 4 0 01-8 0'],
-  plus:     'M12 5v14M5 12h14',
-  minus:    'M5 12h14',
-  remove:   'M18 6L6 18M6 6l12 12',
-  check:    'M20 6L9 17l-5-5',
-  arrow:    'M5 12h14M12 5l7 7-7 7',
-  package:  ['M16.5 9.4l-9-5.19','M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z','M3.27 6.96L12 12.01l8.73-5.05','M12 22.08V12'],
-  tag:      ['M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z','M7 7h.01'],
+// ── Shared section-container styles (mirrors OwnerDashboard .table-wrap) ──
+const S = {
+  // Outer card — same purpose as .table-wrap
+  wrap: {
+    background: '#fff',
+    borderRadius: 20,
+    border: '1.5px solid #F0EBFF',
+    boxShadow: '0 2px 16px rgba(155,109,255,0.07)',
+    overflow: 'hidden',
+  },
+  // Top bar — mirrors .table-header
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 20px',
+    borderBottom: '1.5px solid #F0EBFF',
+    background: '#FAF8FF',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  // Section title — mirrors .table-title
+  title: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: '#2D1F6E',
+    letterSpacing: '-0.01em',
+  },
+  // Muted sub-count next to title — mirrors .table-title-sub
+  titleSub: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#9B8FC0',
+    marginLeft: 6,
+  },
+  // Body padding
+  body: {
+    padding: '20px',
+  },
+  // Footer bar — mirrors .table-footer
+  footer: {
+    padding: '10px 20px',
+    borderTop: '1.5px solid #F0EBFF',
+    background: '#FAF8FF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#C4B8E8',
+    fontWeight: 600,
+  },
 }
 
-// ── Cart Drawer ──────────────────────────────────────────────────
-function CartDrawer({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placing }) {
-  const total = cart.reduce((s,i) => s + parseFloat(i.price)*i.qty, 0)
+// ── Helpers ──────────────────────────────────────────────────────
+function useCountUp(target, delay = 0) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    setVal(0)
+    const t = setTimeout(() => {
+      if (!target) return
+      let cur = 0
+      const step = Math.max(1, Math.ceil(target / 25))
+      const iv = setInterval(() => {
+        cur = Math.min(cur + step, target)
+        setVal(cur)
+        if (cur >= target) clearInterval(iv)
+      }, 32)
+      return () => clearInterval(iv)
+    }, delay)
+    return () => clearTimeout(t)
+  }, [target, delay])
+  return val
+}
 
+function timeAgo(dateStr) {
+  if (!dateStr) return ''
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000)
+  if (diff < 60)    return `${diff}s ago`
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  return new Date(dateStr).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+}
+
+// ── StatusPill ───────────────────────────────────────────────────
+function StatusPill({ status }) {
+  const m = STATUS_META[status?.toLowerCase()] || STATUS_META.pending
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      background: m.bg, color: m.color,
+      padding: '4px 11px', borderRadius: 20,
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: m.dot, flexShrink: 0 }} />
+      {m.label}
+    </span>
+  )
+}
+
+// ── StatCard ─────────────────────────────────────────────────────
+function StatCard({ label, value, icon, delay, accentBg }) {
+  const n = useCountUp(value, delay)
+  return (
+    <div
+      style={{
+        background: C.white, borderRadius: 18, padding: '20px 18px',
+        border: `1.5px solid ${C.border}`,
+        boxShadow: '0 2px 14px rgba(155,109,255,0.07)',
+        position: 'relative', overflow: 'hidden',
+        animation: 'fadeUp 0.5s ease both', animationDelay: `${delay}ms`,
+        transition: 'transform 0.2s, box-shadow 0.2s', cursor: 'default',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(155,109,255,0.14)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 2px 14px rgba(155,109,255,0.07)' }}
+    >
+      <div style={{
+        position: 'absolute', top: 0, right: 0,
+        width: 60, height: 60, background: accentBg || C.softBg,
+        borderRadius: '0 18px 0 60px',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+        padding: '8px 8px 0 0', fontSize: 16,
+      }}>{icon}</div>
+      <p style={{ fontSize: 10, fontWeight: 700, color: C.light, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</p>
+      <p style={{ fontSize: 28, fontWeight: 800, color: C.dark, letterSpacing: '-0.02em', lineHeight: 1 }}>
+        {typeof n === 'number' ? n.toLocaleString() : 0}
+      </p>
+    </div>
+  )
+}
+
+// ── Cart Sidebar ─────────────────────────────────────────────────
+function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placing }) {
+  const total = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
   return (
     <>
-      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.35)', zIndex:200, backdropFilter:'blur(2px)' }} />
-      <div style={{ position:'fixed', top:0, right:0, bottom:0, width:360, background:C.white, zIndex:201, boxShadow:'-4px 0 32px rgba(0,0,0,0.1)', display:'flex', flexDirection:'column', animation:'slideIn 0.25s ease' }}>
-
-        {/* Header */}
-        <div style={{ padding:'20px', borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ width:32, height:32, borderRadius:8, background:C.soft2, display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <Icon d={Icons.cart} size={16} color={C.primary} />
-            </div>
-            <div>
-              <h3 style={{ fontSize:15, fontWeight:700, color:C.dark }}>Your Cart</h3>
-              <p style={{ fontSize:11, color:C.mid }}>{cart.length} item{cart.length!==1?'s':''}</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ width:28, height:28, borderRadius:8, border:`1px solid ${C.border}`, background:C.bg, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:C.mid, fontSize:16, fontFamily:'inherit' }}>×</button>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(45,31,110,0.18)', zIndex: 200, backdropFilter: 'blur(2px)' }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 360,
+        background: C.white, zIndex: 201,
+        boxShadow: '-8px 0 40px rgba(124,58,237,0.15)',
+        display: 'flex', flexDirection: 'column',
+        animation: 'slideIn 0.25s ease',
+      }}>
+        <div style={{ padding: '20px 22px 16px', borderBottom: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: C.dark }}>
+            🛒 My Cart <span style={{ fontSize: 13, color: C.mid, fontWeight: 600 }}>({cart.length} item{cart.length !== 1 ? 's' : ''})</span>
+          </h2>
+          <button onClick={onClose} style={{ background: C.softBg, border: 'none', borderRadius: 10, width: 32, height: 32, fontSize: 16, cursor: 'pointer', color: C.primary, fontFamily: 'inherit' }}>✕</button>
         </div>
-
-        {/* Items */}
-        <div style={{ flex:1, overflowY:'auto', padding:'16px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 22px' }}>
           {cart.length === 0 ? (
-            <div style={{ textAlign:'center', paddingTop:60 }}>
-              <div style={{ width:52, height:52, borderRadius:14, background:C.soft, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' }}>
-                <Icon d={Icons.cart} size={24} color={C.primary} />
-              </div>
-              <p style={{ fontSize:13, fontWeight:600, color:C.mid }}>Your cart is empty</p>
-              <p style={{ fontSize:12, color:C.light, marginTop:4 }}>Add products to get started</p>
+            <div style={{ textAlign: 'center', padding: '60px 0', color: C.light }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🛒</div>
+              <p style={{ fontWeight: 600 }}>Your cart is empty</p>
+              <p style={{ fontSize: 12, marginTop: 4 }}>Add products to get started</p>
             </div>
           ) : cart.map(item => (
-            <div key={item.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderBottom:`1px solid ${C.bg}` }}>
-              <div style={{ width:44, height:44, borderRadius:10, background:C.soft, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>
-                {item.emoji||'📦'}
+            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1.5px solid ${C.border}` }}>
+              <div style={{ width: 48, height: 48, background: C.softBg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                {item.emoji || '📦'}
               </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <p style={{ fontSize:13, fontWeight:600, color:C.dark, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</p>
-                <p style={{ fontSize:12, fontWeight:700, color:C.primary }}>₱{parseFloat(item.price).toFixed(2)}</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
+                <p style={{ fontSize: 12, color: C.primary, fontWeight: 700 }}>₱{parseFloat(item.price).toFixed(2)}</p>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-                <button onClick={() => onUpdateQty(item.id, item.qty-1)} style={{ width:26, height:26, borderRadius:6, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <Icon d={Icons.minus} size={12} color={C.mid} />
-                </button>
-                <span style={{ fontSize:13, fontWeight:700, color:C.dark, minWidth:20, textAlign:'center' }}>{item.qty}</span>
-                <button onClick={() => onUpdateQty(item.id, item.qty+1)} style={{ width:26, height:26, borderRadius:6, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <Icon d={Icons.plus} size={12} color={C.mid} />
-                </button>
-                <button onClick={() => onRemove(item.id)} style={{ width:26, height:26, borderRadius:6, border:`1px solid #fecaca`, background:C.redBg, color:C.red, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', marginLeft:2 }}>
-                  <Icon d={Icons.remove} size={12} color={C.red} />
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => onUpdateQty(item.id, item.qty - 1)} style={{ width: 26, height: 26, borderRadius: 8, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>−</button>
+                <span style={{ fontSize: 13, fontWeight: 700, color: C.dark, minWidth: 18, textAlign: 'center' }}>{item.qty}</span>
+                <button onClick={() => onUpdateQty(item.id, item.qty + 1)} style={{ width: 26, height: 26, borderRadius: 8, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>+</button>
               </div>
+              <button onClick={() => onRemove(item.id)} style={{ background: C.redBg, border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: C.red, fontSize: 13 }}>🗑</button>
             </div>
           ))}
         </div>
-
-        {/* Footer */}
         {cart.length > 0 && (
-          <div style={{ padding:'16px 20px', borderTop:`1px solid ${C.border}` }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:14 }}>
-              <span style={{ fontSize:14, fontWeight:600, color:C.mid }}>Total</span>
-              <span style={{ fontSize:20, fontWeight:800, color:C.primary }}>₱{total.toFixed(2)}</span>
+          <div style={{ padding: '16px 22px', borderTop: `1.5px solid ${C.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.mid }}>Total</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: C.dark }}>₱{total.toFixed(2)}</span>
             </div>
-            <button onClick={onPlaceOrder} disabled={placing} style={{ width:'100%', padding:'13px', borderRadius:12, border:'none', background:placing?C.soft2:`linear-gradient(135deg, ${C.primary}, ${C.primary2})`, color:C.white, fontWeight:700, fontSize:14, cursor:placing?'wait':'pointer', fontFamily:'inherit', boxShadow:placing?'none':'0 4px 14px rgba(14,165,233,0.3)', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all 0.2s' }}>
-              {placing ? 'Placing Order...' : (
-                <><Icon d={Icons.check} size={16} color={C.white} /> Place Order</>
-              )}
+            <button
+              onClick={onPlaceOrder} disabled={placing}
+              style={{
+                width: '100%', padding: '13px', borderRadius: 14,
+                background: placing ? C.light : `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+                color: C.white, border: 'none', fontWeight: 800, fontSize: 15,
+                cursor: placing ? 'wait' : 'pointer', fontFamily: 'inherit',
+                boxShadow: placing ? 'none' : '0 4px 16px rgba(124,58,237,0.3)',
+                transition: 'all 0.2s',
+              }}
+            >
+              {placing ? '⏳ Placing Order…' : '✅ Place Order'}
             </button>
           </div>
         )}
       </div>
-      <style>{`@keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
     </>
   )
 }
@@ -137,39 +239,65 @@ function CartDrawer({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placin
 export default function CustomerDashboard() {
   const { user }   = useAuth()
   const navigate   = useNavigate()
+
   const [tab,      setTab]      = useState('shop')
   const [products, setProducts] = useState([])
   const [orders,   setOrders]   = useState([])
   const [loading,  setLoading]  = useState(true)
-  const [catFilter, setCatFilter] = useState('All')
-  const [cart,     setCart]     = useState([])
-  const [cartOpen, setCartOpen] = useState(false)
-  const [placing,  setPlacing]  = useState(false)
-  const [msg,      setMsg]      = useState('')
+  const [error,    setError]    = useState(null)
 
-  const notify = (m) => { setMsg(m); setTimeout(() => setMsg(''), 4000) }
+  const [cart,         setCart]         = useState([])
+  const [cartOpen,     setCartOpen]     = useState(false)
+  const [placing,      setPlacing]      = useState(false)
+  const [orderSuccess, setOrderSuccess] = useState(false)
+  const [toast,        setToast]        = useState('')
+
+  const [category, setCategory] = useState('All')
+  const [search,   setSearch]   = useState('')
+
+  const notify = (m) => { setToast(m); setTimeout(() => setToast(''), 4000) }
 
   const load = useCallback(async () => {
-    setLoading(true)
+    setLoading(true); setError(null)
     try {
       const [pRes, oRes] = await Promise.all([fetchProducts(), fetchOrders()])
       setProducts(pRes.data.products || [])
       setOrders(oRes.data.orders || [])
-    } catch {}
-    setLoading(false)
+    } catch {
+      setError('Failed to load data.')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  const addToCart = (p) => setCart(prev => {
-    const ex = prev.find(i => i.id===p.id)
-    if (ex) return prev.map(i => i.id===p.id ? {...i, qty:i.qty+1} : i)
-    return [...prev, {...p, qty:1}]
-  })
+  const stats = {
+    total:     orders.length,
+    pending:   orders.filter(o => o.status?.toLowerCase() === 'pending').length,
+    shipped:   orders.filter(o => o.status?.toLowerCase() === 'shipped').length,
+    completed: orders.filter(o => o.status?.toLowerCase() === 'completed').length,
+  }
+
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0)
+  const cartTotal = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
+
+  const filteredProducts = products.filter(p =>
+    (category === 'All' || p.category === category) &&
+    (search === '' || p.name.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  const addToCart = (product) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === product.id)
+      if (existing) return prev.map(i => i.id === product.id ? { ...i, qty: i.qty + 1 } : i)
+      return [...prev, { ...product, qty: 1 }]
+    })
+  }
 
   const updateQty = (id, qty) => {
-    if (qty <= 0) setCart(prev => prev.filter(i => i.id!==id))
-    else setCart(prev => prev.map(i => i.id===id ? {...i, qty} : i))
+    if (qty <= 0) setCart(prev => prev.filter(i => i.id !== id))
+    else setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i))
   }
 
   const placeOrder = async () => {
@@ -179,236 +307,421 @@ export default function CustomerDashboard() {
       await createOrder({
         customer_name:  user.username,
         customer_email: user.email || `${user.username}@customer.com`,
-        items: cart.map(i => ({ product_id:i.id, product_name:i.name, quantity:i.qty, unit_price:parseFloat(i.price) })),
+        items: cart.map(i => ({
+          product_id:   i.id,
+          product_name: i.name,
+          quantity:     i.qty,
+          unit_price:   parseFloat(i.price),
+        })),
       })
-      setCart([]); setCartOpen(false)
-      notify('Order placed successfully!')
-      setTab('orders'); load()
-    } catch (e) {
-      const msg = e.response?.data ? Object.values(e.response.data).flat().join(', ') : 'Failed to place order.'
+      setCart([])
+      setCartOpen(false)
+      setOrderSuccess(true)
+      setTimeout(() => setOrderSuccess(false), 4000)
+      notify('Order placed successfully! 🎉')
+      await load()
+      setTab('orders')
+    } catch (err) {
+      const msg = err?.response?.data
+        ? Object.values(err.response.data).flat().join(', ')
+        : 'Failed to place order. Please try again.'
       notify(`Error: ${msg}`)
     } finally {
       setPlacing(false)
     }
   }
 
-  const filtered   = catFilter==='All' ? products : products.filter(p => p.category===catFilter)
-  const cartCount  = cart.reduce((s,i) => s+i.qty, 0)
-  const cartTotal  = cart.reduce((s,i) => s+parseFloat(i.price)*i.qty, 0)
+  const greeting = (() => {
+    const h = new Date().getHours()
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
+  })()
 
   return (
     <>
       <style>{`
-        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes spin    { to   { transform:rotate(360deg) } }
+        @keyframes slideIn { from { transform:translateX(100%) } to { transform:translateX(0) } }
+        @keyframes popIn   { from { opacity:0; transform:scale(0.9) } to { opacity:1; transform:scale(1) } }
       `}</style>
 
-      {/* Toast */}
-      {msg && (
-        <div style={{ position:'fixed', top:20, right:20, zIndex:400, background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:'12px 18px', fontSize:13, fontWeight:600, color:C.dark, boxShadow:'0 8px 24px rgba(0,0,0,0.08)', display:'flex', alignItems:'center', gap:8 }}>
-          <Icon d={Icons.check} size={14} color={C.green} /> {msg}
-        </div>
-      )}
+      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 14 }}>
 
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, animation:'fadeUp 0.4s ease both' }}>
-        <div>
-          <p style={{ fontSize:11, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>Customer Portal</p>
-          <h1 style={{ fontSize:22, fontWeight:800, color:C.dark }}>Welcome, {user?.username}</h1>
-          <p style={{ fontSize:13, color:C.mid, marginTop:2 }}>Browse products and track your orders</p>
-        </div>
-
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          {/* Tabs */}
-          <div style={{ display:'flex', background:C.bg, borderRadius:10, padding:3, border:`1px solid ${C.border}`, gap:3 }}>
-            {[{id:'shop',icon:Icons.shop,label:'Shop'},{id:'orders',icon:Icons.orders,label:'My Orders'}].map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background: tab===t.id?C.white:'transparent', color: tab===t.id?C.dark:C.mid, fontWeight: tab===t.id?700:500, fontSize:13, cursor:'pointer', fontFamily:'inherit', boxShadow: tab===t.id?'0 1px 4px rgba(0,0,0,0.08)':'none', transition:'all 0.15s' }}>
-                <Icon d={t.icon} size={13} color={tab===t.id?C.dark:C.mid} /> {t.label}
-              </button>
-            ))}
+        {/* Toast */}
+        {toast && (
+          <div style={{
+            position: 'fixed', top: 20, right: 20, zIndex: 400,
+            background: C.white, border: `1.5px solid ${C.border}`,
+            borderRadius: 14, padding: '12px 18px',
+            fontSize: 13, fontWeight: 600, color: C.dark,
+            boxShadow: '0 8px 28px rgba(155,109,255,0.15)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            animation: 'popIn 0.25s ease',
+          }}>
+            ✅ {toast}
           </div>
+        )}
 
-          {/* Cart button */}
-          <button onClick={() => setCartOpen(true)} style={{ position:'relative', display:'flex', alignItems:'center', gap:7, padding:'9px 16px', borderRadius:10, border:`1px solid ${cartCount>0?C.primary:C.border}`, background:cartCount>0?C.soft:C.white, color:cartCount>0?C.primary:C.mid, fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s' }}>
-            <Icon d={Icons.shop} size={14} color={cartCount>0?C.primary:C.mid} />
-            Cart
-            {cartCount>0 && (
-              <span style={{ background:C.primary, color:C.white, fontSize:10, fontWeight:800, padding:'1px 6px', borderRadius:20, minWidth:18, textAlign:'center' }}>{cartCount}</span>
-            )}
-          </button>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 22, flexWrap: 'wrap', gap: 12, animation: 'fadeUp 0.4s ease both' }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, color: C.light, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>My Store</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: C.dark, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {greeting}, {user?.username || 'there'} 👋
+            </h1>
+            <p style={{ marginTop: 4, fontSize: 13, color: C.mid, fontWeight: 500 }}>Browse products, manage your cart and track orders.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button onClick={load} style={{ background: C.softBg, border: `1.5px solid ${C.border2}`, borderRadius: 12, padding: '9px 16px', color: C.primary, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+              ↻ Refresh
+            </button>
+            <button
+              onClick={() => setCartOpen(true)}
+              style={{
+                background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+                border: 'none', borderRadius: 12, padding: '9px 18px',
+                color: C.white, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8,
+                boxShadow: '0 4px 14px rgba(124,58,237,0.3)',
+              }}
+            >
+              🛒 Cart
+              {cartCount > 0 && (
+                <span style={{ background: C.warn, color: C.white, borderRadius: '50%', width: 20, height: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Order success banner */}
+        {orderSuccess && (
+          <div style={{ background: C.successBg, border: '1.5px solid #6EE7B7', borderRadius: 14, padding: '12px 18px', marginBottom: 18, color: '#065F46', fontSize: 13, fontWeight: 700, animation: 'popIn 0.3s ease' }}>
+            ✅ Order placed successfully! You can track it in My Orders.
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{ background: '#FFF0F0', border: '1.5px solid #FFD0CC', borderRadius: 14, padding: '12px 18px', marginBottom: 18, color: '#CC2200', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            ⚠️ {error}
+            <button onClick={load} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.primary, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>Retry</button>
+          </div>
+        )}
+
+        {/* Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 22 }}>
+          <StatCard label="My Orders"  value={stats.total}     icon="📦" delay={60}  accentBg={C.softBg}    />
+          <StatCard label="Pending"    value={stats.pending}   icon="⏳" delay={110} accentBg={C.warnBg}    />
+          <StatCard label="Shipped"    value={stats.shipped}   icon="🚚" delay={160} accentBg={C.softBg2}   />
+          <StatCard label="Completed"  value={stats.completed} icon="✅" delay={210} accentBg={C.successBg} />
+          <StatCard label="Cart Items" value={cartCount}       icon="🛒" delay={260} accentBg={C.softBg}    />
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, background: C.softBg, padding: 5, borderRadius: 14, width: 'fit-content' }}>
+          {[{ key: 'shop', label: '🛍️ Shop' }, { key: 'orders', label: '📦 My Orders' }].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)} style={{
+              padding: '9px 20px', borderRadius: 10, border: 'none',
+              background: tab === t.key ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})` : 'transparent',
+              color: tab === t.key ? C.white : C.mid,
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              transition: 'all 0.15s',
+              boxShadow: tab === t.key ? '0 4px 12px rgba(124,58,237,0.25)' : 'none',
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* Loading */}
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 14 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: `3px solid ${C.border}`, borderTopColor: C.primary2, animation: 'spin 0.8s linear infinite' }} />
+            <span style={{ color: C.light, fontWeight: 600 }}>Loading…</span>
+          </div>
+        ) : (
+          <>
+
+            {/* ══════════════════════════════════════════════
+                SHOP TAB — section-wrapped like OwnerDashboard
+                ══════════════════════════════════════════════ */}
+            {tab === 'shop' && (
+              <div style={{ animation: 'fadeUp 0.4s ease both' }}>
+                <div style={S.wrap}>
+
+                  {/* ── Section header: title + search + category chips ── */}
+                  <div style={S.header}>
+                    {/* Left */}
+                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                      <span style={S.title}>Products</span>
+                      <span style={S.titleSub}>
+                        {filteredProducts.length !== products.length
+                          ? `${filteredProducts.length} of ${products.length}`
+                          : `${products.length} available`}
+                      </span>
+                    </div>
+
+                    {/* Right: search + filters */}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: C.light, pointerEvents: 'none' }}>🔍</span>
+                        <input
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          placeholder="Search…"
+                          style={{
+                            padding: '7px 12px 7px 30px', borderRadius: 10,
+                            border: `1.5px solid ${C.border2}`, background: C.white,
+                            fontSize: 12, color: C.dark, fontFamily: 'inherit',
+                            outline: 'none', width: 155,
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {CATEGORIES.map(cat => (
+                          <button key={cat} onClick={() => setCategory(cat)} style={{
+                            padding: '5px 12px', borderRadius: 20, border: 'none',
+                            background: category === cat
+                              ? `linear-gradient(135deg, ${C.primary}, ${C.primary2})`
+                              : C.softBg,
+                            color: category === cat ? C.white : C.mid,
+                            fontWeight: 700, fontSize: 11, cursor: 'pointer',
+                            fontFamily: 'inherit', transition: 'all 0.15s',
+                          }}>{cat}</button>
+                        ))}
+                        {(search || category !== 'All') && (
+                          <button
+                            onClick={() => { setSearch(''); setCategory('All') }}
+                            style={{ padding: '5px 10px', borderRadius: 20, border: `1.5px solid ${C.border2}`, background: C.white, color: C.mid, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
+                          >✕ Clear</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Cart summary bar (inside container) ── */}
+                  {cartCount > 0 && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 20px',
+                      background: C.softBg2,
+                      borderBottom: `1.5px solid ${C.border2}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 15 }}>🛒</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>
+                          {cartCount} item{cartCount !== 1 ? 's' : ''} in cart —{' '}
+                          <strong style={{ color: C.primary }}>₱{cartTotal.toFixed(2)}</strong>
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setCartOpen(true)}
+                        style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`, color: C.white, fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 3px 10px rgba(124,58,237,0.25)' }}
+                      >View Cart →</button>
+                    </div>
+                  )}
+
+                  {/* ── Product grid body ── */}
+                  <div style={S.body}>
+                    {filteredProducts.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                        <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
+                        <p style={{ fontWeight: 600, color: C.light }}>
+                          {products.length === 0 ? 'No products available yet.' : 'No products match your search.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                        {filteredProducts.map((product, i) => {
+                          const inCart = cart.find(c => c.id === product.id)
+                          return (
+                            <div key={product.id} style={{
+                              background: C.white, borderRadius: 16,
+                              border: `1.5px solid ${C.border}`,
+                              boxShadow: '0 1px 8px rgba(155,109,255,0.06)',
+                              overflow: 'hidden',
+                              animation: 'fadeUp 0.4s ease both', animationDelay: `${i * 50}ms`,
+                              transition: 'transform 0.2s, box-shadow 0.2s',
+                              display: 'flex', flexDirection: 'column',
+                            }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(124,58,237,0.14)' }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 1px 8px rgba(155,109,255,0.06)' }}
+                            >
+                              <div style={{ background: C.softBg, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, position: 'relative' }}>
+                                {product.emoji || '📦'}
+                                {product.badge && (
+                                  <span style={{
+                                    position: 'absolute', top: 10, right: 10,
+                                    background: product.badge === 'New' ? C.successBg : product.badge === 'Best Seller' ? C.warnBg : C.softBg2,
+                                    color: product.badge === 'New' ? C.success : product.badge === 'Best Seller' ? C.warn : C.primary,
+                                    fontSize: 10, fontWeight: 800, padding: '3px 9px', borderRadius: 20,
+                                  }}>{product.badge}</span>
+                                )}
+                              </div>
+                              <div style={{ padding: '12px 14px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <p style={{ fontSize: 13, fontWeight: 800, color: C.dark, marginBottom: 3 }}>{product.name}</p>
+                                {product.description && (
+                                  <p style={{ fontSize: 11, color: C.mid, marginBottom: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', flex: 1 }}>
+                                    {product.description}
+                                  </p>
+                                )}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 4 }}>
+                                  <span style={{ fontSize: 17, fontWeight: 800, color: C.primary }}>₱{parseFloat(product.price).toFixed(2)}</span>
+                                  <span style={{ fontSize: 10, color: C.light, fontWeight: 600 }}>{product.category}</span>
+                                </div>
+                              </div>
+                              <div style={{ padding: '10px 14px 14px' }}>
+                                {inCart ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <button onClick={() => updateQty(product.id, inCart.qty - 1)} style={{ flex: 1, padding: '7px', borderRadius: 9, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 15 }}>−</button>
+                                    <span style={{ fontSize: 14, fontWeight: 800, color: C.dark, minWidth: 24, textAlign: 'center' }}>{inCart.qty}</span>
+                                    <button onClick={() => updateQty(product.id, inCart.qty + 1)} style={{ flex: 1, padding: '7px', borderRadius: 9, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 15 }}>+</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => addToCart(product)} style={{
+                                    width: '100%', padding: '9px', borderRadius: 10, border: 'none',
+                                    background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+                                    color: C.white, fontWeight: 700, fontSize: 12,
+                                    cursor: 'pointer', fontFamily: 'inherit',
+                                    boxShadow: '0 3px 10px rgba(124,58,237,0.25)',
+                                    transition: 'opacity 0.15s',
+                                  }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                  >🛒 Add to Cart</button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Section footer ── */}
+                  <div style={S.footer}>
+                    <span style={S.footerText}>
+                      {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}
+                      {filteredProducts.length !== products.length ? ` (filtered from ${products.length})` : ' total'}
+                    </span>
+                    {cartCount > 0 && (
+                      <button
+                        onClick={() => setCartOpen(true)}
+                        style={{ fontSize: 12, fontWeight: 700, color: C.primary, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+                      >View cart ({cartCount}) →</button>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* ══════════════════════════════════════════════
+                ORDERS TAB — section-wrapped like OwnerDashboard
+                ══════════════════════════════════════════════ */}
+            {tab === 'orders' && (
+              <div style={{ animation: 'fadeUp 0.4s ease both' }}>
+                <div style={S.wrap}>
+
+                  {/* ── Section header: title + New Order button ── */}
+                  <div style={S.header}>
+                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                      <span style={S.title}>My Recent Orders</span>
+                      <span style={S.titleSub}>{orders.length} order{orders.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <button
+                      onClick={() => setTab('shop')}
+                      style={{
+                        background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
+                        border: 'none', borderRadius: 10, padding: '8px 16px',
+                        color: C.white, fontWeight: 700, fontSize: 12,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                        boxShadow: '0 3px 12px rgba(124,58,237,0.25)',
+                      }}
+                    >+ New Order</button>
+                  </div>
+
+                  {orders.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
+                      <p style={{ color: C.light, fontWeight: 600, marginBottom: 14 }}>No orders yet</p>
+                      <button
+                        onClick={() => setTab('shop')}
+                        style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.primary2})`, border: 'none', borderRadius: 12, padding: '10px 22px', color: C.white, fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+                      >Start Shopping</button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Column headers */}
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: '130px 1fr 110px 130px 100px',
+                        padding: '9px 20px', gap: 12,
+                        background: C.pageBg,
+                        borderBottom: `1.5px solid ${C.border}`,
+                      }}>
+                        {['Order #', 'Date', 'Total', 'Status', 'Action'].map(h => (
+                          <span key={h} style={{ fontSize: 10, fontWeight: 700, color: C.light, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</span>
+                        ))}
+                      </div>
+
+                      {/* Rows */}
+                      {orders.map((o, i) => (
+                        <div key={o.id} style={{
+                          display: 'grid', gridTemplateColumns: '130px 1fr 110px 130px 100px',
+                          padding: '13px 20px', gap: 12, alignItems: 'center',
+                          borderBottom: i < orders.length - 1 ? `1.5px solid ${C.pageBg}` : 'none',
+                          animation: 'fadeUp 0.4s ease both', animationDelay: `${i * 40}ms`,
+                          transition: 'background 0.15s',
+                        }}
+                          onMouseEnter={e => e.currentTarget.style.background = C.pageBg}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <span style={{ fontSize: 12, fontWeight: 700, color: C.primary }}>{o.order_number}</span>
+                          <div>
+                            <div style={{ fontSize: 12, color: C.mid }}>
+                              {new Date(o.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                            <div style={{ fontSize: 10, color: C.light, marginTop: 1 }}>{timeAgo(o.created_at)}</div>
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
+                            ₱{parseFloat(o.total_amount || 0).toFixed(2)}
+                          </span>
+                          <StatusPill status={o.status} />
+                          <button
+                            onClick={() => navigate(`/orders/${o.id}`)}
+                            style={{ background: C.softBg, border: `1.5px solid ${C.border2}`, borderRadius: 10, padding: '5px 12px', color: C.primary, fontWeight: 700, fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = C.softBg2; e.currentTarget.style.borderColor = C.primary }}
+                            onMouseLeave={e => { e.currentTarget.style.background = C.softBg;  e.currentTarget.style.borderColor = C.border2 }}
+                          >View →</button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {/* ── Section footer ── */}
+                  {orders.length > 0 && (
+                    <div style={S.footer}>
+                      <span style={S.footerText}>{orders.length} order{orders.length !== 1 ? 's' : ''} total</span>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            )}
+
+          </>
+        )}
       </div>
 
-      {loading ? (
-        <div style={{ textAlign:'center', padding:'80px', color:C.light, fontSize:13, fontWeight:600 }}>Loading...</div>
-      ) : (
-        <>
-          {/* ── SHOP TAB ── */}
-          {tab === 'shop' && (
-            <div style={{ animation:'fadeUp 0.35s ease both' }}>
-
-              {/* Cart summary bar (when items in cart) */}
-              {cartCount > 0 && (
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:C.soft, border:`1px solid ${C.border2}`, borderRadius:12, marginBottom:16 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <Icon d={Icons.shop} size={16} color={C.primary} />
-                    <span style={{ fontSize:13, fontWeight:600, color:C.primary2 }}>
-                      {cartCount} item{cartCount!==1?'s':''} in cart — <strong>₱{cartTotal.toFixed(2)}</strong>
-                    </span>
-                  </div>
-                  <button onClick={() => setCartOpen(true)} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', borderRadius:8, border:'none', background:`linear-gradient(135deg,${C.primary},${C.primary2})`, color:C.white, fontWeight:700, fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>
-                    View Cart <Icon d={Icons.arrow} size={12} color={C.white} />
-                  </button>
-                </div>
-              )}
-
-              {/* Category filter */}
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:18 }}>
-                {CATEGORIES.map(cat => (
-                  <button key={cat} onClick={() => setCatFilter(cat)} style={{
-                    padding:'6px 14px', borderRadius:20,
-                    border:`1px solid ${catFilter===cat?C.primary:C.border}`,
-                    background: catFilter===cat?C.soft:C.white,
-                    color: catFilter===cat?C.primary:C.mid,
-                    fontWeight:700, fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s',
-                  }}>{cat}</button>
-                ))}
-              </div>
-
-              {filtered.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'60px', background:C.white, borderRadius:16, border:`1px solid ${C.border}` }}>
-                  <div style={{ width:52, height:52, borderRadius:14, background:C.soft, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                    <Icon d={Icons.package} size={24} color={C.primary} />
-                  </div>
-                  <h3 style={{ fontSize:16, fontWeight:700, color:C.dark, marginBottom:8 }}>No products available</h3>
-                  <p style={{ fontSize:13, color:C.mid }}>The store owner hasn't added any products yet. Check back soon!</p>
-                </div>
-              ) : (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:14 }}>
-                  {filtered.map((p, i) => {
-                    const inCart = cart.find(c => c.id===p.id)
-                    return (
-                      <div key={p.id} style={{
-                        background:C.white, borderRadius:16, border:`1px solid ${C.border}`,
-                        boxShadow:'0 1px 8px rgba(0,0,0,0.04)', overflow:'hidden',
-                        display:'flex', flexDirection:'column',
-                        animation:'fadeUp 0.4s ease both', animationDelay:`${i*45}ms`,
-                        transition:'transform 0.2s, box-shadow 0.2s',
-                      }}
-                        onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.08)'}}
-                        onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='0 1px 8px rgba(0,0,0,0.04)'}}
-                      >
-                        {/* Image area */}
-                        <div style={{ background:C.soft, height:110, display:'flex', alignItems:'center', justifyContent:'center', fontSize:44, position:'relative' }}>
-                          {p.emoji||'📦'}
-                          {p.badge && <span style={{ position:'absolute', top:8, right:8, fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20, background:C.white, color:C.primary, border:`1px solid ${C.border2}` }}>{p.badge}</span>}
-                        </div>
-
-                        {/* Info */}
-                        <div style={{ padding:'12px 14px', flex:1, display:'flex', flexDirection:'column' }}>
-                          <p style={{ fontSize:13, fontWeight:700, color:C.dark, marginBottom:3, lineHeight:1.3 }}>{p.name}</p>
-                          {p.description && <p style={{ fontSize:11, color:C.mid, marginBottom:8, lineHeight:1.4, flex:1, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{p.description}</p>}
-                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12, marginTop:'auto' }}>
-                            <span style={{ fontSize:17, fontWeight:800, color:C.primary }}>₱{parseFloat(p.price).toFixed(2)}</span>
-                            <span style={{ fontSize:10, color:C.light, fontWeight:600 }}>{p.category}</span>
-                          </div>
-
-                          {/* Add to cart */}
-                          {inCart ? (
-                            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                              <button onClick={() => updateQty(p.id, inCart.qty-1)} style={{ flex:1, padding:'8px', borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                <Icon d={Icons.minus} size={13} color={C.mid} />
-                              </button>
-                              <span style={{ fontSize:14, fontWeight:800, color:C.dark, minWidth:24, textAlign:'center' }}>{inCart.qty}</span>
-                              <button onClick={() => updateQty(p.id, inCart.qty+1)} style={{ flex:1, padding:'8px', borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                <Icon d={Icons.plus} size={13} color={C.mid} />
-                              </button>
-                            </div>
-                          ) : (
-                            <button onClick={() => addToCart(p)} style={{ width:'100%', padding:'9px', borderRadius:10, border:'none', background:`linear-gradient(135deg,${C.primary},${C.primary2})`, color:C.white, fontWeight:700, fontSize:12, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:6, boxShadow:'0 3px 10px rgba(14,165,233,0.25)', transition:'opacity 0.15s' }}
-                              onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
-                              onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-                              <Icon d={Icons.plus} size={13} color={C.white} /> Add to Cart
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── ORDERS TAB ── */}
-          {tab === 'orders' && (
-            <div style={{ animation:'fadeUp 0.35s ease both' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-                <div>
-                  <h2 style={{ fontSize:16, fontWeight:700, color:C.dark }}>My Orders</h2>
-                  <p style={{ fontSize:12, color:C.mid, marginTop:2 }}>{orders.length} order{orders.length!==1?'s':''}</p>
-                </div>
-                <button onClick={() => setTab('shop')} style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:10, border:'none', background:`linear-gradient(135deg,${C.primary},${C.primary2})`, color:C.white, fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', boxShadow:'0 3px 10px rgba(14,165,233,0.25)' }}>
-                  <Icon d={Icons.plus} size={14} color={C.white} /> New Order
-                </button>
-              </div>
-
-              {orders.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'60px', background:C.white, borderRadius:16, border:`1px solid ${C.border}` }}>
-                  <div style={{ width:52, height:52, borderRadius:14, background:C.soft, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                    <Icon d={Icons.orders} size={24} color={C.primary} />
-                  </div>
-                  <h3 style={{ fontSize:16, fontWeight:700, color:C.dark, marginBottom:8 }}>No orders yet</h3>
-                  <p style={{ fontSize:13, color:C.mid, marginBottom:18 }}>Start shopping to place your first order</p>
-                  <button onClick={() => setTab('shop')} style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'10px 22px', borderRadius:10, border:'none', background:`linear-gradient(135deg,${C.primary},${C.primary2})`, color:C.white, fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
-                    <Icon d={Icons.shop} size={14} color={C.white} /> Browse Products
-                  </button>
-                </div>
-              ) : (
-                <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'130px 1fr 110px 130px 100px', padding:'10px 20px', gap:12, background:C.bg, borderBottom:`1px solid ${C.border}` }}>
-                    {['Order #','Date','Total','Status','Action'].map(h => (
-                      <span key={h} style={{ fontSize:10, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
-                    ))}
-                  </div>
-                  {orders.map((o, i) => {
-                    const m = STATUS[o.status?.toLowerCase()] || STATUS.pending
-                    return (
-                      <div key={o.id} style={{
-                        display:'grid', gridTemplateColumns:'130px 1fr 110px 130px 100px',
-                        padding:'13px 20px', gap:12, alignItems:'center',
-                        borderBottom: i<orders.length-1?`1px solid ${C.bg}`:'none',
-                        transition:'background 0.12s',
-                        animation:'fadeUp 0.4s ease both', animationDelay:`${i*35}ms`,
-                      }}
-                        onMouseEnter={e=>e.currentTarget.style.background=C.bg}
-                        onMouseLeave={e=>e.currentTarget.style.background='transparent'}
-                      >
-                        <span style={{ fontSize:12, fontWeight:700, color:C.primary }}>{o.order_number}</span>
-                        <span style={{ fontSize:12, color:C.mid }}>{new Date(o.created_at).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}</span>
-                        <span style={{ fontSize:13, fontWeight:700, color:C.dark }}>₱{parseFloat(o.total_amount||0).toFixed(2)}</span>
-                        <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:m.bg, color:m.color, padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700 }}>
-                          <span style={{ width:5, height:5, borderRadius:'50%', background:m.color }} />{m.label}
-                        </span>
-                        <button onClick={() => navigate(`/orders/${o.id}`)} style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 12px', borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600, fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s' }}
-                          onMouseEnter={e=>{e.currentTarget.style.borderColor=C.primary; e.currentTarget.style.color=C.primary; e.currentTarget.style.background=C.soft}}
-                          onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.mid; e.currentTarget.style.background=C.white}}>
-                          View <Icon d={Icons.arrow} size={11} color="currentColor" />
-                        </button>
-                      </div>
-                    )
-                  })}
-                  <div style={{ padding:'10px 20px', borderTop:`1px solid ${C.bg}`, background:C.bg }}>
-                    <span style={{ fontSize:12, color:C.light, fontWeight:600 }}>{orders.length} order{orders.length!==1?'s':''} total</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-
       {cartOpen && (
-        <CartDrawer cart={cart} onClose={() => setCartOpen(false)} onUpdateQty={updateQty} onRemove={id=>setCart(prev=>prev.filter(i=>i.id!==id))} onPlaceOrder={placeOrder} placing={placing} />
+        <CartSidebar
+          cart={cart}
+          onClose={() => setCartOpen(false)}
+          onUpdateQty={updateQty}
+          onRemove={id => setCart(prev => prev.filter(i => i.id !== id))}
+          onPlaceOrder={placeOrder}
+          placing={placing}
+        />
       )}
     </>
   )

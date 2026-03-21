@@ -181,7 +181,7 @@ export default function OwnerDashboard() {
       <div className="table-wrap">
         <div className="table-header">
           <div>
-            <span className="table-title">All Customer Orders</span>
+            <span className="table-title">Recent Customer Orders</span>
             {statusFilter && (
               <span className="table-title-sub">— {statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}</span>
             )}
