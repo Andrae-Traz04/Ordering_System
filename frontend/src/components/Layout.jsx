@@ -7,6 +7,7 @@ import {
   IconCustomers,
   IconUsers,
   IconLogout,
+  IconProducts,
   IconWorkflowPending,
   IconWorkflowProcessing,
   IconWorkflowShipped,
@@ -27,11 +28,11 @@ export default function Layout() {
     customer: [
       { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
       { to: '/orders',    icon: IconOrders,    label: 'Orders'    },
-      // ✅ Removed: New Order — customers use cart on dashboard instead
     ],
     owner: [
       { to: '/dashboard', icon: IconDashboard,  label: 'Dashboard' },
       { to: '/orders',    icon: IconOrders,     label: 'Orders'    },
+      { to: '/products',  icon: IconProducts,   label: 'Products'  },
       { to: '/customers', icon: IconCustomers,  label: 'Customers' },
     ],
     admin: [
@@ -384,7 +385,7 @@ export default function Layout() {
                   className={({ isActive }) => `amu-nav-item${isActive ? ' active' : ''}`}
                 >
                   <span className="amu-nav-icon">
-                    <IconComponent size={18} color={item.isActive ? '#7C3AED' : '#9B8FC0'} />
+                    <IconComponent size={18} color="currentColor" />
                   </span>
                   <span>{item.label}</span>
                 </NavLink>
