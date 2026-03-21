@@ -63,7 +63,14 @@ class RegisterView(APIView):
             token, _ = Token.objects.get_or_create(user=user)
             return Response({
                 'token': token.key,
-                'user':  {'id': user.id, 'username': user.username, 'role': get_role(user)},
+                'user':  {
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                    'role': get_role(user),
+                },
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

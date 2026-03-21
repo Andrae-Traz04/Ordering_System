@@ -29,15 +29,19 @@ class RegisterSerializer(serializers.Serializer):
     last_name        = serializers.CharField(max_length=150)
     password         = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
-    role             = serializers.ChoiceField(
-        choices=['customer', 'owner', 'admin'],
-        default='customer'
-    )
+    role             = serializers.ChoiceField(choices=['customer', 'owner', 'admin'])
 
     def validate_username(self, value):
-        if User.objects.filter(username=value).exists():
+        normalized = value.strip()
+        if User.objects.filter(username__iexact=normalized).exists():
             raise serializers.ValidationError("Username already taken.")
-        return value
+        return normalized
+
+    def validate_first_name(self, value):
+        return value.strip()
+
+    def validate_last_name(self, value):
+        return value.strip()
 
     def validate_email(self, value):
         normalized = value.strip().lower()
@@ -53,10 +57,10 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        role       = validated_data.pop('role', 'customer')
+        role       = validated_data.pop('role')
         validated_data.pop('confirm_password', None)
-        first_name = validated_data.get('first_name', '').strip()
-        last_name  = validated_data.get('last_name', '').strip()
+        first_name = validated_data.get('first_name', '')
+        last_name  = validated_data.get('last_name', '')
 
         user = User.objects.create_user(
             username=validated_data['username'],
