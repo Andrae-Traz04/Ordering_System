@@ -46,7 +46,7 @@ def is_owner(user):
 # ─────────────────────────────────────────────
 
 def admin_panel(request):
-    return render(request, 'api/docs.html')
+    return render(request, 'docs.html')
 
 
 # ─────────────────────────────────────────────
