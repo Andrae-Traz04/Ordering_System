@@ -168,69 +168,232 @@ function StatCard({ label, value, icon, delay, accentBg }) {
 // ── Cart Sidebar ─────────────────────────────────────────────────
 function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placing }) {
   const total = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
+
+  const [confirmId, setConfirmId] = useState(null)
+
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(45,31,110,0.18)', zIndex: 200, backdropFilter: 'blur(2px)' }} />
-      <div style={{
-        position: 'fixed', top: 0, right: 0, bottom: 0, width: 360,
-        background: C.white, zIndex: 201,
-        boxShadow: '-8px 0 40px rgba(124,58,237,0.15)',
-        display: 'flex', flexDirection: 'column',
-        animation: 'slideIn 0.25s ease',
-      }}>
-        <div style={{ padding: '20px 22px 16px', borderBottom: `1.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Background overlay */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(45,31,110,0.18)',
+          zIndex: 200,
+          backdropFilter: 'blur(2px)'
+        }}
+      />
+
+      {/* Sidebar */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 360,
+          background: C.white,
+          zIndex: 201,
+          boxShadow: '-8px 0 40px rgba(124,58,237,0.15)',
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideIn 0.25s ease',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          padding: '20px 22px 16px',
+          borderBottom: `1.5px solid ${C.border}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
           <h2 style={{ fontSize: 18, fontWeight: 800, color: C.dark }}>
-            🛒 My Cart <span style={{ fontSize: 13, color: C.mid, fontWeight: 600 }}>({cart.length} item{cart.length !== 1 ? 's' : ''})</span>
+            🛒 My Cart <span style={{ fontSize: 13, color: C.mid }}>({cart.length})</span>
           </h2>
-          <button onClick={onClose} style={{ background: C.softBg, border: 'none', borderRadius: 10, width: 32, height: 32, fontSize: 16, cursor: 'pointer', color: C.primary, fontFamily: 'inherit' }}>✕</button>
+          <button onClick={onClose} style={{
+            background: C.softBg,
+            border: 'none',
+            borderRadius: 10,
+            width: 32,
+            height: 32,
+            cursor: 'pointer'
+          }}>✕</button>
         </div>
+
+        {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 22px' }}>
           {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: C.light }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🛒</div>
-              <p style={{ fontWeight: 600 }}>Your cart is empty</p>
-              <p style={{ fontSize: 12, marginTop: 4 }}>Add products to get started</p>
-            </div>
+            <p style={{ textAlign: 'center' }}>Cart is empty</p>
           ) : cart.map(item => (
-            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: `1.5px solid ${C.border}` }}>
-              <div style={{ width: 48, height: 48, background: C.softBg, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+            <div key={item.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 0',
+              borderBottom: `1.5px solid ${C.border}`
+            }}>
+              <div style={{
+                width: 48,
+                height: 48,
+                background: C.softBg,
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
                 {item.emoji || '📦'}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: C.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
-                <p style={{ fontSize: 12, color: C.primary, fontWeight: 700 }}>₱{parseFloat(item.price).toFixed(2)}</p>
+
+              <div style={{ flex: 1 }}>
+                <p style={{ fontWeight: 700 }}>{item.name}</p>
+                <p style={{ color: C.primary }}>₱{parseFloat(item.price).toFixed(2)}</p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button onClick={() => onUpdateQty(item.id, item.qty - 1)} style={{ width: 26, height: 26, borderRadius: 8, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>−</button>
-                <span style={{ fontSize: 13, fontWeight: 700, color: C.dark, minWidth: 18, textAlign: 'center' }}>{item.qty}</span>
-                <button onClick={() => onUpdateQty(item.id, item.qty + 1)} style={{ width: 26, height: 26, borderRadius: 8, border: `1.5px solid ${C.border2}`, background: C.white, color: C.primary, fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>+</button>
+
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => onUpdateQty(item.id, item.qty - 1)}>−</button>
+                <span>{item.qty}</span>
+                <button onClick={() => onUpdateQty(item.id, item.qty + 1)}>+</button>
               </div>
-              <button onClick={() => onRemove(item.id)} style={{ background: C.redBg, border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: C.red, fontSize: 13 }}>🗑</button>
+
+              {/* DELETE BUTTON */}
+              <button
+                onClick={() => setConfirmId(item.id)}
+                style={{
+                  background: C.redBg,
+                  border: 'none',
+                  borderRadius: 8,
+                  width: 28,
+                  height: 28,
+                  cursor: 'pointer'
+                }}
+              >
+                🗑
+              </button>
             </div>
           ))}
         </div>
+
+        {/* Footer */}
         {cart.length > 0 && (
           <div style={{ padding: '16px 22px', borderTop: `1.5px solid ${C.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: C.mid }}>Total</span>
-              <span style={{ fontSize: 20, fontWeight: 800, color: C.dark }}>₱{total.toFixed(2)}</span>
+              <span>Total</span>
+              <span>₱{total.toFixed(2)}</span>
             </div>
-            <button
-              onClick={onPlaceOrder} disabled={placing}
-              style={{
-                width: '100%', padding: '13px', borderRadius: 14,
-                background: placing ? C.light : `linear-gradient(135deg, ${C.primary}, ${C.primary2})`,
-                color: C.white, border: 'none', fontWeight: 800, fontSize: 15,
-                cursor: placing ? 'wait' : 'pointer', fontFamily: 'inherit',
-                boxShadow: placing ? 'none' : '0 4px 16px rgba(124,58,237,0.3)',
-                transition: 'all 0.2s',
-              }}
-            >
-              {placing ? '⏳ Placing Order…' : '✅ Place Order'}
+            <button onClick={onPlaceOrder} disabled={placing}>
+              {placing ? 'Placing...' : 'Place Order'}
             </button>
           </div>
         )}
       </div>
+
+      {/* ✅ MODAL */}
+      {confirmId && (
+        <>
+          {/* Overlay */}
+          <div
+            onClick={() => setConfirmId(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 10, 40, 0.55)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 300,
+            }}
+          />
+
+          {/* Modal */}
+          <div
+            style={{
+              position: 'fixed',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: '#fff',
+              padding: '26px 24px',
+              borderRadius: 20,
+              zIndex: 301,
+              width: 320,
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              animation: 'popIn 0.2s ease',
+            }}
+          >
+            {/* Icon */}
+            <div style={{
+              width: 46,
+              height: 46,
+              margin: '0 auto 12px',
+              borderRadius: 14,
+              background: '#FEE2E2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+            }}>
+              🗑️
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              fontSize: 16,
+              fontWeight: 800,
+              color: '#1F2937',
+              marginBottom: 6,
+            }}>
+              Delete Item?
+            </h3>
+
+            {/* Description */}
+            <p style={{
+              fontSize: 12,
+              color: '#6B7280',
+              marginBottom: 18,
+            }}>
+              Are you sure you want to remove this item from your cart? This cannot be undone.
+            </p>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setConfirmId(null)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 10,
+                  border: '1px solid #E5E7EB',
+                  background: '#F9FAFB',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  onRemove(confirmId)
+                  setConfirmId(null)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#EF4444',
+                  color: '#fff',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 18px rgba(239,68,68,0.35)',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </>
   )
 }
