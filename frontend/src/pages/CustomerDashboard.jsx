@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { fetchOrders, fetchProducts, createOrder } from '../api/ordersApi'
+import { Package, Clock, Settings, Truck, CheckCircle } from "lucide-react";
+
 
 // ── Color Palette ────────────────────────────────────────────────
 const C = {
@@ -483,6 +485,18 @@ export default function CustomerDashboard() {
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [toast,        setToast]        = useState('')
 
+  // ✅ ADD HERE
+useEffect(() => {
+  const saved = localStorage.getItem("cart")
+  if (saved) {
+    setCart(JSON.parse(saved))
+  }
+}, [])
+
+useEffect(() => {
+  localStorage.setItem("cart", JSON.stringify(cart))
+}, [cart])
+
   const [category, setCategory] = useState('All')
   const [search,   setSearch]   = useState('')
 
@@ -598,7 +612,7 @@ export default function CustomerDashboard() {
           <div>
             <p style={{ fontSize: 11, fontWeight: 700, color: C.light, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>My Store</p>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.dark, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              {greeting}, {user?.username || 'there'} 👋
+              {greeting}, {user?.username || 'there'}
             </h1>
             <p style={{ marginTop: 4, fontSize: 13, color: C.mid, fontWeight: 500 }}>Browse products, manage your cart and track orders.</p>
           </div>
@@ -643,11 +657,11 @@ export default function CustomerDashboard() {
 
         {/* Stat Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 22 }}>
-          <StatCard label="My Orders"  value={stats.total}     icon="📦" delay={60}  accentBg={C.softBg}    />
-          <StatCard label="Pending"    value={stats.pending}   icon="⏳" delay={110} accentBg={C.warnBg}    />
-          <StatCard label="Shipped"    value={stats.shipped}   icon="🚚" delay={160} accentBg={C.softBg2}   />
-          <StatCard label="Completed"  value={stats.completed} icon="✅" delay={210} accentBg={C.successBg} />
-          <StatCard label="Cart Items" value={cartCount}       icon="🛒" delay={260} accentBg={C.softBg}    />
+          <StatCard label="Total Orders"  value={stats.total}      icon={<Package size={20} />}      delay={80}  accentBg="#F3EEFF" />
+          <StatCard label="Pending"       value={stats.pending}    icon={<Clock size={20} />}         delay={130} accentBg="#FFFBEB" />
+          <StatCard label="Processing"    value={stats.processing} icon={<Settings size={20} />}      delay={180} accentBg="#EDEAFF" />
+          <StatCard label="Shipped"       value={stats.shipped}    icon={<Truck size={20} />}         delay={230} accentBg="#F3EEFF" />
+          <StatCard label="Completed"     value={stats.completed}  icon={<CheckCircle size={20} />}   delay={280} accentBg="#ECFDF5" />
         </div>
 
         {/* Tabs */}
