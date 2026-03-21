@@ -11,6 +11,8 @@ import CreateOrder from '@/pages/CreateOrder'
 import OrderDetail from '@/pages/OrderDetail'
 import Customers from '@/pages/Customers'
 import Users from '@/pages/Users'
+import ProductsPage from '@/pages/ProductsPage'
+
 
 function PrivateRoute({ children, roles }) {
   const { user } = useAuth()
@@ -66,6 +68,11 @@ export default function App() {
         {/* Users Management - Admin only */}
         <Route path="users" element={
           <PrivateRoute roles={['admin']}><Users /></PrivateRoute>
+        } />
+
+        {/* Products - Owner only */}
+        <Route path="products" element={
+          <PrivateRoute roles={['owner']}><ProductsPage /></PrivateRoute>
         } />
       </Route>
 
