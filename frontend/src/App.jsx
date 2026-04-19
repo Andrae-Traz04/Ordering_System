@@ -12,6 +12,7 @@ import OrderDetail from '@/pages/OrderDetail'
 import Customers from '@/pages/Customers'
 import Users from '@/pages/Users'
 import ProductsPage from '@/pages/ProductsPage'
+import Profile from '@/pages/Profile'
 
 
 function PrivateRoute({ children, roles }) {
@@ -74,6 +75,14 @@ export default function App() {
         <Route path="products" element={
           <PrivateRoute roles={['owner']}><ProductsPage /></PrivateRoute>
         } />
+
+        {/* Profile - all authenticated users */}
+        <Route path="profile" element={
+          <PrivateRoute><Profile /></PrivateRoute>
+        } />
+
+        {/* Admin & Owner Routes */}
+        <Route path="products" element={<PrivateRoute roles={['admin', 'owner']}><ProductsPage /></PrivateRoute>} />
       </Route>
 
       {/* Catch all */}

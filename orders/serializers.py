@@ -8,18 +8,33 @@ from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHist
 #  AUTH SERIALIZERS
 # ─────────────────────────────────────────────
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['role', 'address', 'age', 'birthday']
+
 class UserSerializer(serializers.ModelSerializer):
-    role = serializers.SerializerMethodField()
+    profile = UserProfileSerializer()
 
     class Meta:
-        model  = User
-        fields = ['id', 'username', 'role']
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile']
 
-    def get_role(self, obj):
-        try:
-            return obj.profile.role
-        except UserProfile.DoesNotExist:
-            return 'customer'
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile', {})
+        profile = instance.profile
+
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.email = validated_data.get('email', instance.email)
+        instance.save()
+
+        profile.address = profile_data.get('address', profile.address)
+        profile.age = profile_data.get('age', profile.age)
+        profile.birthday = profile_data.get('birthday', profile.birthday)
+        profile.save()
+
+        return instance
 
 
 class RegisterSerializer(serializers.Serializer):

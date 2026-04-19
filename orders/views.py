@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from .models import Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product
 from .serializers import (
     RegisterSerializer,
+    UserSerializer,
     CustomerSerializer,
     ProductSerializer,
     ProductCreateSerializer,
@@ -85,9 +86,10 @@ class LoginView(APIView):
         if not user:
             return Response({'error': 'Invalid username or password.'}, status=status.HTTP_401_UNAUTHORIZED)
         token, _ = Token.objects.get_or_create(user=user)
+        user_serializer = UserSerializer(user)
         return Response({
             'token': token.key,
-            'user':  {'id': user.id, 'username': user.username, 'role': get_role(user)},
+            'user':  user_serializer.data,
         })
 
 
@@ -105,11 +107,15 @@ class MeView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
-        return Response({
-            'id':       request.user.id,
-            'username': request.user.username,
-            'role':     get_role(request.user),
-        })
+        user_serializer = UserSerializer(request.user)
+        return Response(user_serializer.data)
+
+    def put(self, request):
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ─────────────────────────────────────────────

@@ -25,6 +25,7 @@ export const register = (data) => API.post('/auth/register/', data)
 export const login    = (data) => API.post('/auth/login/', data)
 export const logout   = ()     => API.post('/auth/logout/')
 export const fetchMe  = ()     => API.get('/auth/me/')
+export const updateProfile = (data) => API.put('/auth/me/', data)
 
 // Products
 export const fetchProducts = (params = {}) => API.get('/products/', { params })

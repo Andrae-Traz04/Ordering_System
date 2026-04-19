@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react'
-import { login as loginApi, logout as logoutApi, register as registerApi } from '@/api/ordersApi'
+import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile } from '@/api/ordersApi'
 
 const AuthContext = createContext(null)
 
@@ -32,8 +32,15 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const updateUser = async (data) => {
+    const res = await updateProfile(data)
+    localStorage.setItem('user', JSON.stringify(res.data))
+    setUser(res.data)
+    return res.data
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )
