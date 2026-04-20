@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext'
 export default function Login() {
   const { login: loginUser } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -14,8 +14,8 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      await loginUser(form.username, form.password)
-      navigate('/dashboard')
+      await loginUser(form.email, form.password)
+      navigate('/profile')
     } catch (err) {
       console.error(err)
       const data = err.response?.data
@@ -28,7 +28,6 @@ export default function Login() {
 
   return (
     <div className="login-visual-refresh">
-      {/* Left: Form Section */}
       <div className="visual-form">
         <div className="brand-logo">
           <span className="logo-sparkle">✨</span> AMU Bowls
@@ -43,13 +42,13 @@ export default function Login() {
 
         <form onSubmit={submit}>
           <div className="input-group">
-            <label>Username</label>
+            <label>Email</label>
             <input
-              type="text"
+              type="email"
               className="capsule-input"
-              placeholder="Enter your username"
-              value={form.username}
-              onChange={e => setForm({ ...form, username: e.target.value })}
+              placeholder="Enter your email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
               required
             />
           </div>
@@ -76,7 +75,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right: Image Section */}
       <div className="image-section">
         <img 
           src="/gift-box.jpg" 
@@ -91,7 +89,6 @@ export default function Login() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
-
         .login-visual-refresh {
           display: flex;
           height: 100vh;
@@ -100,8 +97,6 @@ export default function Login() {
           background: #fff;
           overflow: hidden;
         }
-
-        /* --- Left Side: Form --- */
         .visual-form {
           flex: 1;
           padding: 60px 80px;
@@ -109,15 +104,13 @@ export default function Login() {
           flex-direction: column;
           justify-content: center;
           max-width: 600px;
-          margin: 0 auto; /* Center if screen is wide */
+          margin: 0 auto;
           animation: slideInLeft 0.6s ease-out;
         }
-
         @keyframes slideInLeft {
           from { opacity: 0; transform: translateX(-30px); }
           to { opacity: 1; transform: translateX(0); }
         }
-
         .brand-logo {
           font-size: 24px;
           font-weight: 700;
@@ -128,7 +121,6 @@ export default function Login() {
           gap: 8px;
         }
         .logo-sparkle { color: #E4405F; }
-
         .text-header h2 {
           font-size: 32px;
           font-weight: 600;
@@ -140,7 +132,6 @@ export default function Login() {
           font-size: 15px;
           margin-bottom: 30px;
         }
-
         .error-pill {
           background: #fee2e2;
           color: #ef4444;
@@ -151,20 +142,15 @@ export default function Login() {
           text-align: center;
           font-weight: 500;
         }
-
-        /* Inputs */
-        .input-group {
-          margin-bottom: 20px;
-        }
+        .input-group { margin-bottom: 20px; }
         .input-group label {
           display: block;
           font-size: 13px;
           font-weight: 500;
           color: #333;
           margin-bottom: 8px;
-          margin-left: 10px; /* Slight indent to match capsule curve */
+          margin-left: 10px;
         }
-
         .capsule-input {
           width: 100%;
           padding: 14px 24px;
@@ -180,8 +166,6 @@ export default function Login() {
           background: #fff;
           box-shadow: 0 4px 12px rgba(228, 64, 95, 0.1);
         }
-
-        /* Submit Button */
         .capsule-btn {
           width: 100%;
           padding: 16px;
@@ -205,7 +189,6 @@ export default function Login() {
           transform: none;
           cursor: not-allowed;
         }
-
         .footer-link {
           text-align: center;
           margin-top: 30px;
@@ -218,33 +201,24 @@ export default function Login() {
           font-weight: 600;
           margin-left: 5px;
         }
-        .footer-link a:hover {
-          text-decoration: underline;
-        }
-
-        /* --- Right Side: Image --- */
+        .footer-link a:hover { text-decoration: underline; }
         .image-section {
           flex: 1;
           position: relative;
           background: #f0f0f0;
           overflow: hidden;
-          display: none; /* Hidden on mobile by default logic, but we use flex */
+          display: none;
         }
-        
         @media (min-width: 900px) {
           .image-section { display: block; }
         }
-
         .cover-image {
           width: 100%;
           height: 100%;
           object-fit: cover;
           transition: transform 10s ease;
         }
-        .image-section:hover .cover-image {
-          transform: scale(1.05); /* Subtle zoom effect */
-        }
-
+        .image-section:hover .cover-image { transform: scale(1.05); }
         .image-overlay {
           position: absolute;
           bottom: 60px;
@@ -252,7 +226,7 @@ export default function Login() {
           right: 60px;
           color: white;
           text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-          background: rgba(255, 255, 255, 0.1); /* Glassmorphism hint */
+          background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
           padding: 30px;
           border-radius: 20px;
@@ -263,12 +237,7 @@ export default function Login() {
           font-weight: 600;
           margin-bottom: 8px;
         }
-        .image-overlay p {
-          font-size: 16px;
-          opacity: 0.9;
-        }
-
-        /* Responsive */
+        .image-overlay p { font-size: 16px; opacity: 0.9; }
         @media (max-width: 900px) {
           .visual-form { padding: 40px 30px; }
         }
