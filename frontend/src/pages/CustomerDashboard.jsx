@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { fetchOrders, fetchProducts, createOrder } from '../api/ordersApi'
+import { fetchOrders, fetchProducts, createOrder, cancelOrder } from '../api/ordersApi'
 
 // ── Color Palette ────────────────────────────────────────────────
 const C = {
@@ -31,6 +31,7 @@ const STATUS_META = {
   processing: { color: '#6C47FF', bg: '#EDEAFF', dot: '#6C47FF', label: 'Processing' },
   shipped:    { color: '#9B6DFF', bg: '#F3EEFF', dot: '#9B6DFF', label: 'Shipped'    },
   completed:  { color: '#10B981', bg: '#ECFDF5', dot: '#10B981', label: 'Completed'  },
+  cancelled:  { color: '#ef4444', bg: '#fef2f2', dot: '#ef4444', label: 'Cancelled'  },
 }
 
 // ── Shared section-container styles (mirrors OwnerDashboard .table-wrap) ──
@@ -41,7 +42,7 @@ const S = {
     borderRadius: 20,
     border: '1.5px solid #F0EBFF',
     boxShadow: '0 2px 16px rgba(155,109,255,0.07)',
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   // Top bar — mirrors .table-header
   header: {
@@ -498,6 +499,8 @@ useEffect(() => {
   const [category, setCategory] = useState('All')
   const [search,   setSearch]   = useState('')
 
+  const [cancellingId, setCancellingId] = useState(null)
+
   const notify = (m) => { setToast(m); setTimeout(() => setToast(''), 4000) }
 
   const load = useCallback(async () => {
@@ -571,6 +574,19 @@ useEffect(() => {
       notify(`Error: ${msg}`)
     } finally {
       setPlacing(false)
+    }
+  }
+
+  const handleCancelOrder = async (orderId) => {
+    setCancellingId(orderId)
+    try {
+      await cancelOrder(orderId)
+      notify('Order cancelled successfully.')
+      await load()
+    } catch (err) {
+      notify(err.response?.data?.detail || 'Failed to cancel order.')
+    } finally {
+      setCancellingId(null)
     }
   }
 
@@ -895,14 +911,18 @@ useEffect(() => {
                     </div>
                   ) : (
                     <>
+                      {/* Scrollable wrapper — prevents cancel column from being clipped */}
+                      <div style={{ overflowX: 'auto' }}>
+
                       {/* Column headers */}
                       <div style={{
-                        display: 'grid', gridTemplateColumns: '130px 1fr 110px 130px 100px',
+                        display: 'grid', gridTemplateColumns: '130px 1fr 110px 130px 100px 110px',
                         padding: '9px 20px', gap: 12,
                         background: C.pageBg,
                         borderBottom: `1.5px solid ${C.border}`,
+                        minWidth: 700,
                       }}>
-                        {['Order #', 'Date', 'Total', 'Status', 'Action'].map(h => (
+                        {['Order #', 'Date', 'Total', 'Status', 'View', 'Cancel'].map(h => (
                           <span key={h} style={{ fontSize: 10, fontWeight: 700, color: C.light, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</span>
                         ))}
                       </div>
@@ -910,11 +930,11 @@ useEffect(() => {
                       {/* Rows */}
                       {orders.map((o, i) => (
                         <div key={o.id} style={{
-                          display: 'grid', gridTemplateColumns: '130px 1fr 110px 130px 100px',
+                          display: 'grid', gridTemplateColumns: '130px 1fr 110px 130px 100px 110px',
                           padding: '13px 20px', gap: 12, alignItems: 'center',
                           borderBottom: i < orders.length - 1 ? `1.5px solid ${C.pageBg}` : 'none',
                           animation: 'fadeUp 0.4s ease both', animationDelay: `${i * 40}ms`,
-                          transition: 'background 0.15s',
+                          transition: 'background 0.15s', minWidth: 700,
                         }}
                           onMouseEnter={e => e.currentTarget.style.background = C.pageBg}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -936,8 +956,31 @@ useEffect(() => {
                             onMouseEnter={e => { e.currentTarget.style.background = C.softBg2; e.currentTarget.style.borderColor = C.primary }}
                             onMouseLeave={e => { e.currentTarget.style.background = C.softBg;  e.currentTarget.style.borderColor = C.border2 }}
                           >View →</button>
+                          {/* Cancel button — only for pending orders */}
+                          {o.status === 'pending' ? (
+                            <button
+                              onClick={() => handleCancelOrder(o.id)}
+                              disabled={cancellingId === o.id}
+                              style={{
+                                background: '#fef2f2', border: '1.5px solid #fecaca',
+                                borderRadius: 10, padding: '5px 12px',
+                                color: '#ef4444', fontWeight: 700, fontSize: 11,
+                                cursor: cancellingId === o.id ? 'wait' : 'pointer',
+                                fontFamily: 'inherit', transition: 'all 0.15s',
+                                opacity: cancellingId === o.id ? 0.6 : 1,
+                              }}
+                              onMouseEnter={e => { if (cancellingId !== o.id) e.currentTarget.style.background = '#fee2e2' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2' }}
+                            >
+                              {cancellingId === o.id ? '...' : '✕ Cancel'}
+                            </button>
+                          ) : (
+                            <span />
+                          )}
                         </div>
                       ))}
+
+                      </div>{/* end scrollable wrapper */}
                     </>
                   )}
 
