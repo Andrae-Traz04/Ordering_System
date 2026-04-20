@@ -282,6 +282,42 @@ class OrderStatusUpdateView(APIView):
         return Response(OrderSerializer(order).data)
 
 
+class OrderCancelView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if get_role(request.user) != 'customer':
+            return Response(
+                {'detail': 'Only customers can cancel orders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            order = Order.objects.get(pk=pk, created_by=request.user)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status != 'pending':
+            return Response(
+                {'detail': 'Only pending orders can be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_status   = order.status
+        order.status = 'cancelled'
+        order.save()
+
+        StatusHistory.objects.create(
+            order=order,
+            from_status=old_status,
+            to_status='cancelled',
+            changed_by=request.user,
+            note=request.data.get('note', 'Cancelled by customer'),
+        )
+
+        return Response(OrderSerializer(order).data)
+
+
 class OrderSummaryView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]

@@ -66,13 +66,15 @@ class Order(models.Model):
         ('processing', 'Processing'),
         ('shipped', 'Shipped'),
         ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
     ]
 
     VALID_TRANSITIONS = {
-        'pending':    ['processing'],
+        'pending':    ['processing', 'cancelled'],
         'processing': ['shipped'],
         'shipped':    ['completed'],
         'completed':  [],
+        'cancelled':  [],
     }
 
     order_number = models.CharField(max_length=20, unique=True, editable=False)
