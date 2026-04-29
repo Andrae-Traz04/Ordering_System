@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { fetchOrder, updateStatus, deleteOrder, submitReview } from '@/api/ordersApi'
+import { fetchOrder, updateStatus, deleteOrder, submitReview, cancelOrder } from '@/api/ordersApi'
 import { useAuth } from '@/context/AuthContext'
 import StatusBadge from '@/components/StatusBadge'
 import Stepper from '@/components/Stepper'
@@ -68,6 +68,10 @@ export default function OrderDetail() {
   const [reviewError, setReviewError]     = useState('')
   const [reviewSuccess, setReviewSuccess] = useState('')
 
+  // Cancel state
+  const [cancelling, setCancelling]       = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+
   const load = () => {
     fetchOrder(id)
       .then(r => setOrder(r.data))
@@ -122,13 +126,30 @@ export default function OrderDetail() {
     }
   }
 
+  const handleCancel = async () => {
+    setCancelling(true)
+    try {
+      const r = await cancelOrder(id)
+      setOrder(r.data)
+      setSuccess('Order cancelled successfully.')
+      setConfirmCancel(false)
+      setTimeout(() => setSuccess(''), 3000)
+    } catch (err) {
+      const data = err.response?.data
+      setError(data?.detail || 'Failed to cancel order.')
+    } finally {
+      setCancelling(false)
+    }
+  }
+
   if (loading) return <div className="loading"><div className="spinner" /><span>Loading...</span></div>
   if (!order)  return <div className="alert alert-error">{error || 'Order not found.'}</div>
 
   const nextStatus  = NEXT[order.status]
-  const isOwnerOrAdmin = user?.role === 'owner' || user?.role === 'admin'
-  const isAdmin        = user?.role === 'admin'
-  const isCustomer     = user?.role === 'customer'
+  const userRole       = user?.profile?.role || user?.role
+  const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin'
+  const isAdmin        = userRole === 'admin'
+  const isCustomer     = userRole === 'customer'
   const isMyOrder      = order.created_by_id === user?.id
   const canReview      = isCustomer && isMyOrder && order.status === 'completed' && !order.review
   const hasReview      = !!order.review
@@ -177,14 +198,18 @@ export default function OrderDetail() {
           )}
 
           {/* Customer sees status info only */}
-          {isCustomer && nextStatus && (
+          {isCustomer && nextStatus && order.status !== 'cancelled' && (
             <div className="alert alert-info" style={{ marginTop: 0 }}>
               ⏳ Your order is being processed. We will update you soon!
             </div>
           )}
 
-          {!nextStatus && (
+          {!nextStatus && order.status !== 'cancelled' && (
             <div className="alert alert-success">✓ This order has been completed</div>
+          )}
+
+          {order.status === 'cancelled' && (
+            <div className="alert alert-error">✕ This order has been cancelled</div>
           )}
         </div>
       </div>
@@ -349,6 +374,41 @@ export default function OrderDetail() {
                 </button>
               </form>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Cancel — Customer only, pending orders */}
+      {isCustomer && isMyOrder && order.status === 'pending' && (
+        <div className="card">
+          <div className="card-body">
+            {!confirmCancel ? (
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={() => setConfirmCancel(true)}
+              >
+                ✕ Cancel Order
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                  Cancel this order? This cannot be undone.
+                </span>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={handleCancel}
+                  disabled={cancelling}
+                >
+                  {cancelling ? 'Cancelling...' : 'Yes, Cancel'}
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setConfirmCancel(false)}
+                >
+                  Keep Order
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

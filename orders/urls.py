@@ -39,11 +39,12 @@ urlpatterns = [
     path('products/<int:pk>/', views.ProductDetailView.as_view(),     name='product-detail'),
 
     # Orders
-    path('orders/',                 views.OrderListCreateView.as_view(),   name='order-list-create'),
-    path('orders/summary/',         views.OrderSummaryView.as_view(),      name='order-summary'),
-    path('orders/<int:pk>/',        views.OrderDetailView.as_view(),       name='order-detail'),
-    path('orders/<int:pk>/status/', views.OrderStatusUpdateView.as_view(), name='order-status'),
-    path('orders/<int:pk>/review/', views.ReviewView.as_view(),            name='order-review'),
+    path('orders/',                  views.OrderListCreateView.as_view(),   name='order-list-create'),
+    path('orders/summary/',          views.OrderSummaryView.as_view(),      name='order-summary'),
+    path('orders/<int:pk>/',         views.OrderDetailView.as_view(),       name='order-detail'),
+    path('orders/<int:pk>/status/',  views.OrderStatusUpdateView.as_view(), name='order-status'),
+    path('orders/<int:pk>/review/',  views.ReviewView.as_view(),            name='order-review'),
+    path('orders/<int:pk>/cancel/',  views.OrderCancelView.as_view(),       name='order-cancel'),
 
     # Customers & Users
     path('customers/',             views.CustomerListView.as_view(),   name='customer-list'),

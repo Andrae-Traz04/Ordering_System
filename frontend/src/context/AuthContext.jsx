@@ -9,16 +9,13 @@ export function AuthProvider({ children }) {
     return saved ? JSON.parse(saved) : null
   })
 
-  const login = async (username, password) => {
-    const res = await loginApi({ username, password })
+  const login = async (email, password) => {
+    const res = await loginApi({ email, password })
     localStorage.setItem('access_token', res.data.access)
     localStorage.setItem('refresh_token', res.data.refresh)
-    
-    // Fetch user data separately
-    const meRes = await fetchMe()
-    localStorage.setItem('user', JSON.stringify(meRes.data))
-    setUser(meRes.data)
-    return meRes.data
+    localStorage.setItem('user', JSON.stringify(res.data.user))
+    setUser(res.data.user)
+    return res.data.user
   }
 
   const register = async (payload) => {

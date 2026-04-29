@@ -1,9 +1,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import render
-from django.template.loader import render_to_string
 from rest_framework import status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -15,6 +13,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
 import logging
 
+from .emails import CustomActivationEmail
 from .models import Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product
 from .serializers import (
     RegisterSerializer,
@@ -51,33 +50,9 @@ def is_owner(user):
     return get_role(user) == 'owner'
 
 
-def build_activation_link(user):
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
-    base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
-    return f"{base_url}/activate/{uid}/{token}"
-
-
 def send_activation_email(request, user):
-    activation_url = build_activation_link(user)
-    context = {
-        'user': user,
-        'activation_url': activation_url,
-        'brand_name': 'AMU Bowls',
-        'support_email': getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@ordering-system.local'),
-    }
-
-    subject = 'Activate your AMU Bowls account'
-    text_body = render_to_string('orders/activation_email.txt', context)
-    html_body = render_to_string('orders/activation_email.html', context)
-    message = EmailMultiAlternatives(
-        subject=subject,
-        body=text_body,
-        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
-        to=[user.email],
-    )
-    message.attach_alternative(html_body, 'text/html')
-    message.send()
+    message = CustomActivationEmail(request=request, context={'user': user})
+    message.send(to=[user.email])
 
 
 # ─────────────────────────────────────────────
@@ -141,18 +116,23 @@ class LoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = request.data.get('username', '').strip()
+        email    = request.data.get('email', '').strip()
         password = request.data.get('password', '')
-        existing_user = User.objects.filter(username__iexact=username).first()
-        if existing_user and not existing_user.is_active:
-            return Response({
-                'detail': 'Your account is not activated yet. Check your email for the activation link.'
-            }, status=status.HTTP_403_FORBIDDEN)
 
-        auth_username = existing_user.username if existing_user else username
-        user = authenticate(username=auth_username, password=password)
+        try:
+            user_obj = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Invalid email or password.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        user = authenticate(username=user_obj.username, password=password)
         if not user:
-            return Response({'error': 'Invalid username or password.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {'error': 'Invalid email or password.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
         refresh = RefreshToken.for_user(user)
         user_serializer = UserSerializer(user, context={'request': request})
@@ -191,7 +171,7 @@ class MeView(APIView):
 
 class ProductListCreateView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         if is_owner_or_admin(request.user):
             products = Product.objects.all().order_by('-created_at')
@@ -216,7 +196,7 @@ class ProductListCreateView(APIView):
 
 class ProductDetailView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get_product(self, pk):
         try:
             return Product.objects.get(pk=pk)
@@ -224,27 +204,30 @@ class ProductDetailView(APIView):
             return None
 
     def get(self, request, pk):
-        p = self.get_product(pk)
-        if not p: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        return Response(ProductSerializer(p).data)
+        product = self.get_product(pk)
+        if not product:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(ProductSerializer(product).data)
 
     def patch(self, request, pk):
         if not is_owner_or_admin(request.user):
             return Response({'detail': 'Only owners and admins can edit products.'}, status=status.HTTP_403_FORBIDDEN)
-        p = self.get_product(pk)
-        if not p: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = ProductCreateSerializer(p, data=request.data, partial=True)
+        product = self.get_product(pk)
+        if not product:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ProductCreateSerializer(product, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(ProductSerializer(p).data)
+            return Response(ProductSerializer(product).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         if not is_owner_or_admin(request.user):
             return Response({'detail': 'Only owners and admins can delete products.'}, status=status.HTTP_403_FORBIDDEN)
-        p = self.get_product(pk)
-        if not p: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        p.delete()
+        product = self.get_product(pk)
+        if not product:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        product.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -343,6 +326,41 @@ class OrderStatusUpdateView(APIView):
             order=order, from_status=old_status, to_status=new_status,
             changed_by=request.user, note=note,
         )
+        return Response(OrderSerializer(order).data)
+
+
+class OrderCancelView(APIView):
+    permission_classes     = [IsAuthenticated]
+
+    def post(self, request, pk):
+        if get_role(request.user) != 'customer':
+            return Response(
+                {'detail': 'Only customers can cancel orders.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            order = Order.objects.get(pk=pk, created_by=request.user)
+        except Order.DoesNotExist:
+            return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status != 'pending':
+            return Response(
+                {'detail': 'Only pending orders can be cancelled.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        old_status   = order.status
+        order.status = 'cancelled'
+        order.save()
+
+        StatusHistory.objects.create(
+            order=order,
+            from_status=old_status,
+            to_status='cancelled',
+            changed_by=request.user,
+            note=request.data.get('note', 'Cancelled by customer'),
+        )
+
         return Response(OrderSerializer(order).data)
 
 
