@@ -27,7 +27,10 @@ export const activateAccount = (data) => API.post('/auth/activate/', data)
 export const login    = (data) => API.post('/auth/login/', data)
 export const logout   = ()     => API.post('/auth/logout/')
 export const fetchMe  = ()     => API.get('/auth/me/')
-export const updateProfile = (data) => API.put('/auth/me/', data)
+export const updateProfile = (data) => {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+  return API.put('/auth/me/', data, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+}
 
 // Products
 export const fetchProducts = (params = {}) => API.get('/products/', { params })

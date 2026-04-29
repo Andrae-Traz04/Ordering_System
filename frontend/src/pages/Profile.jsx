@@ -14,7 +14,9 @@ const Profile = () => {
       age: '',
       birthday: '',
     },
+    profile_image: null,
   });
+  const [imagePreview, setImagePreview] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -27,9 +29,19 @@ const Profile = () => {
           age: user.profile?.age || '',
           birthday: user.profile?.birthday || '',
         },
+        profile_image: null,
       });
+      setImagePreview(user.profile?.profile_image || '');
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!formData.profile_image) return;
+
+    const preview = URL.createObjectURL(formData.profile_image);
+    setImagePreview(preview);
+    return () => URL.revokeObjectURL(preview);
+  }, [formData.profile_image]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -46,7 +58,18 @@ const Profile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await updateUser(formData);
+      const payload = new FormData();
+      payload.append('first_name', formData.first_name);
+      payload.append('last_name', formData.last_name);
+      payload.append('email', formData.email);
+      payload.append('address', formData.profile.address);
+      payload.append('age', formData.profile.age);
+      payload.append('birthday', formData.profile.birthday);
+      if (formData.profile_image) {
+        payload.append('profile_image', formData.profile_image);
+      }
+
+      await updateUser(payload);
       setIsEditing(false);
     } catch (error) {
       console.error('Failed to update profile', error);
@@ -70,13 +93,18 @@ const Profile = () => {
     </div>
   );
 
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setFormData((prev) => ({ ...prev, profile_image: file }));
+  };
+
   return (
     <div className="profile-page">
       <div className="profile-header">
         <div className="profile-title-wrap">
           <div className="profile-avatar">
-            {user?.profile?.profile_image ? (
-              <img src={user.profile.profile_image} alt="Profile" />
+            {imagePreview ? (
+              <img src={imagePreview} alt="Profile" />
             ) : (
               <span>{(user?.first_name || user?.username || 'U').charAt(0).toUpperCase()}</span>
             )}
@@ -102,6 +130,27 @@ const Profile = () => {
           {renderField('Age', 'age', formData.profile.age, 'number')}
           {renderField('Birthday', 'birthday', formData.profile.birthday, 'date')}
         </div>
+
+        {isEditing && (
+          <div className="form-group" style={{ marginTop: '1.5rem' }}>
+            <label htmlFor="profile_image">Profile picture</label>
+            <input
+              id="profile_image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+            {imagePreview && (
+              <div style={{ marginTop: '1rem' }}>
+                <img
+                  src={imagePreview}
+                  alt="Profile preview"
+                  style={{ width: '140px', height: '140px', borderRadius: '18px', objectFit: 'cover', boxShadow: '0 12px 28px rgba(15, 23, 42, 0.12)' }}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {isEditing && (
           <div className="profile-actions">

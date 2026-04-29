@@ -15,13 +15,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
+    profile_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile', 'profile_image']
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', {})
+        profile_image = validated_data.pop('profile_image', None)
+        address = validated_data.pop('address', None)
+        age = validated_data.pop('age', None)
+        birthday = validated_data.pop('birthday', None)
         profile = instance.profile
 
         instance.first_name = validated_data.get('first_name', instance.first_name)
@@ -29,11 +34,13 @@ class UserSerializer(serializers.ModelSerializer):
         instance.email = validated_data.get('email', instance.email)
         instance.save()
 
-        if 'profile_image' in profile_data:
+        if profile_image is not None:
+            profile.profile_image = profile_image
+        elif 'profile_image' in profile_data:
             profile.profile_image = profile_data.get('profile_image')
-        profile.address = profile_data.get('address', profile.address)
-        profile.age = profile_data.get('age', profile.age)
-        profile.birthday = profile_data.get('birthday', profile.birthday)
+        profile.address = address if address is not None else profile_data.get('address', profile.address)
+        profile.age = age if age is not None else profile_data.get('age', profile.age)
+        profile.birthday = birthday if birthday is not None else profile_data.get('birthday', profile.birthday)
         profile.save()
 
         return instance

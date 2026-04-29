@@ -40,12 +40,12 @@ export default function App() {
       {/* Auth Routes */}
       <Route path="/activation-pending" element={<ActivationPending />} />
       <Route path="/activate/:uid/:token" element={<ActivateAccount />} />
-      <Route path="/login"    element={!user ? <Login />    : <Navigate to="/dashboard" replace />} />
-      <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" replace />} />
+      <Route path="/login"    element={!user ? <Login />    : <Navigate to="/profile" replace />} />
+      <Route path="/register" element={!user ? <Register /> : <Navigate to="/profile" replace />} />
 
       {/* Protected Routes */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<Navigate to="/profile" replace />} />
 
         {/* Dashboard - role-based */}
         <Route path="dashboard" element={<DashboardComponent />} />
@@ -90,7 +90,7 @@ export default function App() {
       </Route>
 
       {/* Catch all */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/profile" replace />} />
     </Routes>
   )
 }
