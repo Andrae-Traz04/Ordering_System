@@ -73,7 +73,19 @@ const Profile = () => {
   return (
     <div className="profile-page">
       <div className="profile-header">
-        <h2>User Profile</h2>
+        <div className="profile-title-wrap">
+          <div className="profile-avatar">
+            {user?.profile?.profile_image ? (
+              <img src={user.profile.profile_image} alt="Profile" />
+            ) : (
+              <span>{(user?.first_name || user?.username || 'U').charAt(0).toUpperCase()}</span>
+            )}
+          </div>
+          <div>
+            <h2>User Profile</h2>
+            <p>{user?.is_active ? 'Account activated' : 'Account pending activation'}</p>
+          </div>
+        </div>
         {!isEditing && (
           <button className="btn btn-primary" onClick={() => setIsEditing(true)}>
             Edit Profile

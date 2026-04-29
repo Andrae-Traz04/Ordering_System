@@ -1,0 +1,8 @@
+Hi {{ user.first_name|default:user.username }},
+
+Thanks for creating an account with {{ brand_name }}.
+
+Activate your account here:
+{{ activation_url }}
+
+If you did not sign up, you can ignore this email.

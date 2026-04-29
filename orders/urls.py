@@ -10,6 +10,7 @@ def api_root(request, format=None):
     return Response({
         'panel':          request.build_absolute_uri('/api/panel/'),
         'register':       reverse('register',          request=request),
+        'activate':       reverse('activate',          request=request),
         'login':          reverse('login',             request=request),
         'logout':         reverse('logout',            request=request),
         'me':             reverse('me',                request=request),
@@ -28,6 +29,7 @@ urlpatterns = [
 
     # Auth
     path('auth/register/', views.RegisterView.as_view(), name='register'),
+    path('auth/activate/', views.ActivateAccountView.as_view(), name='activate'),
     path('auth/login/',    views.LoginView.as_view(),    name='login'),
     path('auth/logout/',   views.LogoutView.as_view(),   name='logout'),
     path('auth/me/',       views.MeView.as_view(),       name='me'),

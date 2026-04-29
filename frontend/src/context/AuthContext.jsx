@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react'
-import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile } from '@/api/ordersApi'
+import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile, fetchMe } from '@/api/ordersApi'
 
 const AuthContext = createContext(null)
 
@@ -11,23 +11,25 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     const res = await loginApi({ username, password })
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('user', JSON.stringify(res.data.user))
-    setUser(res.data.user)
-    return res.data.user
+    localStorage.setItem('access_token', res.data.access)
+    localStorage.setItem('refresh_token', res.data.refresh)
+    
+    // Fetch user data separately
+    const meRes = await fetchMe()
+    localStorage.setItem('user', JSON.stringify(meRes.data))
+    setUser(meRes.data)
+    return meRes.data
   }
 
   const register = async (payload) => {
     const res = await registerApi(payload)
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('user', JSON.stringify(res.data.user))
-    setUser(res.data.user)
-    return res.data.user
+    return res.data
   }
 
   const logout = async () => {
     try { await logoutApi() } catch {}
-    localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')
     setUser(null)
   }

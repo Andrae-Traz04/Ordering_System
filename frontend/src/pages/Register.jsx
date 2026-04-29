@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
@@ -19,9 +19,22 @@ export default function Register() {
     password: '',
     confirm_password: '',
     role: 'customer',
+    profile_image: null,
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [imagePreview, setImagePreview] = useState('')
+
+  useEffect(() => {
+    if (!form.profile_image) {
+      setImagePreview('')
+      return
+    }
+
+    const preview = URL.createObjectURL(form.profile_image)
+    setImagePreview(preview)
+    return () => URL.revokeObjectURL(preview)
+  }, [form.profile_image])
 
   const submit = async (e) => {
     e.preventDefault()
@@ -31,25 +44,30 @@ export default function Register() {
       return
     }
 
-    const payload = {
-      ...form,
-      username: form.username.trim(),
-      email: form.email.trim().toLowerCase(),
-      first_name: form.first_name.trim(),
-      last_name: form.last_name.trim(),
+    const payload = new FormData()
+    payload.append('username', form.username.trim())
+    payload.append('email', form.email.trim().toLowerCase())
+    payload.append('first_name', form.first_name.trim())
+    payload.append('last_name', form.last_name.trim())
+    payload.append('password', form.password)
+    payload.append('confirm_password', form.confirm_password)
+    payload.append('role', form.role)
+    if (form.profile_image) {
+      payload.append('profile_image', form.profile_image)
     }
 
     setLoading(true)
     setError('')
     try {
-      await registerUser(payload)
-      // Navigate based on role if needed, currently all go to dashboard
-      // Using replace: true prevents going back to register page
-      navigate('/dashboard', { replace: true })
+      const result = await registerUser(payload)
+      navigate('/activation-pending', {
+        replace: true,
+        state: { email: result?.email || form.email.trim().toLowerCase() },
+      })
     } catch (err) {
       console.error(err)
       const data = err.response?.data
-      let msg = 'Registration failed. ' + err.message
+      let msg = 'Registration failed.'
       
       if (err.response) {
         if (data) {
@@ -64,6 +82,8 @@ export default function Register() {
         }
       } else if (err.request) {
         msg = 'No response from server. Is Django running?'
+      } else if (err.message) {
+        msg = err.message
       }
 
       setError(msg)
@@ -136,6 +156,22 @@ export default function Register() {
               onChange={e => setForm({ ...form, username: e.target.value })}
               required
             />
+          </div>
+
+          <div className="input-group">
+            <label>Profile picture</label>
+            <input
+              type="file"
+              accept="image/*"
+              className="capsule-input file-input"
+              onChange={e => setForm({ ...form, profile_image: e.target.files?.[0] || null })}
+            />
+            <p className="field-hint">Add a photo now so your profile is ready after activation.</p>
+            {imagePreview && (
+              <div className="image-preview-wrap">
+                <img src={imagePreview} alt="Profile preview" className="image-preview" />
+              </div>
+            )}
           </div>
 
           <div className="input-group">
@@ -303,6 +339,31 @@ export default function Register() {
           border-color: #E4405F;
           background: #fff;
           box-shadow: 0 4px 12px rgba(228, 64, 95, 0.1);
+        }
+
+        .file-input {
+          padding-top: 12px;
+          padding-bottom: 12px;
+        }
+
+        .field-hint {
+          font-size: 12px;
+          color: #8a8a8a;
+          margin: 8px 0 0 12px;
+        }
+
+        .image-preview-wrap {
+          margin-top: 12px;
+          display: flex;
+        }
+
+        .image-preview {
+          width: 72px;
+          height: 72px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 3px solid #f2f2f2;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
         }
 
         /* Role Selector */

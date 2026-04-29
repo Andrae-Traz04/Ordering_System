@@ -11,6 +11,7 @@ class UserProfile(models.Model):
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer')
+    profile_image = models.ImageField(upload_to='profiles/', null=True, blank=True)
     address = models.CharField(max_length=255, blank=True)
     age = models.PositiveIntegerField(null=True, blank=True)
     birthday = models.DateField(null=True, blank=True)

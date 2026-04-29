@@ -19,7 +19,7 @@ export default function Login() {
     } catch (err) {
       console.error(err)
       const data = err.response?.data
-      const msg = data?.error || 'Login failed.'
+      const msg = data?.detail || data?.error || 'Login failed.'
       setError(msg)
     } finally {
       setLoading(false)

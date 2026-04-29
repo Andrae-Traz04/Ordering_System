@@ -3,8 +3,8 @@ import axios from 'axios'
 const API = axios.create({ baseURL: '/api' })
 
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Token ${token}`
+  const token = localStorage.getItem('access_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
@@ -12,7 +12,8 @@ API.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('token')
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
       window.location.href = '/login'
     }
@@ -22,6 +23,7 @@ API.interceptors.response.use(
 
 // Auth
 export const register = (data) => API.post('/auth/register/', data)
+export const activateAccount = (data) => API.post('/auth/activate/', data)
 export const login    = (data) => API.post('/auth/login/', data)
 export const logout   = ()     => API.post('/auth/logout/')
 export const fetchMe  = ()     => API.get('/auth/me/')

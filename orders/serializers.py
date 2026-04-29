@@ -11,10 +11,10 @@ from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHist
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['role', 'address', 'age', 'birthday']
+        fields = ['role', 'profile_image', 'address', 'age', 'birthday']
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer()
+    profile = UserProfileSerializer(required=False)
 
     class Meta:
         model = User
@@ -29,6 +29,8 @@ class UserSerializer(serializers.ModelSerializer):
         instance.email = validated_data.get('email', instance.email)
         instance.save()
 
+        if 'profile_image' in profile_data:
+            profile.profile_image = profile_data.get('profile_image')
         profile.address = profile_data.get('address', profile.address)
         profile.age = profile_data.get('age', profile.age)
         profile.birthday = profile_data.get('birthday', profile.birthday)
@@ -45,6 +47,7 @@ class RegisterSerializer(serializers.Serializer):
     password         = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
     role             = serializers.ChoiceField(choices=['customer', 'owner', 'admin'])
+    profile_image    = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
         normalized = value.strip()
@@ -74,6 +77,7 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         role       = validated_data.pop('role')
         validated_data.pop('confirm_password', None)
+        profile_image = validated_data.pop('profile_image', None)
         first_name = validated_data.get('first_name', '')
         last_name  = validated_data.get('last_name', '')
 
@@ -84,7 +88,10 @@ class RegisterSerializer(serializers.Serializer):
             first_name=first_name,
             last_name=last_name,
         )
-        UserProfile.objects.create(user=user, role=role)
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+
+        UserProfile.objects.create(user=user, role=role, profile_image=profile_image)
 
         # Auto-create Customer record for customer role
         if role == 'customer':

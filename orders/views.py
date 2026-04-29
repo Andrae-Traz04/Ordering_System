@@ -1,12 +1,19 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.authtoken.models import Token
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.contrib.auth.tokens import default_token_generator
+import logging
 
 from .models import Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product
 from .serializers import (
@@ -20,6 +27,8 @@ from .serializers import (
     StatusUpdateSerializer,
     ReviewSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────
@@ -42,6 +51,35 @@ def is_owner(user):
     return get_role(user) == 'owner'
 
 
+def build_activation_link(user):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173').rstrip('/')
+    return f"{base_url}/activate/{uid}/{token}"
+
+
+def send_activation_email(request, user):
+    activation_url = build_activation_link(user)
+    context = {
+        'user': user,
+        'activation_url': activation_url,
+        'brand_name': 'AMU Bowls',
+        'support_email': getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@ordering-system.local'),
+    }
+
+    subject = 'Activate your AMU Bowls account'
+    text_body = render_to_string('orders/activation_email.txt', context)
+    html_body = render_to_string('orders/activation_email.html', context)
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+        to=[user.email],
+    )
+    message.attach_alternative(html_body, 'text/html')
+    message.send()
+
+
 # ─────────────────────────────────────────────
 #  ADMIN PANEL
 # ─────────────────────────────────────────────
@@ -56,24 +94,47 @@ def admin_panel(request):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user  = serializer.save()
-            token, _ = Token.objects.get_or_create(user=user)
+            try:
+                send_activation_email(request, user)
+            except Exception:
+                logger.exception('Failed to send activation email for user %s', user.pk)
+
             return Response({
-                'token': token.key,
-                'user':  {
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                    'role': get_role(user),
-                },
+                'message': 'Account created. Check your email to activate it before logging in.',
+                'activation_required': True,
+                'email': user.email,
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ActivateAccountView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uidb64 = request.data.get('uid', '')
+        token = request.data.get('token', '')
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'detail': 'Invalid activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if user.is_active:
+            return Response({'detail': 'Account is already activated.'}, status=status.HTTP_200_OK)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'detail': 'Activation link is invalid or expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        return Response({'detail': 'Account activated successfully.'}, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):
@@ -82,32 +143,38 @@ class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username', '').strip()
         password = request.data.get('password', '')
-        user = authenticate(username=username, password=password)
+        existing_user = User.objects.filter(username__iexact=username).first()
+        if existing_user and not existing_user.is_active:
+            return Response({
+                'detail': 'Your account is not activated yet. Check your email for the activation link.'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        auth_username = existing_user.username if existing_user else username
+        user = authenticate(username=auth_username, password=password)
         if not user:
             return Response({'error': 'Invalid username or password.'}, status=status.HTTP_401_UNAUTHORIZED)
-        token, _ = Token.objects.get_or_create(user=user)
-        user_serializer = UserSerializer(user)
+
+        refresh = RefreshToken.for_user(user)
+        user_serializer = UserSerializer(user, context={'request': request})
         return Response({
-            'token': token.key,
-            'user':  user_serializer.data,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': user_serializer.data,
         })
 
 
 class LogoutView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request):
-        request.user.auth_token.delete()
         return Response({'detail': 'Logged out successfully.'})
 
 
 class MeView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
-
+    
     def get(self, request):
-        user_serializer = UserSerializer(request.user)
+        user_serializer = UserSerializer(request.user, context={'request': request})
         return Response(user_serializer.data)
 
     def put(self, request):
@@ -123,9 +190,8 @@ class MeView(APIView):
 # ─────────────────────────────────────────────
 
 class ProductListCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request):
         if is_owner_or_admin(request.user):
             products = Product.objects.all().order_by('-created_at')
@@ -149,12 +215,13 @@ class ProductListCreateView(APIView):
 
 
 class ProductDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
-    permission_classes     = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated]
+    
     def get_product(self, pk):
-        try:    return Product.objects.get(pk=pk)
-        except: return None
+        try:
+            return Product.objects.get(pk=pk)
+        except Product.DoesNotExist:
+            return None
 
     def get(self, request, pk):
         p = self.get_product(pk)
@@ -186,7 +253,6 @@ class ProductDetailView(APIView):
 # ─────────────────────────────────────────────
 
 class OrderListCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -219,7 +285,6 @@ class OrderListCreateView(APIView):
 
 
 class OrderDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get_order(self, pk, user):
@@ -254,7 +319,6 @@ class OrderDetailView(APIView):
 
 
 class OrderStatusUpdateView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -283,7 +347,6 @@ class OrderStatusUpdateView(APIView):
 
 
 class OrderSummaryView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -307,7 +370,6 @@ class OrderSummaryView(APIView):
 # ─────────────────────────────────────────────
 
 class CustomerListView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -318,7 +380,6 @@ class CustomerListView(APIView):
 
 
 class UserListView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -343,13 +404,12 @@ class UserListView(APIView):
 
 class UserRoleUpdateView(APIView):
     """Admin-only: change a user's role."""
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def patch(self, request, pk):
         if not is_admin(request.user):
-            return Response({'detail': 'Only admins can change user roles.'}, status=status.HTTP_403_FORBIDDEN)
-
+            return Response({'detail': 'Only admins can update roles.'}, status=status.HTTP_403_FORBIDDEN)
+    
         try:
             user = User.objects.get(pk=pk)
         except User.DoesNotExist:
@@ -380,7 +440,6 @@ class UserRoleUpdateView(APIView):
 # ─────────────────────────────────────────────
 
 class ReviewView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -412,13 +471,11 @@ class ReviewView(APIView):
 # ─────────────────────────────────────────────
 
 class NotificationView(APIView):
-    authentication_classes = [TokenAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
         role = get_role(request.user)
         notifications = []
-
         if role in ['owner', 'admin']:
             for order in Order.objects.filter(status='pending').order_by('-created_at')[:10]:
                 notifications.append({
