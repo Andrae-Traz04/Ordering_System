@@ -114,20 +114,14 @@ class RegisterView(APIView):
             # Send activation email
             send_activation_email(user)
             
-            # Get user role from profile
-            try:
-                role = user.profile.role
-            except UserProfile.DoesNotExist:
-                role = 'customer'
-            
+            # Build token pair and full user payload so frontend can persist role
+            refresh = RefreshToken.for_user(user)
+            user_serializer = UserSerializer(user, context={'request': request})
             return Response({
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'user': user_serializer.data,
                 'message': 'Registration successful! Please check your email to activate your account.',
-                'user_id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'role': role,
                 'detail': 'Activation link sent to your email. It will expire in 24 hours.',
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -9,15 +9,24 @@ export function AuthProvider({ children }) {
     return saved ? JSON.parse(saved) : null
   })
 
+  // Normalize user shapes across different API responses so `user.role` is always available
+  function normalizeUserPayload(payload) {
+    // payload may be: { user: {...}, access, refresh } or a direct user object
+    const raw = payload?.user ? payload.user : payload
+    const role = raw?.profile?.role || raw?.role || 'customer'
+    return {
+      ...raw,
+      role,
+      // keep profile object available too
+      profile: raw?.profile || null,
+    }
+  }
+
   const login = async (email, password) => {
     const res = await loginApi({ email, password })
     localStorage.setItem('access_token', res.data.access)
     localStorage.setItem('refresh_token', res.data.refresh)
-    // Flatten user data: extract role from profile
-    const userData = {
-      ...res.data.user,
-      role: res.data.user.profile?.role || 'customer'
-    }
+    const userData = normalizeUserPayload(res.data)
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
     return userData
@@ -27,11 +36,7 @@ export function AuthProvider({ children }) {
     const res = await registerApi(payload)
     localStorage.setItem('access_token', res.data.access)
     localStorage.setItem('refresh_token', res.data.refresh)
-    // Flatten user data: extract role from profile
-    const userData = {
-      ...res.data.user,
-      role: res.data.user.profile?.role || 'customer'
-    }
+    const userData = normalizeUserPayload(res.data)
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
     return userData
@@ -47,9 +52,11 @@ export function AuthProvider({ children }) {
 
   const updateUser = async (data) => {
     const res = await updateProfile(data)
-    localStorage.setItem('user', JSON.stringify(res.data))
-    setUser(res.data)
-    return res.data
+    // updateProfile may return user object or wrapped object
+    const userData = normalizeUserPayload(res.data)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+    return userData
   }
 
   return (

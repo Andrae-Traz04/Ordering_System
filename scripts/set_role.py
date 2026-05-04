@@ -2,6 +2,12 @@ import os
 import sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 import django
+from pathlib import Path
+
+# Ensure project root is on sys.path so Django settings module can be imported
+PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 django.setup()
 from django.contrib.auth import get_user_model
 from orders.models import UserProfile

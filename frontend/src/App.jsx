@@ -75,9 +75,9 @@ export default function App() {
           <PrivateRoute roles={['admin']}><Users /></PrivateRoute>
         } />
 
-        {/* Products - Owner only */}
+        {/* Products - Owner & Admin */}
         <Route path="products" element={
-          <PrivateRoute roles={['owner']}><ProductsPage /></PrivateRoute>
+          <PrivateRoute roles={['owner','admin']}><ProductsPage /></PrivateRoute>
         } />
 
         {/* Profile - all authenticated users */}
@@ -85,8 +85,7 @@ export default function App() {
           <PrivateRoute><Profile /></PrivateRoute>
         } />
 
-        {/* Admin & Owner Routes */}
-        <Route path="products" element={<PrivateRoute roles={['admin', 'owner']}><ProductsPage /></PrivateRoute>} />
+        {/* Admin & Owner Routes (duplicate removed) */}
       </Route>
 
       {/* Catch all */}

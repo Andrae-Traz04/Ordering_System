@@ -146,7 +146,7 @@ export default function OrderDetail() {
   if (!order)  return <div className="alert alert-error">{error || 'Order not found.'}</div>
 
   const nextStatus  = NEXT[order.status]
-  const userRole       = user?.profile?.role || user?.role
+  const userRole       = user?.role || user?.profile?.role
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin'
   const isAdmin        = userRole === 'admin'
   const isCustomer     = userRole === 'customer'
