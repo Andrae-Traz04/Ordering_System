@@ -178,12 +178,14 @@ const Profile = () => {
                   Save changes now?
                 </span>
                 <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={handleSubmit}
                 >
                   Yes
                 </button>
                 <button
+                  type="button"
                   className="btn btn-ghost"
                   onClick={() => setConfirmSave(false)}
                 >

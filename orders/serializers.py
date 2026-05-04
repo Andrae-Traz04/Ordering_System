@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.utils.dateparse import parse_date
 from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review
 from .models import Author
 
@@ -28,10 +29,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
     profile_image = serializers.ImageField(required=False, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    age = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    birthday = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile', 'profile_image']
+        fields = [
+            'id', 'username', 'first_name', 'last_name', 'email',
+            'profile', 'profile_image', 'address', 'age', 'birthday',
+        ]
         read_only_fields = ['id', 'username']
 
     def update(self, instance, validated_data):
@@ -41,6 +48,16 @@ class UserSerializer(serializers.ModelSerializer):
         age = validated_data.pop('age', None)
         birthday = validated_data.pop('birthday', None)
         profile = instance.profile
+
+        if age == '':
+            age = None
+        elif age is not None:
+            age = int(age)
+
+        if birthday == '':
+            birthday = None
+        elif birthday is not None:
+            birthday = parse_date(birthday)
 
         instance.first_name = validated_data.get('first_name', instance.first_name)
         instance.last_name = validated_data.get('last_name', instance.last_name)
