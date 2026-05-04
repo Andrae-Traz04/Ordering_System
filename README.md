@@ -163,6 +163,25 @@ Frontend runs at → `http://localhost:5173`
 
 ---
 
+### Email activation setup
+The activation email is sent through Django's email backend. By default the project uses the console backend for local development, so no real email is delivered until SMTP is configured.
+
+To send activation emails to Gmail, set these environment variables before starting Django:
+
+```bash
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-gmail-address@gmail.com
+EMAIL_HOST_PASSWORD=your-google-app-password
+DEFAULT_FROM_EMAIL=your-gmail-address@gmail.com
+```
+
+Use a Google App Password, not your normal Gmail password.
+
+---
+
 ## Accessing the Application
 
 | URL | Description |

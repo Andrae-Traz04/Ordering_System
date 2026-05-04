@@ -20,6 +20,43 @@ INSTALLED_APPS = [
     'orders',
 ]
 
+# Optionally include cloudinary apps when the package is installed in the environment
+try:
+    import cloudinary  # type: ignore
+    INSTALLED_APPS.insert(6, 'cloudinary')
+    INSTALLED_APPS.insert(7, 'cloudinary_storage')
+except Exception:
+    # Cloudinary not installed; skip those apps
+    pass
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+FRONTEND_URL = 'http://localhost:5173'
+# Default to local filesystem storage; if cloudinary is installed we'll override below
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': '123',
+    'API_KEY': '123',
+    'API_SECRET': '_123',
+}
+
+# Try to use Cloudinary storage when available, otherwise fall back to local storage
+try:
+    from cloudinary_storage.storage import MediaCloudinaryStorage
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    storage = MediaCloudinaryStorage()
+except Exception:
+    # Cloudinary not installed or not configured in this environment; use local storage
+    storage = None
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = '@email.com'
+EMAIL_HOST_PASSWORD = 'app-password'
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = '@email.com'
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -70,6 +107,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+DJOSER = {
+    'SEND_ACTIVATION_EMAIL': True,
+    'USER_CREATE_PASSWORD_RETYPE': True,
+    'ACTIVATION_URL': 'activate/{uid}/{token}',
+    'EMAIL_FRONTEND_DOMAIN': 'localhost:5173',
+    'EMAIL_FRONTEND_PROTOCOL': 'http',
+    'EMAIL_FRONTEND_SITE_NAME': 'AMU Bowls',
+    'SERIALIZERS': {
+        'user_create': 'orders.serializers.DjoserUserCreateSerializer',
+        'user_create_password_retype': 'orders.serializers.DjoserUserCreateSerializer',
+        'user': 'orders.serializers.UserSerializer',
+        'current_user': 'orders.serializers.UserSerializer',
+    },
+    'EMAIL': {'activation': 'orders.emails.CustomActivationEmail'},
+}
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -80,6 +133,8 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
     ],
 }
 

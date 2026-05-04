@@ -23,13 +23,17 @@ API.interceptors.response.use(
 
 // Auth
 export const register = (data) => API.post('/auth/register/', data)
+export const activateAccount = (data) => API.post('/auth/activate/', data)
 export const login    = (data) => API.post('/auth/login/', data)
 export const logout   = ()     => {
   const refresh = localStorage.getItem('refresh_token')
   return API.post('/auth/logout/', { refresh })
 }
 export const fetchMe  = ()     => API.get('/auth/me/')
-export const updateProfile = (data) => API.put('/auth/me/', data)
+export const updateProfile = (data) => {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+  return API.put('/auth/me/', data, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+}
 
 // Products
 export const fetchProducts = (params = {}) => API.get('/products/', { params })

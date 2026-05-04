@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
 from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review
+from .models import Author
 
 
 # ─────────────────────────────────────────────
@@ -11,18 +12,23 @@ from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHist
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['role', 'address', 'age', 'birthday']
+        fields = ['role', 'profile_image', 'address', 'age', 'birthday']
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer()
+    profile = UserProfileSerializer(required=False)
+    profile_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile', 'profile_image']
         read_only_fields = ['id', 'username']
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', {})
+        profile_image = validated_data.pop('profile_image', None)
+        address = validated_data.pop('address', None)
+        age = validated_data.pop('age', None)
+        birthday = validated_data.pop('birthday', None)
         profile = instance.profile
 
         instance.first_name = validated_data.get('first_name', instance.first_name)
@@ -30,12 +36,81 @@ class UserSerializer(serializers.ModelSerializer):
         instance.email = validated_data.get('email', instance.email)
         instance.save()
 
-        profile.address = profile_data.get('address', profile.address)
-        profile.age = profile_data.get('age', profile.age)
-        profile.birthday = profile_data.get('birthday', profile.birthday)
+        if profile_image is not None:
+            profile.profile_image = profile_image
+        elif 'profile_image' in profile_data:
+            profile.profile_image = profile_data.get('profile_image')
+        profile.address = address if address is not None else profile_data.get('address', profile.address)
+        profile.age = age if age is not None else profile_data.get('age', profile.age)
+        profile.birthday = birthday if birthday is not None else profile_data.get('birthday', profile.birthday)
         profile.save()
 
         return instance
+
+
+class DjoserUserCreateSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    password = serializers.CharField(min_length=6, write_only=True)
+    re_password = serializers.CharField(min_length=6, write_only=True)
+    role = serializers.ChoiceField(choices=['customer', 'owner', 'admin'])
+    profile_image = serializers.ImageField(required=False, allow_null=True)
+
+    def validate_username(self, value):
+        normalized = value.strip()
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError('Username already taken.')
+        return normalized
+
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError('Email already registered.')
+        return normalized
+
+    def validate_first_name(self, value):
+        return value.strip()
+
+    def validate_last_name(self, value):
+        return value.strip()
+
+    def validate(self, attrs):
+        if attrs.get('password') != attrs.get('re_password'):
+            raise serializers.ValidationError({'re_password': ['Passwords do not match.']})
+        return attrs
+
+    def create(self, validated_data):
+        role = validated_data.pop('role')
+        validated_data.pop('re_password', None)
+        profile_image = validated_data.pop('profile_image', None)
+        first_name = validated_data.get('first_name', '')
+        last_name = validated_data.get('last_name', '')
+
+        user = User.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            email=validated_data['email'],
+            first_name=first_name,
+            last_name=last_name,
+        )
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+
+        UserProfile.objects.create(user=user, role=role, profile_image=profile_image)
+
+        if role == 'customer':
+            Customer.objects.get_or_create(
+                email=user.email,
+                defaults={
+                    'name': f"{first_name} {last_name}".strip() or user.username,
+                    'phone': '',
+                    'user': user,
+                }
+            )
+
+        return user
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -46,6 +121,7 @@ class RegisterSerializer(serializers.Serializer):
     password         = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
     role             = serializers.ChoiceField(choices=['customer', 'owner', 'admin'])
+    profile_image    = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
         normalized = value.strip()
@@ -75,6 +151,7 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         role       = validated_data.pop('role')
         validated_data.pop('confirm_password', None)
+        profile_image = validated_data.pop('profile_image', None)
         first_name = validated_data.get('first_name', '')
         last_name  = validated_data.get('last_name', '')
 
@@ -86,7 +163,10 @@ class RegisterSerializer(serializers.Serializer):
             last_name=last_name,
             is_active=False,  # User must activate via email
         )
-        UserProfile.objects.create(user=user, role=role)
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+
+        UserProfile.objects.create(user=user, role=role, profile_image=profile_image)
 
         # Auto-create Customer record for customer role
         if role == 'customer':
@@ -342,6 +422,7 @@ class StatusUpdateSerializer(serializers.Serializer):
 __all__ = [
     'RegisterSerializer',
     'UserSerializer',
+    'AuthorSerializer',
     'ProductSerializer',
     'ProductCreateSerializer',
     'CustomerSerializer',
@@ -352,3 +433,12 @@ __all__ = [
     'OrderCreateSerializer',
     'StatusUpdateSerializer',
 ]
+
+
+class AuthorSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Author
+        fields = ['id', 'first_name', 'last_name', 'user', 'created_at']
+        read_only_fields = ['user']

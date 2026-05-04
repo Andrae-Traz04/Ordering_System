@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react'
-import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile } from '@/api/ordersApi'
+import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile, fetchMe } from '@/api/ordersApi'
 
 const AuthContext = createContext(null)
 

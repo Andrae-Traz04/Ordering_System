@@ -15,7 +15,17 @@ class Migration(migrations.Migration):
             name='status',
             field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('shipped', 'Shipped'), ('completed', 'Completed'), ('cancelled', 'Cancelled')], default='pending', max_length=20),
         ),
-        migrations.DeleteModel(
-            name='CartItem',
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunSQL(
+                    sql='DROP TABLE IF EXISTS orders_cartitem;',
+                    reverse_sql=migrations.RunSQL.noop,
+                ),
+            ],
+            state_operations=[
+                migrations.DeleteModel(
+                    name='CartItem',
+                ),
+            ],
         ),
     ]

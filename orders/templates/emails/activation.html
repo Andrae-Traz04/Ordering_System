@@ -1,0 +1,28 @@
+{% load i18n %}
+
+{% block subject %}
+{% blocktrans %}Activate your account on {{ site_name }}{% endblocktrans %}
+{% endblock subject %}
+
+{% block text_body %}
+{% blocktrans %}You're receiving this email because you need to finish the activation process on {{ site_name }}.{% endblocktrans %}
+
+{% trans "Please go to the following page to activate your account:" %}
+{{ protocol }}://{{ domain }}/{{ url|safe }}
+
+{% trans "If you didn't request this, ignore this email." %}
+
+{% blocktrans %}The {{ site_name }} team{% endblocktrans %}
+{% endblock text_body %}
+
+{% block html_body %}
+<h2>Activate your account</h2>
+<p>Hello {{ user.email }},</p>
+<p>Please click the link below to activate your account:</p>
+
+<a href="http://localhost:3000/{{ url|safe }}">
+	Activate Account
+</a>
+
+<p>If you didn’t request this, ignore this email.</p>
+{% endblock html_body %}

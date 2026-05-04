@@ -13,7 +13,7 @@ def api_root(request, format=None):
         'login':              reverse('login',                     request=request),
         'logout':             reverse('logout',                    request=request),
         'me':                 reverse('me',                        request=request),
-        'activate':           'POST /api/v1/auth/activate/<user_id>/<token>/',
+        'activate':           reverse('activate',                  request=request),
         'resend_activation':  reverse('resend-activation',         request=request),
         'request_reset':      reverse('request-password-reset',    request=request),
         'reset_password':     'POST /api/v1/auth/reset-password/<user_id>/<token>/',
@@ -32,11 +32,12 @@ urlpatterns = [
 
     # Auth
     path('auth/register/',                                    views.RegisterView.as_view(),              name='register'),
+    path('auth/activate/',                                    views.ActivateAccountView.as_view(),       name='activate'),
     path('auth/login/',                                       views.LoginView.as_view(),                 name='login'),
     path('auth/logout/',                                      views.LogoutView.as_view(),                name='logout'),
     path('auth/me/',                                          views.MeView.as_view(),                    name='me'),
     
-    # Email Activation
+    # Email Activation (legacy)
     path('auth/activate/<int:user_id>/<str:token>/',          views.ActivateEmailView.as_view(),         name='activate-email'),
     path('auth/resend-activation/',                           views.ResendActivationEmailView.as_view(), name='resend-activation'),
     
@@ -60,6 +61,9 @@ urlpatterns = [
     path('customers/',             views.CustomerListView.as_view(),   name='customer-list'),
     path('users/',                 views.UserListView.as_view(),        name='user-list'),
     path('users/<int:pk>/role/',   views.UserRoleUpdateView.as_view(), name='user-role-update'),
+        # Authors (per-user)
+        path('authors/', views.AuthorListCreateView.as_view(), name='author-list'),
+        path('authors/<int:pk>/', views.AuthorDetailView.as_view(), name='author-detail'),
 
     # Notifications
     path('notifications/', views.NotificationView.as_view(), name='notifications'),
