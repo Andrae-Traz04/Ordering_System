@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
 from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review
+from .models import Author
 
 
 # ─────────────────────────────────────────────
@@ -406,6 +407,7 @@ class StatusUpdateSerializer(serializers.Serializer):
 __all__ = [
     'RegisterSerializer',
     'UserSerializer',
+    'AuthorSerializer',
     'ProductSerializer',
     'ProductCreateSerializer',
     'CustomerSerializer',
@@ -416,3 +418,12 @@ __all__ = [
     'OrderCreateSerializer',
     'StatusUpdateSerializer',
 ]
+
+
+class AuthorSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Author
+        fields = ['id', 'first_name', 'last_name', 'user', 'created_at']
+        read_only_fields = ['user']

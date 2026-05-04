@@ -33,6 +33,19 @@ class Customer(models.Model):
         return f"{self.name} ({self.email})"
 
 
+class Author(models.Model):
+    user = models.ForeignKey(
+        'auth.User', on_delete=models.CASCADE, related_name='authors'
+    )
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+
 # ── NEW: Product model ───────────────────────────────────────────────────────
 class Product(models.Model):
     CATEGORY_CHOICES = [

@@ -50,6 +50,9 @@ urlpatterns = [
     path('customers/',             views.CustomerListView.as_view(),   name='customer-list'),
     path('users/',                 views.UserListView.as_view(),        name='user-list'),
     path('users/<int:pk>/role/',   views.UserRoleUpdateView.as_view(), name='user-role-update'),
+        # Authors (per-user)
+        path('authors/', views.AuthorListCreateView.as_view(), name='author-list'),
+        path('authors/<int:pk>/', views.AuthorDetailView.as_view(), name='author-detail'),
 
     # Notifications
     path('notifications/', views.NotificationView.as_view(), name='notifications'),

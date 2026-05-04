@@ -13,28 +13,40 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'cloudinary',
-    'cloudinary_storage',
-    'djoser',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'orders',
 ]
 
+# Optionally include cloudinary apps when the package is installed in the environment
+try:
+    import cloudinary  # type: ignore
+    INSTALLED_APPS.insert(6, 'cloudinary')
+    INSTALLED_APPS.insert(7, 'cloudinary_storage')
+except Exception:
+    # Cloudinary not installed; skip those apps
+    pass
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 FRONTEND_URL = 'http://localhost:5173'
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# Default to local filesystem storage; if cloudinary is installed we'll override below
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': '123',
     'API_KEY': '123',
     'API_SECRET': '_123',
 }
 
-from cloudinary_storage.storage import MediaCloudinaryStorage
-
-storage = MediaCloudinaryStorage()
+# Try to use Cloudinary storage when available, otherwise fall back to local storage
+try:
+    from cloudinary_storage.storage import MediaCloudinaryStorage
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    storage = MediaCloudinaryStorage()
+except Exception:
+    # Cloudinary not installed or not configured in this environment; use local storage
+    storage = None
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'

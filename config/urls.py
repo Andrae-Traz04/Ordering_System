@@ -11,8 +11,20 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('orders.urls')),
-    path('api/auth/', include('djoser.urls')),
-    path('api/auth/', include('djoser.urls.jwt')),
+    # Djoser (optional) - only include if installed
+]
+
+try:
+    import djoser  # noqa: F401
+    urlpatterns += [
+        path('api/auth/', include('djoser.urls')),
+        path('api/auth/', include('djoser.urls.jwt')),
+    ]
+except Exception:
+    # djoser not installed in this environment - skip those routes
+    pass
+
+urlpatterns += [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('', lambda request: redirect('api/panel/', permanent=False)),

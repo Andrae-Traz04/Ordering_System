@@ -26,6 +26,11 @@ from .serializers import (
     StatusUpdateSerializer,
     ReviewSerializer,
 )
+from rest_framework import generics
+from .serializers import AuthorSerializer
+from .models import Author
+from .permissions import IsOwner
+from rest_framework.permissions import IsAuthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -511,3 +516,32 @@ class NotificationView(APIView):
                 })
 
         return Response({'notifications': notifications})
+
+
+# ─────────────────────────────────────────────
+#  AUTHOR VIEWS
+# ─────────────────────────────────────────────
+
+
+class AuthorListCreateView(generics.ListCreateAPIView):
+    serializer_class = AuthorSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Admins can see all authors
+        try:
+            role = self.request.user.profile.role
+        except Exception:
+            role = 'customer'
+        if role == 'admin':
+            return Author.objects.all().order_by('-id')
+        return Author.objects.filter(user=self.request.user).order_by('-id')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class AuthorDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = AuthorSerializer
+    permission_classes = [IsAuthenticated, IsOwner]
+    queryset = Author.objects.all()
