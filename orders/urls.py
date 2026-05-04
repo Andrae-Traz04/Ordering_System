@@ -17,6 +17,7 @@ def api_root(request, format=None):
         'resend_activation':  reverse('resend-activation',         request=request),
         'request_reset':      reverse('request-password-reset',    request=request),
         'reset_password':     'POST /api/v1/auth/reset-password/<user_id>/<token>/',
+        'authors':            reverse('author-list',               request=request),
         'products':           reverse('product-list',              request=request),
         'orders':             reverse('order-list-create',         request=request),
         'orders_summary':     reverse('order-summary',             request=request),
@@ -43,6 +44,10 @@ urlpatterns = [
     # Password Reset
     path('auth/request-reset/',                               views.RequestPasswordResetView.as_view(),  name='request-password-reset'),
     path('auth/reset-password/<int:user_id>/<str:token>/',   views.ResetPasswordView.as_view(),         name='reset-password'),
+
+    # Authors
+    path('authors/',           views.AuthorListCreateView.as_view(), name='author-list'),
+    path('authors/<int:pk>/',  views.AuthorDetailView.as_view(),     name='author-detail'),
 
     # Products
     path('products/',          views.ProductListCreateView.as_view(), name='product-list'),
