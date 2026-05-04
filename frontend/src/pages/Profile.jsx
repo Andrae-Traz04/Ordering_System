@@ -5,6 +5,7 @@ import './Profile.css';
 const Profile = () => {
   const { user, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -44,13 +45,11 @@ const Profile = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Confirm before saving changes
-    const ok = window.confirm('Save changes? (Yes / No)')
-    if (!ok) return
+    e && e.preventDefault && e.preventDefault()
     try {
       await updateUser(formData)
       setIsEditing(false)
+      setConfirmSave(false)
     } catch (error) {
       console.error('Failed to update profile', error)
     }
@@ -99,13 +98,38 @@ const Profile = () => {
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => setIsEditing(false)}
+              onClick={() => { setIsEditing(false); setConfirmSave(false); }}
             >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              Save Changes
-            </button>
+
+            {!confirmSave ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setConfirmSave(true)}
+              >
+                Save Changes
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 13, color: '#111827', fontWeight: 600 }}>
+                  Save changes now?
+                </span>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSubmit}
+                >
+                  Yes
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setConfirmSave(false)}
+                >
+                  No
+                </button>
+              </div>
+            )}
           </div>
         )}
       </form>
