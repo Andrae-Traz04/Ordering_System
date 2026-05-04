@@ -32,7 +32,9 @@ export const logout   = ()     => {
 export const fetchMe  = ()     => API.get('/auth/me/')
 export const updateProfile = (data) => {
   const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
-  return API.put('/auth/me/', data, isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined)
+  // When sending FormData, omit Content-Type header so browser sets it with correct boundary
+  const config = isFormData ? {} : {}
+  return API.put('/auth/me/', data, config)
 }
 
 // Products
