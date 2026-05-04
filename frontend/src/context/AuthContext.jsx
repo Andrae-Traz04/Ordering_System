@@ -11,23 +11,36 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await loginApi({ email, password })
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('user', JSON.stringify(res.data.user))
-    setUser(res.data.user)
-    return res.data.user
+    localStorage.setItem('access_token', res.data.access)
+    localStorage.setItem('refresh_token', res.data.refresh)
+    // Flatten user data: extract role from profile
+    const userData = {
+      ...res.data.user,
+      role: res.data.user.profile?.role || 'customer'
+    }
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+    return userData
   }
 
   const register = async (payload) => {
     const res = await registerApi(payload)
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('user', JSON.stringify(res.data.user))
-    setUser(res.data.user)
-    return res.data.user
+    localStorage.setItem('access_token', res.data.access)
+    localStorage.setItem('refresh_token', res.data.refresh)
+    // Flatten user data: extract role from profile
+    const userData = {
+      ...res.data.user,
+      role: res.data.user.profile?.role || 'customer'
+    }
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+    return userData
   }
 
   const logout = async () => {
     try { await logoutApi() } catch {}
-    localStorage.removeItem('token')
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')
     setUser(null)
   }

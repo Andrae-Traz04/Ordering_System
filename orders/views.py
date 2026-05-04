@@ -1,10 +1,12 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.shortcuts import render
+from django.conf import settings
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.authtoken.models import Token
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -20,6 +22,7 @@ from .serializers import (
     StatusUpdateSerializer,
     ReviewSerializer,
 )
+from .email_utils import send_activation_email, send_password_reset_email
 
 
 # ─────────────────────────────────────────────
@@ -43,6 +46,52 @@ def is_owner(user):
 
 
 # ─────────────────────────────────────────────
+#  PERMISSION CLASSES
+# ─────────────────────────────────────────────
+
+class IsAdmin(BasePermission):
+    """Allow access only to admin users."""
+    message = "Admin access required."
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and is_admin(request.user)
+
+
+class IsOwnerOrAdmin(BasePermission):
+    """Allow access only to owners or admins."""
+    message = "Owner or admin access required."
+
+    def has_permission(self, request, view):
+        return request.user and request.user.is_authenticated and is_owner_or_admin(request.user)
+
+
+class IsOwnerOrReadOnly(BasePermission):
+    """Allow owners to edit their own objects; others can view only."""
+    message = "You can only edit your own objects."
+
+    def has_object_permission(self, request, view, obj):
+        # Allow GET, HEAD, OPTIONS for anyone
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+        # Only allow edits by owner or admins
+        if hasattr(obj, 'created_by'):
+            return obj.created_by == request.user or is_owner_or_admin(request.user)
+        return False
+
+
+class IsObjectOwnerOrAdmin(BasePermission):
+    """Allow access only to object owner or admins."""
+    message = "You can only access your own objects."
+
+    def has_object_permission(self, request, view, obj):
+        if hasattr(obj, 'created_by'):
+            return obj.created_by == request.user or is_admin(request.user)
+        if hasattr(obj, 'user'):
+            return obj.user == request.user or is_admin(request.user)
+        return False
+
+
+# ─────────────────────────────────────────────
 #  ADMIN PANEL
 # ─────────────────────────────────────────────
 
@@ -61,19 +110,209 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user  = serializer.save()
-            token, _ = Token.objects.get_or_create(user=user)
+            
+            # Send activation email
+            send_activation_email(user)
+            
+            # Get user role from profile
+            try:
+                role = user.profile.role
+            except UserProfile.DoesNotExist:
+                role = 'customer'
+            
             return Response({
-                'token': token.key,
-                'user':  {
-                    'id': user.id,
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                    'role': get_role(user),
-                },
+                'message': 'Registration successful! Please check your email to activate your account.',
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': role,
+                'detail': 'Activation link sent to your email. It will expire in 24 hours.',
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ActivateEmailView(APIView):
+    """Verify email activation token and activate user account."""
+    permission_classes = [AllowAny]
+
+    def activate_user(self, user_id, token):
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return None, Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verify token
+        if not default_token_generator.check_token(user, token):
+            return None, Response({'error': 'Activation link is invalid or has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Activate user
+        if user.is_active:
+            return user, Response({'message': 'Account is already activated.'}, status=status.HTTP_200_OK)
+
+        user.is_active = True
+        user.save()
+
+        return user, Response({
+            'message': '✓ Your account has been activated successfully!',
+            'user_id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'detail': 'You can now log in to your account.',
+        }, status=status.HTTP_200_OK)
+
+    def post(self, request, user_id, token):
+        """Activate via POST (API call)."""
+        _, resp = self.activate_user(user_id, token)
+        return resp
+
+    def get(self, request, user_id, token):
+        """Activate via GET (clicked link from browser). Returns HTML redirect or JSON."""
+        user, resp = self.activate_user(user_id, token)
+        # If frontend is available, redirect to login page or show frontend route
+        frontend = getattr(settings, 'FRONTEND_URL', None)
+        if user and frontend:
+            # Redirect to frontend login with success message (query param)
+            redirect_url = f"{frontend}/login?activated=1"
+            from django.shortcuts import redirect
+            return redirect(redirect_url)
+        return resp
+
+
+class ResendActivationEmailView(APIView):
+    """Resend activation email if user hasn't activated yet."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """
+        Resend activation email.
+        POST /api/v1/auth/resend-activation/
+        Body: { "email": "user@example.com" }
+        """
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response(
+                {'error': 'Email is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # For security, don't reveal if email exists
+            return Response(
+                {'message': 'If this email is registered, a new activation link has been sent.'},
+                status=status.HTTP_200_OK
+            )
+
+        if user.is_active:
+            return Response(
+                {'message': 'This account is already activated. You can log in directly.'},
+                status=status.HTTP_200_OK
+            )
+
+        # Send activation email
+        send_activation_email(user)
+
+        return Response({
+            'message': 'Activation email has been resent.',
+            'detail': 'Please check your email for the activation link. It will expire in 24 hours.',
+            'email': user.email,
+        }, status=status.HTTP_200_OK)
+
+
+class RequestPasswordResetView(APIView):
+    """Request password reset email."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """
+        Request password reset.
+        POST /api/v1/auth/request-reset/
+        Body: { "email": "user@example.com" }
+        """
+        email = request.data.get('email', '').strip()
+        if not email:
+            return Response(
+                {'error': 'Email is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # For security, don't reveal if email exists
+            return Response(
+                {'message': 'If this email is registered, a password reset link has been sent.'},
+                status=status.HTTP_200_OK
+            )
+
+        # Send password reset email
+        send_password_reset_email(user)
+
+        return Response({
+            'message': 'Password reset email has been sent.',
+            'detail': 'Check your email for the reset link. It will expire in 24 hours.',
+            'email': user.email,
+        }, status=status.HTTP_200_OK)
+
+
+class ResetPasswordView(APIView):
+    """Reset password with token."""
+    permission_classes = [AllowAny]
+
+    def post(self, request, user_id, token):
+        """
+        Reset password with token.
+        POST /api/v1/auth/reset-password/<user_id>/<token>/
+        Body: { "new_password": "newpass123", "confirm_password": "newpass123" }
+        """
+        try:
+            user = User.objects.get(pk=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Verify token
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {'error': 'Reset link is invalid or has expired.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        new_password = request.data.get('new_password', '').strip()
+        confirm_password = request.data.get('confirm_password', '').strip()
+
+        if not new_password or not confirm_password:
+            return Response(
+                {'error': 'Both password fields are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {'error': 'Passwords do not match.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(new_password) < 6:
+            return Response(
+                {'error': 'Password must be at least 6 characters long.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+
+        return Response({
+            'message': '✓ Your password has been reset successfully!',
+            'detail': 'You can now log in with your new password.',
+            'username': user.username,
+        }, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):
@@ -84,7 +323,7 @@ class LoginView(APIView):
         password = request.data.get('password', '')
 
         try:
-            user_obj = User.objects.get(email=email)
+            user_obj = User.objects.get(email__iexact=email)
         except User.DoesNotExist:
             return Response(
                 {'error': 'Invalid email or password.'},
@@ -98,29 +337,36 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        token, _ = Token.objects.get_or_create(user=user)
-        user_serializer = UserSerializer(user)
+        refresh = RefreshToken.for_user(user)
+        user_serializer = UserSerializer(user, context={'request': request})
         return Response({
-            'token': token.key,
-            'user':  user_serializer.data,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': user_serializer.data,
         })
 
 
 class LogoutView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request):
-        request.user.auth_token.delete()
+        refresh_token = request.data.get('refresh')
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass
         return Response({'detail': 'Logged out successfully.'})
 
 
 class MeView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
-        user_serializer = UserSerializer(request.user)
+        user_serializer = UserSerializer(request.user, context={'request': request})
         return Response(user_serializer.data)
 
     def put(self, request):
@@ -136,10 +382,11 @@ class MeView(APIView):
 # ─────────────────────────────────────────────
 
 class ProductListCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
+        """Get products - owners/admins see all, customers see only active."""
         if is_owner_or_admin(request.user):
             products = Product.objects.all().order_by('-created_at')
         else:
@@ -152,8 +399,12 @@ class ProductListCreateView(APIView):
         return Response({'products': ProductSerializer(products, many=True).data})
 
     def post(self, request):
+        """Create product - owners and admins only."""
         if not is_owner_or_admin(request.user):
-            return Response({'detail': 'Only owners and admins can create products.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'detail': 'Only owners and admins can create products.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         serializer = ProductCreateSerializer(data=request.data)
         if serializer.is_valid():
             product = serializer.save(created_by=request.user)
@@ -162,23 +413,37 @@ class ProductListCreateView(APIView):
 
 
 class ProductDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get_product(self, pk):
-        try:    return Product.objects.get(pk=pk)
-        except: return None
+        try:
+            return Product.objects.get(pk=pk)
+        except Product.DoesNotExist:
+            return None
 
     def get(self, request, pk):
+        """Retrieve a product - admins/owners see all, customers see only active."""
         p = self.get_product(pk)
-        if not p: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not p:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Customers can only view active products
+        if not is_owner_or_admin(request.user) and not p.is_active:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
         return Response(ProductSerializer(p).data)
 
     def patch(self, request, pk):
+        """Update product - owners and admins only."""
         if not is_owner_or_admin(request.user):
-            return Response({'detail': 'Only owners and admins can edit products.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'detail': 'Only owners and admins can edit products.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         p = self.get_product(pk)
-        if not p: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not p:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = ProductCreateSerializer(p, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -186,10 +451,15 @@ class ProductDetailView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        if not is_owner_or_admin(request.user):
-            return Response({'detail': 'Only owners and admins can delete products.'}, status=status.HTTP_403_FORBIDDEN)
+        """Delete product - admins only."""
+        if not is_admin(request.user):
+            return Response(
+                {'detail': 'Only admins can delete products.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         p = self.get_product(pk)
-        if not p: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not p:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         p.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -199,7 +469,7 @@ class ProductDetailView(APIView):
 # ─────────────────────────────────────────────
 
 class OrderListCreateView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -232,33 +502,53 @@ class OrderListCreateView(APIView):
 
 
 class OrderDetailView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get_order(self, pk, user):
+        """Get order if user has permission to access it."""
         try:
             order = Order.objects.get(pk=pk)
         except Order.DoesNotExist:
             return None
+        
+        # Customers can only access their own orders
         if get_role(user) == 'customer' and order.created_by != user:
             return None
+        
         return order
 
     def get(self, request, pk):
+        """Retrieve an order."""
         order = self.get_order(pk, request.user)
-        if not order: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if not order:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(OrderSerializer(order).data)
 
     def patch(self, request, pk):
+        """Update order notes - customer can update own order, owners/admins can update any."""
         order = self.get_order(pk, request.user)
-        if not order: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        order.notes = request.data.get('notes', order.notes)
-        order.save()
+        if not order:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Only customers updating their own orders can update notes
+        if get_role(request.user) == 'customer':
+            order.notes = request.data.get('notes', order.notes)
+            order.save()
+        elif is_owner_or_admin(request.user):
+            # Admins/owners can update more fields
+            order.notes = request.data.get('notes', order.notes)
+            order.save()
+        
         return Response(OrderSerializer(order).data)
 
     def delete(self, request, pk):
+        """Delete order - admins only."""
         if not is_admin(request.user):
-            return Response({'detail': 'Only admins can delete orders.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'detail': 'Only admins can delete orders.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         try:
             Order.objects.get(pk=pk).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -267,12 +557,16 @@ class OrderDetailView(APIView):
 
 
 class OrderStatusUpdateView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
+        """Update order status - owners and admins only."""
         if not is_owner_or_admin(request.user):
-            return Response({'detail': 'Only owners or admins can update order status.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'detail': 'Only owners or admins can update order status.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         try:
             order = Order.objects.get(pk=pk)
         except Order.DoesNotExist:
@@ -296,7 +590,7 @@ class OrderStatusUpdateView(APIView):
 
 
 class OrderCancelView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
@@ -332,7 +626,7 @@ class OrderCancelView(APIView):
 
 
 class OrderSummaryView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -356,7 +650,7 @@ class OrderSummaryView(APIView):
 # ─────────────────────────────────────────────
 
 class CustomerListView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -367,7 +661,7 @@ class CustomerListView(APIView):
 
 
 class UserListView(APIView):
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
@@ -392,7 +686,7 @@ class UserListView(APIView):
 
 class UserRoleUpdateView(APIView):
     """Admin-only: change a user's role."""
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def patch(self, request, pk):
@@ -429,21 +723,32 @@ class UserRoleUpdateView(APIView):
 # ─────────────────────────────────────────────
 
 class ReviewView(APIView):
-    authentication_classes = [TokenAuthentication]
+    """Customer-only: create reviews for completed orders."""
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def post(self, request, pk):
+        """Create a review for a completed order - customers only."""
         if get_role(request.user) != 'customer':
-            return Response({'detail': 'Only customers can leave reviews.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {'detail': 'Only customers can leave reviews.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
         try:
             order = Order.objects.get(pk=pk, created_by=request.user)
         except Order.DoesNotExist:
             return Response({'detail': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         if order.status != 'completed':
-            return Response({'detail': 'You can only review completed orders.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'You can only review completed orders.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         if hasattr(order, 'review'):
-            return Response({'detail': 'You have already reviewed this order.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'You have already reviewed this order.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = ReviewSerializer(data=request.data)
         if serializer.is_valid():
@@ -461,27 +766,39 @@ class ReviewView(APIView):
 # ─────────────────────────────────────────────
 
 class NotificationView(APIView):
-    authentication_classes = [TokenAuthentication]
+    """Get notifications based on user role."""
+    authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
+        """
+        Get notifications:
+        - Owners/Admins: see new pending orders
+        - Customers: see their order status updates
+        """
         role = get_role(request.user)
         notifications = []
 
         if role in ['owner', 'admin']:
+            # Show pending orders to owners/admins
             for order in Order.objects.filter(status='pending').order_by('-created_at')[:10]:
                 notifications.append({
-                    'id': f'new-order-{order.id}', 'type': 'new_order',
+                    'id': f'new-order-{order.id}',
+                    'type': 'new_order',
                     'message': f'New order {order.order_number} from {order.customer.name}',
-                    'order_id': order.id, 'created_at': order.created_at,
+                    'order_id': order.id,
+                    'created_at': order.created_at,
                 })
 
         if role == 'customer':
+            # Show order status updates to customers
             for h in StatusHistory.objects.filter(order__created_by=request.user).order_by('-changed_at')[:10]:
                 notifications.append({
-                    'id': f'status-{h.id}', 'type': 'status_update',
+                    'id': f'status-{h.id}',
+                    'type': 'status_update',
                     'message': f'Order {h.order.order_number} updated to {h.to_status}',
-                    'order_id': h.order.id, 'created_at': h.changed_at,
+                    'order_id': h.order.id,
+                    'created_at': h.changed_at,
                 })
 
         return Response({'notifications': notifications})

@@ -19,6 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'profile']
+        read_only_fields = ['id', 'username']
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', {})
@@ -83,6 +84,7 @@ class RegisterSerializer(serializers.Serializer):
             email=validated_data['email'],
             first_name=first_name,
             last_name=last_name,
+            is_active=False,  # User must activate via email
         )
         UserProfile.objects.create(user=user, role=role)
 
@@ -106,13 +108,15 @@ class RegisterSerializer(serializers.Serializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     created_by_username = serializers.SerializerMethodField()
+    created_by_id = serializers.IntegerField(source='created_by.id', read_only=True)
 
     class Meta:
         model  = Product
         fields = [
             'id', 'name', 'description', 'price', 'category',
-            'emoji', 'badge', 'is_active', 'created_by_username', 'created_at',
+            'emoji', 'badge', 'is_active', 'created_by_id', 'created_by_username', 'created_at',
         ]
+        read_only_fields = ['created_by_id', 'created_by_username', 'created_at']
 
     def get_created_by_username(self, obj):
         return obj.created_by.username if obj.created_by else None
@@ -122,6 +126,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Product
         fields = ['name', 'description', 'price', 'category', 'emoji', 'badge', 'is_active']
+        read_only_fields = ['created_by']
 
 
 # ─────────────────────────────────────────────
@@ -159,13 +164,15 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class StatusHistorySerializer(serializers.ModelSerializer):
     changed_by_username = serializers.SerializerMethodField()
+    changed_by_id = serializers.IntegerField(source='changed_by.id', read_only=True, allow_null=True)
 
     class Meta:
         model  = StatusHistory
         fields = [
             'id', 'from_status', 'to_status',
-            'changed_by_username', 'changed_at', 'note',
+            'changed_by_id', 'changed_by_username', 'changed_at', 'note',
         ]
+        read_only_fields = ['changed_by_id', 'changed_by_username', 'changed_at']
 
     def get_changed_by_username(self, obj):
         return obj.changed_by.username if obj.changed_by else None
@@ -177,10 +184,12 @@ class StatusHistorySerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     customer_username = serializers.SerializerMethodField()
+    customer_id = serializers.IntegerField(source='customer.id', read_only=True)
 
     class Meta:
         model  = Review
-        fields = ['id', 'rating', 'comment', 'customer_username', 'created_at']
+        fields = ['id', 'rating', 'comment', 'customer_id', 'customer_username', 'created_at']
+        read_only_fields = ['customer_id', 'customer_username', 'created_at']
 
     def get_customer_username(self, obj):
         return obj.customer.username if obj.customer else None
@@ -216,6 +225,12 @@ class OrderSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
             'customer_name', 'customer_email', 'customer_phone',
             'created_by_id', 'created_by_username',
+            'item_count', 'items', 'status_history', 'review',
+        ]
+        read_only_fields = [
+            'id', 'order_number', 'status', 'total_amount',
+            'created_at', 'updated_at', 'created_by_id', 'created_by_username',
+            'customer_name', 'customer_email', 'customer_phone',
             'item_count', 'items', 'status_history', 'review',
         ]
 
