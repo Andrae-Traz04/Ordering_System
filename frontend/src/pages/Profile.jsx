@@ -45,11 +45,14 @@ const Profile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Confirm before saving changes
+    const ok = window.confirm('Save changes? (Yes / No)')
+    if (!ok) return
     try {
-      await updateUser(formData);
-      setIsEditing(false);
+      await updateUser(formData)
+      setIsEditing(false)
     } catch (error) {
-      console.error('Failed to update profile', error);
+      console.error('Failed to update profile', error)
     }
   };
 
