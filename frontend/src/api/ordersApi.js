@@ -23,7 +23,7 @@ API.interceptors.response.use(
 
 // Auth
 export const register = (data) => API.post('/auth/register/', data)
-export const activateAccount = (data) => API.post('/auth/activate/', data)
+export const activateAccount = (uid, token) => API.post(`/auth/activate/${uid}/${token}/`)
 export const login    = (data) => API.post('/auth/login/', data)
 export const logout   = ()     => {
   const refresh = localStorage.getItem('refresh_token')
