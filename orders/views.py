@@ -10,8 +10,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product
+from .models import Author, Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product
 from .serializers import (
+    AuthorSerializer,
     RegisterSerializer,
     UserSerializer,
     CustomerSerializer,
@@ -91,12 +92,98 @@ class IsObjectOwnerOrAdmin(BasePermission):
         return False
 
 
+class IsOwner(BasePermission):
+    """
+    Custom permission to only allow owners of an object to access it.
+    """
+    def has_object_permission(self, request, view, obj):
+        return obj.user == request.user
+
+
 # ─────────────────────────────────────────────
 #  ADMIN PANEL
 # ─────────────────────────────────────────────
 
 def admin_panel(request):
     return render(request, 'docs.html')
+
+
+# ─────────────────────────────────────────────
+#  AUTHOR VIEWS
+# ─────────────────────────────────────────────
+
+class AuthorListCreateView(APIView):
+    """List and create authors for authenticated users."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get all authors for the authenticated user."""
+        authors = Author.objects.filter(user=request.user).order_by('-created_at')
+        serializer = AuthorSerializer(authors, many=True)
+        return Response({'authors': serializer.data})
+
+    def post(self, request):
+        """Create a new author, automatically linking to the authenticated user."""
+        serializer = AuthorSerializer(data=request.data)
+        if serializer.is_valid():
+            # Automatically set the user to the authenticated user
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AuthorDetailView(APIView):
+    """Retrieve, update, or delete a specific author."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_author(self, pk, user):
+        """Helper method to get author by ID and ensure user owns it."""
+        try:
+            author = Author.objects.get(pk=pk)
+            # Check if user owns this author
+            if author.user != user:
+                return None
+            return author
+        except Author.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        """Retrieve a specific author."""
+        author = self.get_author(pk, request.user)
+        if not author:
+            return Response(
+                {'detail': 'Author not found or you do not have permission to view it.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = AuthorSerializer(author)
+        return Response(serializer.data)
+
+    def patch(self, request, pk):
+        """Update a specific author."""
+        author = self.get_author(pk, request.user)
+        if not author:
+            return Response(
+                {'detail': 'Author not found or you do not have permission to update it.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = AuthorSerializer(author, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        """Delete a specific author."""
+        author = self.get_author(pk, request.user)
+        if not author:
+            return Response(
+                {'detail': 'Author not found or you do not have permission to delete it.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        author.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ─────────────────────────────────────────────
