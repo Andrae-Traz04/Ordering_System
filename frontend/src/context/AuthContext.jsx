@@ -59,8 +59,21 @@ export function AuthProvider({ children }) {
     return userData
   }
 
+  const refreshUser = async () => {
+    try {
+      const res = await fetchMe()
+      const userData = normalizeUserPayload(res.data)
+      localStorage.setItem('user', JSON.stringify(userData))
+      setUser(userData)
+      return userData
+    } catch (error) {
+      console.error('Failed to refresh user', error)
+      return null
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
