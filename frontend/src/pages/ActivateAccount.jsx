@@ -12,7 +12,7 @@ export default function ActivateAccount() {
 
     const run = async () => {
       try {
-        const response = await activateAccount({ uid, token })
+        const response = await activateAccount(uid, token)
         if (!mounted) return
         setStatus('success')
         setMessage(response.data?.detail || 'Your account is now active.')
