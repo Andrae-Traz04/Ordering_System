@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext';
 import './Profile.css';
 
 const Profile = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [formData, setFormData] = useState({
@@ -35,6 +35,11 @@ const Profile = () => {
       setImagePreview(user.profile?.profile_image || '');
     }
   }, [user]);
+
+  useEffect(() => {
+    // Fetch latest user data from API on component mount
+    refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     if (!formData.profile_image) return;
