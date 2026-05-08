@@ -236,6 +236,7 @@ export default function AdminDashboard() {
   const notify = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
   const load = useCallback(async () => {
+    if (!user) return
     setLoading(true); setError('')
     try {
       const [sRes, oRes, uRes, cRes] = await Promise.all([
@@ -250,7 +251,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => { load() }, [load])
 

@@ -6,7 +6,8 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user')
-    return saved ? JSON.parse(saved) : null
+    const hasToken = Boolean(localStorage.getItem('access_token'))
+    return saved && hasToken ? JSON.parse(saved) : null
   })
 
   // Normalize user shapes across different API responses so `user.role` is always available
@@ -34,12 +35,17 @@ export function AuthProvider({ children }) {
 
   const register = async (payload) => {
     const res = await registerApi(payload)
-    localStorage.setItem('access_token', res.data.access)
-    localStorage.setItem('refresh_token', res.data.refresh)
-    const userData = normalizeUserPayload(res.data)
-    localStorage.setItem('user', JSON.stringify(userData))
-    setUser(userData)
-    return userData
+    const access = res.data?.access
+    const refresh = res.data?.refresh
+    if (access && refresh) {
+      localStorage.setItem('access_token', access)
+      localStorage.setItem('refresh_token', refresh)
+      const userData = normalizeUserPayload(res.data)
+      localStorage.setItem('user', JSON.stringify(userData))
+      setUser(userData)
+      return userData
+    }
+    return res.data?.user || res.data
   }
 
   const logout = async () => {
@@ -61,6 +67,11 @@ export function AuthProvider({ children }) {
 
   const refreshUser = async () => {
     try {
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        setUser(null)
+        return null
+      }
       const res = await fetchMe()
       const userData = normalizeUserPayload(res.data)
       localStorage.setItem('user', JSON.stringify(userData))

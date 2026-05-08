@@ -179,6 +179,7 @@ export default function Dashboard() {
   const [filter,        setFilter]        = useState('All')
 
   const load = useCallback(async () => {
+    if (!user) return
     setLoading(true)
     setError('')
     try {
@@ -195,7 +196,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => { load() }, [load])
 

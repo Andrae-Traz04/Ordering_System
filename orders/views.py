@@ -199,18 +199,21 @@ class RegisterView(APIView):
             user  = serializer.save()
             
             # Send activation email
-            send_activation_email(user)
+            success, activation_url = send_activation_email(user)
             
-            # Build token pair and full user payload so frontend can persist role
-            refresh = RefreshToken.for_user(user)
             user_serializer = UserSerializer(user, context={'request': request})
-            return Response({
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
+            response_data = {
                 'user': user_serializer.data,
                 'message': 'Registration successful! Please check your email to activate your account.',
                 'detail': 'Activation link sent to your email. It will expire in 24 hours.',
-            }, status=status.HTTP_201_CREATED)
+            }
+            
+            # DEV FALLBACK: If email is blocked by firewall/ISP, give link directly to frontend
+            if not success and settings.DEBUG:
+                response_data['dev_activation_url'] = activation_url
+                response_data['detail'] = 'Email timed out. Used DEV fallback activation link.'
+                
+            return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -294,13 +297,18 @@ class ResendActivationEmailView(APIView):
             )
 
         # Send activation email
-        send_activation_email(user)
+        success, activation_url = send_activation_email(user)
 
-        return Response({
+        response_data = {
             'message': 'Activation email has been resent.',
             'detail': 'Please check your email for the activation link. It will expire in 24 hours.',
             'email': user.email,
-        }, status=status.HTTP_200_OK)
+        }
+        if not success and settings.DEBUG:
+            response_data['dev_activation_url'] = activation_url
+            response_data['detail'] = 'Email timed out. Used DEV fallback activation link.'
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class RequestPasswordResetView(APIView):
@@ -330,13 +338,18 @@ class RequestPasswordResetView(APIView):
             )
 
         # Send password reset email
-        send_password_reset_email(user)
+        success, reset_url = send_password_reset_email(user)
 
-        return Response({
+        response_data = {
             'message': 'Password reset email has been sent.',
             'detail': 'Check your email for the reset link. It will expire in 24 hours.',
             'email': user.email,
-        }, status=status.HTTP_200_OK)
+        }
+        if not success and settings.DEBUG:
+            response_data['dev_reset_url'] = reset_url
+            response_data['detail'] = 'Email timed out. Used DEV fallback reset link.'
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class ResetPasswordView(APIView):

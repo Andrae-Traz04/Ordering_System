@@ -1,10 +1,13 @@
 from pathlib import Path
+import os
+
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-order-system-key-2024'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-order-system-key-2024')  # Change this in production!
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -35,9 +38,9 @@ FRONTEND_URL = 'http://localhost:5173'
 # Default to local filesystem storage; if cloudinary is installed we'll override below
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': '123',
-    'API_KEY': '123',
-    'API_SECRET': '_123',
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
 }
 
 # Try to use Cloudinary storage when available, otherwise fall back to local storage
@@ -49,13 +52,7 @@ except Exception:
     # Cloudinary not installed or not configured in this environment; use local storage
     storage = None
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_HOST_USER = '@email.com'
-EMAIL_HOST_PASSWORD = 'app-password'
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = '@email.com'
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -148,16 +145,29 @@ SPECTACULAR_SETTINGS = {
 #  EMAIL CONFIGURATION (Gmail SMTP)
 # ─────────────────────────────────────────────
 
+# Control email backend via environment variable
+# USE_CONSOLE_EMAIL=True  -> prints to console (development, no SMTP needed)
+# USE_CONSOLE_EMAIL=False -> sends real emails via Gmail SMTP (production/testing)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'mathewpolinar5@gmail.com'  # Replace with your Gmail
-EMAIL_HOST_PASSWORD = 'jmgr clbt nfcm euja'  # Replace with App Password (not regular password)
-DEFAULT_FROM_EMAIL = 'mathewpolinar5@gmail.com'
+EMAIL_HOST_USER = 'mathewpolinar5@gmail.com'
+EMAIL_HOST_PASSWORD = 'xgjd mzku sulm mbwi'
+DEFAULT_FROM_EMAIL = 'mathewpolinar5@gmail.com' # Must match EMAIL_HOST_USER for Gmail
 
-# Optional: For development, use console backend (prints emails to console)
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# ⚠️  IMPORTANT FOR GMAIL - FOLLOW THESE STEPS:
+# 1. Enable 2-Factor Authentication on your Google Account: https://myaccount.google.com/security
+# 2. Generate an App Password: https://myaccount.google.com/apppasswords
+#    - Select "Mail" and "Windows Computer" (or your platform)
+#    - Google will generate a 16-character password
+# 3. Copy that password to your .env file:
+#    EMAIL_HOST_USER=your-email@gmail.com
+#    EMAIL_HOST_PASSWORD=xxxx xxxx xxxx xxxx  (the 16-char password from Google)
+# 4. Set USE_CONSOLE_EMAIL=False in .env to use real SMTP
+# 5. Test with: python manage.py shell
+#    >>> from django.core.mail import send_mail
+#    >>> send_mail('Test', 'Test message', 'from@gmail.com', ['to@gmail.com'], fail_silently=False)
 
 # ─────────────────────────────────────────────
 #  FRONTEND URL (for activation links)

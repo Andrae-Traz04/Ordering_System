@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { fetchCustomers } from '@/api/ordersApi'
 
 export default function Customers() {
+  const { user } = useAuth()
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!user) return
     fetchCustomers()
       .then(r => setCustomers(r.data.customers))
       .catch(() => setError('Failed to load customers.'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [user])
 
   if (loading) return <div className="loading"><div className="spinner" /><span>Loading...</span></div>
 

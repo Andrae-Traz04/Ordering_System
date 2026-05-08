@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
 import { fetchOrders } from '@/api/ordersApi'
 import StatusBadge from '@/components/StatusBadge'
 
 export default function Orders() {
+  const { user } = useAuth()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -12,6 +14,7 @@ export default function Orders() {
   const navigate = useNavigate()
 
   const load = () => {
+    if (!user) return
     setLoading(true)
     fetchOrders({ search, status: statusFilter })
       .then(r => setOrders(r.data.orders))
@@ -19,7 +22,7 @@ export default function Orders() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [search, statusFilter])
+  useEffect(() => { load() }, [user, search, statusFilter])
 
   return (
     <div>

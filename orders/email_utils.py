@@ -48,11 +48,14 @@ def send_activation_email(user):
         )
         
         print(f"✓ Activation email sent to {user.email}")
-        return True
+        return True, activation_url
         
     except Exception as e:
         print(f"✗ Failed to send activation email: {str(e)}")
-        return False
+        # Ensure we still return the activation URL for development fallback
+        token = default_token_generator.make_token(user)
+        activation_url = f"{settings.FRONTEND_URL}/activate/{user.pk}/{token}/"
+        return False, activation_url
 
 
 def send_password_reset_email(user):
@@ -82,11 +85,14 @@ def send_password_reset_email(user):
         )
         
         print(f"✓ Password reset email sent to {user.email}")
-        return True
+        return True, reset_url
         
     except Exception as e:
         print(f"✗ Failed to send password reset email: {str(e)}")
-        return False
+        # Ensure we still return the reset URL for development fallback
+        token = default_token_generator.make_token(user)
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{user.pk}/{token}/"
+        return False, reset_url
 
 
 def send_order_notification_email(user, order):

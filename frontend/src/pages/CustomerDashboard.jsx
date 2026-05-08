@@ -504,6 +504,7 @@ useEffect(() => {
   const notify = (m) => { setToast(m); setTimeout(() => setToast(''), 4000) }
 
   const load = useCallback(async () => {
+    if (!user) return
     setLoading(true); setError(null)
     try {
       const [pRes, oRes] = await Promise.all([fetchProducts(), fetchOrders()])
@@ -514,7 +515,7 @@ useEffect(() => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => { load() }, [load])
 
