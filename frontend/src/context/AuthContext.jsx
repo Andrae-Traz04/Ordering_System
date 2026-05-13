@@ -23,15 +23,19 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const login = async (email, password) => {
-    const res = await loginApi({ email, password })
-    localStorage.setItem('access_token', res.data.access)
-    localStorage.setItem('refresh_token', res.data.refresh)
-    const userData = normalizeUserPayload(res.data)
-    localStorage.setItem('user', JSON.stringify(userData))
-    setUser(userData)
-    return userData
-  }
+const login = async (email, password) => {
+     const res = await loginApi({ email, password })
+     // Handle 403 — account not activated
+     if (res.data?.detail?.includes?.('not activated')) {
+       return { error: res.data.detail }
+     }
+     localStorage.setItem('access_token', res.data.access)
+     localStorage.setItem('refresh_token', res.data.refresh)
+     const userData = normalizeUserPayload(res.data)
+     localStorage.setItem('user', JSON.stringify(userData))
+     setUser(userData)
+     return userData
+   }
 
   const register = async (payload) => {
     const res = await registerApi(payload)

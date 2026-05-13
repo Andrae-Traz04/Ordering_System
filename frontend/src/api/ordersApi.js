@@ -64,3 +64,7 @@ export const updateUserRole = (userId, role) => API.patch(`/users/${userId}/role
 // Notifications & Reviews
 export const fetchNotifications = () => API.get('/notifications/')
 export const submitReview = (orderId, data) => API.post(`/orders/${orderId}/review/`, data)
+
+// Chatbot
+export const sendChatMessage = (message) => API.post('/chatbot/', { message })
+export const fetchChatbotInfo = () => API.get('/chatbot/info/')

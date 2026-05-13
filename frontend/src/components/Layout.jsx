@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import NotificationBell from '@/components/NotificationBell'
+import ChatbotWidget from '@/components/ChatbotWidget'
 import {
   IconDashboard,
   IconOrders,
@@ -459,7 +460,11 @@ export default function Layout() {
           </div>
 
         </div>
+
       </div>
+
+      {/* Chatbot Widget — renders on every page */}
+      <ChatbotWidget />
     </>
   )
 }

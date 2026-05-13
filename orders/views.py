@@ -410,34 +410,47 @@ class ResetPasswordView(APIView):
 
 
 class LoginView(APIView):
-    permission_classes = [AllowAny]
+     permission_classes = [AllowAny]
 
-    def post(self, request):
-        email    = request.data.get('email', '').strip()
-        password = request.data.get('password', '')
+     def post(self, request):
+         email    = request.data.get('email', '').strip()
+         password = request.data.get('password', '')
 
-        try:
-            user_obj = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Invalid email or password.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+         if not email or not password:
+             return Response(
+                 {'error': 'Email and password are required.'},
+                 status=status.HTTP_400_BAD_REQUEST
+             )
 
-        user = authenticate(username=user_obj.username, password=password)
-        if not user:
-            return Response(
-                {'error': 'Invalid email or password.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+         try:
+             user_obj = User.objects.get(email__iexact=email)
+         except User.DoesNotExist:
+             return Response(
+                 {'error': 'Invalid email or password.'},
+                 status=status.HTTP_401_UNAUTHORIZED
+             )
 
-        refresh = RefreshToken.for_user(user)
-        user_serializer = UserSerializer(user, context={'request': request})
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'user': user_serializer.data,
-        })
+         # Check if account is activated
+         if not user_obj.is_active:
+             return Response(
+                 {'error': 'Account not activated. Check your email for the activation link, or contact support.'},
+                 status=status.HTTP_403_FORBIDDEN
+             )
+
+         user = authenticate(username=user_obj.username, password=password)
+         if not user:
+             return Response(
+                 {'error': 'Invalid email or password.'},
+                 status=status.HTTP_401_UNAUTHORIZED
+             )
+
+         refresh = RefreshToken.for_user(user)
+         user_serializer = UserSerializer(user, context={'request': request})
+         return Response({
+             'access': str(refresh.access_token),
+             'refresh': str(refresh),
+             'user': user_serializer.data,
+         })
 
 
 class LogoutView(APIView):
