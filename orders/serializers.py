@@ -83,7 +83,7 @@ class DjoserUserCreateSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150)
     password = serializers.CharField(min_length=6, write_only=True)
     re_password = serializers.CharField(min_length=6, write_only=True)
-    role = serializers.ChoiceField(choices=['customer', 'owner', 'admin'])
+    role = serializers.ChoiceField(choices=['user', 'admin'])
     profile_image = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
@@ -148,7 +148,7 @@ class RegisterSerializer(serializers.Serializer):
     last_name        = serializers.CharField(max_length=150)
     password         = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
-    role             = serializers.ChoiceField(choices=['customer', 'owner', 'admin'])
+    role             = serializers.ChoiceField(choices=['user', 'customer', 'admin'])
     profile_image    = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
@@ -191,10 +191,13 @@ class RegisterSerializer(serializers.Serializer):
             last_name=last_name,
             is_active=False,  # User must activate via email
         )
+
         user.is_active = False
         user.save(update_fields=['is_active'])
 
-        UserProfile.objects.create(user=user, role=role, profile_image=profile_image)
+        # Map role for profile: customer -> user, owner -> admin (for now)
+        profile_role = 'user' if role == 'customer' else ('admin' if role in ['owner', 'admin'] else 'user')
+        UserProfile.objects.create(user=user, role=profile_role, profile_image=profile_image)
 
         # Auto-create Customer record for customer role
         if role == 'customer':

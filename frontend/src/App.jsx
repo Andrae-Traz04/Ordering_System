@@ -18,7 +18,8 @@ import Profile from '@/pages/Profile'
 
 
 function PrivateRoute({ children, roles }) {
-  const { user } = useAuth()
+  const { user, authChecked } = useAuth()
+  if (!authChecked) return null // Will show loading from App
   if (!user) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return children
@@ -26,22 +27,36 @@ function PrivateRoute({ children, roles }) {
 
 // ── Dashboard Router ─────────────────────────────────────────
 function DashboardComponent() {
-  const { user } = useAuth()
-  if (user?.role === 'admin')  return <AdminDashboard />
-  if (user?.role === 'owner')  return <OwnerDashboard />
-  return <CustomerDashboard />
+   const { user } = useAuth()
+   if (user?.role === 'admin')  return <AdminDashboard />
+   return <CustomerDashboard />
 }
 
 export default function App() {
-  const { user } = useAuth()
+  const { user, authChecked } = useAuth()
+
+  // Show loading while checking authentication
+  if (!authChecked) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        fontFamily: 'Arial, sans-serif'
+      }}>
+        <div>Loading...</div>
+      </div>
+    )
+  }
 
   return (
     <Routes>
       {/* Auth Routes */}
       <Route path="/activation-pending" element={<ActivationPending />} />
       <Route path="/activate/:uid/:token" element={<ActivateAccount />} />
-      <Route path="/login"    element={!user ? <Login />    : <Navigate to="/profile" replace />} />
-      <Route path="/register" element={!user ? <Register /> : <Navigate to="/profile" replace />} />
+      <Route path="/login"    element={!authChecked ? null : (!user ? <Login />    : <Navigate to="/profile" replace />)} />
+      <Route path="/register" element={!authChecked ? null : (!user ? <Register /> : <Navigate to="/profile" replace />)} />
 
       {/* Protected Routes */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
@@ -65,20 +80,20 @@ export default function App() {
           <PrivateRoute><OrderDetail /></PrivateRoute>
         } />
 
-        {/* Customers - Owner & Admin only */}
-        <Route path="customers" element={
-          <PrivateRoute roles={['owner', 'admin']}><Customers /></PrivateRoute>
-        } />
+{/* Customers/Users - Admin only */}
+         <Route path="customers" element={
+           <PrivateRoute roles={['admin']}><Customers /></PrivateRoute>
+         } />
 
-        {/* Users Management - Admin only */}
-        <Route path="users" element={
-          <PrivateRoute roles={['admin']}><Users /></PrivateRoute>
-        } />
+         {/* Users Management - Admin only */}
+         <Route path="users" element={
+           <PrivateRoute roles={['admin']}><Users /></PrivateRoute>
+         } />
 
-        {/* Products - Owner & Admin */}
-        <Route path="products" element={
-          <PrivateRoute roles={['owner','admin']}><ProductsPage /></PrivateRoute>
-        } />
+         {/* Products - Admin only */}
+         <Route path="products" element={
+           <PrivateRoute roles={['admin']}><ProductsPage /></PrivateRoute>
+         } />
 
         {/* Profile - all authenticated users */}
         <Route path="profile" element={

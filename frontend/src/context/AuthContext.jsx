@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile, fetchMe } from '@/api/ordersApi'
 
 const AuthContext = createContext(null)
@@ -9,12 +9,29 @@ export function AuthProvider({ children }) {
     const hasToken = Boolean(localStorage.getItem('access_token'))
     return saved && hasToken ? JSON.parse(saved) : null
   })
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // Validate token on mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (token && user) {
+      // Try to validate token by calling /me endpoint
+      refreshUser().finally(() => setAuthChecked(true))
+    } else {
+      if (!token && user) {
+        // Clear invalid state
+        setUser(null)
+        localStorage.removeItem('user')
+      }
+      setAuthChecked(true)
+    }
+  }, [])
 
   // Normalize user shapes across different API responses so `user.role` is always available
   function normalizeUserPayload(payload) {
     // payload may be: { user: {...}, access, refresh } or a direct user object
     const raw = payload?.user ? payload.user : payload
-    const role = raw?.profile?.role || raw?.role || 'customer'
+    const role = raw?.profile?.role || raw?.role || 'user'
     return {
       ...raw,
       role,
@@ -88,7 +105,7 @@ const login = async (email, password) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, refreshUser }}>
+    <AuthContext.Provider value={{ user, authChecked, login, register, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

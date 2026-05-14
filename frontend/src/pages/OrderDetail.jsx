@@ -146,12 +146,11 @@ export default function OrderDetail() {
   if (!order)  return <div className="alert alert-error">{error || 'Order not found.'}</div>
 
   const nextStatus  = NEXT[order.status]
-  const userRole       = user?.role || user?.profile?.role
-  const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin'
-  const isAdmin        = userRole === 'admin'
-  const isCustomer     = userRole === 'customer'
-  const isMyOrder      = order.created_by_id === user?.id
-  const canReview      = isCustomer && isMyOrder && order.status === 'completed' && !order.review
+const userRole       = user?.role || user?.profile?.role
+   const isAdmin        = userRole === 'admin'
+   const isUser         = userRole === 'user'
+   const isMyOrder      = order.created_by_id === user?.id
+   const canReview      = isUser && isMyOrder && order.status === 'completed' && !order.review
   const hasReview      = !!order.review
 
   return (
@@ -188,8 +187,8 @@ export default function OrderDetail() {
         <div className="card-body">
           <Stepper currentStatus={order.status} />
 
-          {/* Owner/Admin can advance status */}
-          {isOwnerOrAdmin && nextStatus && (
+{/* Admin can advance status */}
+           {isAdmin && nextStatus && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn btn-success" onClick={advance} disabled={updating}>
                 {updating ? 'Updating...' : `→ ${NEXT_LABEL[nextStatus]}`}
@@ -197,8 +196,8 @@ export default function OrderDetail() {
             </div>
           )}
 
-          {/* Customer sees status info only */}
-          {isCustomer && nextStatus && order.status !== 'cancelled' && (
+{/* User sees status info only */}
+           {isUser && nextStatus && order.status !== 'cancelled' && (
             <div className="alert alert-info" style={{ marginTop: 0 }}>
               ⏳ Your order is being processed. We will update you soon!
             </div>
@@ -306,7 +305,7 @@ export default function OrderDetail() {
       )}
 
       {/* Review — Customer submits, Owner/Admin reads */}
-      {(canReview || (hasReview && (isMyOrder || isOwnerOrAdmin))) && (
+      {(canReview || (hasReview && (isMyOrder || isAdmin))) && (
         <div className="card">
           <div className="card-header">
             <h3>⭐ {hasReview ? 'Customer Review' : 'Leave a Review'}</h3>
@@ -378,8 +377,8 @@ export default function OrderDetail() {
         </div>
       )}
 
-      {/* Cancel — Customer only, pending orders */}
-      {isCustomer && isMyOrder && order.status === 'pending' && (
+{/* Cancel — User only, pending orders */}
+       {isUser && isMyOrder && order.status === 'pending' && (
         <div className="card">
           <div className="card-body">
             {!confirmCancel ? (

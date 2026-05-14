@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from . import views
-from .chatbot import chatbot_query, chatbot_info
+from .chatbot import chatbot_query, chatbot_info, chatbot_stream
 
 
 @api_view(['GET'])
@@ -72,5 +72,6 @@ urlpatterns = [
 
     # Chatbot
     path('chatbot/', chatbot_query, name='chatbot-query'),
+    path('chatbot/stream/', chatbot_stream, name='chatbot-stream'),
     path('chatbot/info/', chatbot_info, name='chatbot-info'),
 ]

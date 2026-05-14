@@ -26,29 +26,23 @@ export default function Layout() {
   }
 
   // ── Role-based navigation ──
-  const roleNavItems = {
-    customer: [
-      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
-      { to: '/orders',    icon: IconOrders,    label: 'Orders'    },
-      { to: '/profile', icon: IconProfile, label: 'Profile' },
-    ],
-    owner: [
-      { to: '/dashboard', icon: IconDashboard,  label: 'Dashboard' },
-      { to: '/orders',    icon: IconOrders,     label: 'Orders'    },
-      { to: '/products',  icon: IconProducts,   label: 'Products'  },
-      { to: '/customers', icon: IconCustomers,  label: 'Customers' },
-      { to: '/profile', icon: IconProfile, label: 'Profile' },
-    ],
-    admin: [
-      { to: '/dashboard', icon: IconDashboard, label: 'Analytics'  },
-      { to: '/orders',    icon: IconOrders,    label: 'Orders'     },
-      { to: '/customers', icon: IconCustomers, label: 'Customers'  },
-      { to: '/users',     icon: IconUsers,     label: 'Users'      },
-      { to: '/profile', icon: IconProfile, label: 'Profile' },
-    ],
-  }
+const roleNavItems = {
+     user: [
+       { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+       { to: '/orders',    icon: IconOrders,    label: 'Orders'    },
+       { to: '/profile', icon: IconProfile, label: 'Profile' },
+     ],
+     admin: [
+       { to: '/dashboard', icon: IconDashboard, label: 'Analytics'  },
+       { to: '/orders',    icon: IconOrders,    label: 'Orders'     },
+       { to: '/customers', icon: IconCustomers, label: 'Customers'  },
+       { to: '/users',     icon: IconUsers,     label: 'Users'      },
+       { to: '/products',  icon: IconProducts,  label: 'Products'   },
+       { to: '/profile', icon: IconProfile, label: 'Profile' },
+     ],
+   }
 
-  const navItems = roleNavItems[user?.role] || roleNavItems.customer
+   const navItems = roleNavItems[user?.role] || roleNavItems.user
 
   const WORKFLOW = [
     { label: 'Pending',    color: '#F59E0B', icon: IconWorkflowPending    },
@@ -432,8 +426,8 @@ export default function Layout() {
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div className="amu-username">{user?.username || 'User'}</div>
-              <div className={`amu-role amu-role-${user?.role || 'customer'}`}>
-                {user?.role || 'customer'}
+<div className={`amu-role amu-role-${user?.role || 'user'}`}>
+               {user?.role || 'user'}
               </div>
             </div>
             <button className="amu-logout-btn" onClick={handleLogout} title="Logout">

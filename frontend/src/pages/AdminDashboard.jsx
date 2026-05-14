@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 import {
   fetchOrders, fetchSummary, fetchUsers, fetchCustomers,
   deleteOrder, updateStatus, updateUserRole,
-} from '@/api/ordersApi'
+} from '../api/ordersApi'
 
 // ── Design tokens ────────────────────────────────────────────────
 const C = {
@@ -143,7 +143,7 @@ function RoleModal({ user, onClose, onUpdated }) {
         )}
 
         <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
-          {['customer','owner','admin'].map(r => {
+          {['customer', 'owner', 'admin'].map(r => {
             const m = ROLE_META[r]
             return (
               <button key={r} onClick={() => setRole(r)} style={{
@@ -156,7 +156,7 @@ function RoleModal({ user, onClose, onUpdated }) {
                 <div>
                   <p style={{ fontSize:14, fontWeight:700, color: role === r ? m.color : C.accent }}>{m.label}</p>
                   <p style={{ fontSize:11, color:C.muted }}>
-                    {r === 'customer' ? 'Browse products, place orders' : r === 'owner' ? 'Manage products, advance orders' : 'Full system access'}
+                    {r === 'customer' ? 'Browse products, place orders' : r === 'owner' ? 'Manage products and orders' : 'Full system access'}
                   </p>
                 </div>
               </button>
@@ -348,7 +348,7 @@ export default function AdminDashboard() {
                   <h3 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
                     <Icon d={Icons.users} size={16} color={C.blue} /> User Roles Breakdown
                   </h3>
-                  {['customer','owner','admin'].map(r => {
+                  {['customer', 'owner', 'admin'].map(r => {
                     const count = users.filter(u => u.role === r).length
                     const pct   = users.length ? Math.round((count / users.length) * 100) : 0
                     const m     = ROLE_META[r]
@@ -465,7 +465,7 @@ export default function AdminDashboard() {
               </div>
 
               <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
-                {['','customer','owner','admin'].map(r => (
+                {['', 'customer', 'owner', 'admin'].map(r => (
                   <button key={r||'all'} onClick={() => setRoleFilter(r)} style={{
                     padding:'6px 14px', borderRadius:20, border:`1px solid ${roleFilter===r ? 'transparent' : C.border}`,
                     background: roleFilter===r ? C.accent2 : C.white,

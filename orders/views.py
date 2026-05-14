@@ -34,16 +34,16 @@ def get_role(user):
     try:
         return user.profile.role
     except UserProfile.DoesNotExist:
-        return 'customer'
+        return 'user'
 
-def is_owner_or_admin(user):
-    return get_role(user) in ['owner', 'admin']
 
 def is_admin(user):
     return get_role(user) == 'admin'
 
-def is_owner(user):
-    return get_role(user) == 'owner'
+
+def is_staff(user):
+    """Admins and staff-level users who can manage orders and products."""
+    return get_role(user) in ['admin']
 
 
 # ─────────────────────────────────────────────
@@ -58,25 +58,23 @@ class IsAdmin(BasePermission):
         return request.user and request.user.is_authenticated and is_admin(request.user)
 
 
-class IsOwnerOrAdmin(BasePermission):
-    """Allow access only to owners or admins."""
-    message = "Owner or admin access required."
+class IsStaffOrAdmin(BasePermission):
+    """Allow access to staff-level users (admins)."""
+    message = "Admin access required."
 
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and is_owner_or_admin(request.user)
+        return request.user and request.user.is_authenticated and is_staff(request.user)
 
 
 class IsOwnerOrReadOnly(BasePermission):
-    """Allow owners to edit their own objects; others can view only."""
+    """Allow admins to edit; others can view only."""
     message = "You can only edit your own objects."
 
     def has_object_permission(self, request, view, obj):
-        # Allow GET, HEAD, OPTIONS for anyone
         if request.method in ['GET', 'HEAD', 'OPTIONS']:
             return True
-        # Only allow edits by owner or admins
         if hasattr(obj, 'created_by'):
-            return obj.created_by == request.user or is_owner_or_admin(request.user)
+            return obj.created_by == request.user or is_staff(request.user)
         return False
 
 
@@ -493,8 +491,8 @@ class ProductListCreateView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
-        """Get products - owners/admins see all, customers see only active."""
-        if is_owner_or_admin(request.user):
+        """Get products - admins see all, users see only active."""
+        if is_staff(request.user):
             products = Product.objects.all().order_by('-created_at')
         else:
             products = Product.objects.filter(is_active=True).order_by('-created_at')
@@ -506,10 +504,10 @@ class ProductListCreateView(APIView):
         return Response({'products': ProductSerializer(products, many=True).data})
 
     def post(self, request):
-        """Create product - owners and admins only."""
-        if not is_owner_or_admin(request.user):
+        """Create product - admins only."""
+        if not is_staff(request.user):
             return Response(
-                {'detail': 'Only owners and admins can create products.'},
+                {'detail': 'Only admins can create products.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         serializer = ProductCreateSerializer(data=request.data)
@@ -530,20 +528,20 @@ class ProductDetailView(APIView):
             return None
 
     def get(self, request, pk):
-        """Retrieve a product - admins/owners see all, customers see only active."""
+        """Retrieve a product - admins/owners see all, users see only active."""
         p = self.get_product(pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-        # Customers can only view active products
-        if not is_owner_or_admin(request.user) and not p.is_active:
+        # Users can only view active products
+        if not is_staff(request.user) and not p.is_active:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         
         return Response(ProductSerializer(p).data)
 
     def patch(self, request, pk):
         """Update product - owners and admins only."""
-        if not is_owner_or_admin(request.user):
+        if not is_staff(request.user):
             return Response(
                 {'detail': 'Only owners and admins can edit products.'},
                 status=status.HTTP_403_FORBIDDEN
@@ -581,7 +579,7 @@ class OrderListCreateView(APIView):
 
     def get(self, request):
         role = get_role(request.user)
-        if role == 'customer':
+        if role == 'user':
             orders = Order.objects.filter(created_by=request.user).order_by('-created_at')
         else:
             orders = Order.objects.all().order_by('-created_at')
@@ -619,8 +617,8 @@ class OrderDetailView(APIView):
         except Order.DoesNotExist:
             return None
         
-        # Customers can only access their own orders
-        if get_role(user) == 'customer' and order.created_by != user:
+        # Users can only access their own orders
+        if get_role(user) == 'user' and order.created_by != user:
             return None
         
         return order
@@ -633,16 +631,16 @@ class OrderDetailView(APIView):
         return Response(OrderSerializer(order).data)
 
     def patch(self, request, pk):
-        """Update order notes - customer can update own order, owners/admins can update any."""
+        """Update order notes - customer can update own order, admins can update any."""
         order = self.get_order(pk, request.user)
         if not order:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         
         # Only customers updating their own orders can update notes
-        if get_role(request.user) == 'customer':
+        if get_role(request.user) == 'user':
             order.notes = request.data.get('notes', order.notes)
             order.save()
-        elif is_owner_or_admin(request.user):
+        elif is_staff(request.user):
             # Admins/owners can update more fields
             order.notes = request.data.get('notes', order.notes)
             order.save()
@@ -669,9 +667,9 @@ class OrderStatusUpdateView(APIView):
 
     def post(self, request, pk):
         """Update order status - owners and admins only."""
-        if not is_owner_or_admin(request.user):
+        if not is_staff(request.user):
             return Response(
-                {'detail': 'Only owners or admins can update order status.'},
+                {'detail': 'Only admins can update order status.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         try:
@@ -738,7 +736,7 @@ class OrderSummaryView(APIView):
 
     def get(self, request):
         role = get_role(request.user)
-        orders = Order.objects.filter(created_by=request.user) if role == 'customer' else Order.objects.all()
+        orders = Order.objects.filter(created_by=request.user) if role == 'user' else Order.objects.all()
         return Response({
             'total_orders':      orders.count(),
             'total_revenue':     float(sum(o.total_amount for o in orders)),
@@ -761,7 +759,7 @@ class CustomerListView(APIView):
     permission_classes     = [IsAuthenticated]
 
     def get(self, request):
-        if not is_owner_or_admin(request.user):
+        if not is_staff(request.user):
             return Response({'detail': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
         customers = Customer.objects.all().order_by('-created_at')
         return Response({'customers': CustomerSerializer(customers, many=True).data})
@@ -810,7 +808,7 @@ class UserRoleUpdateView(APIView):
             return Response({'detail': 'You cannot change your own role.'}, status=status.HTTP_400_BAD_REQUEST)
 
         new_role = request.data.get('role')
-        if new_role not in ['customer', 'owner', 'admin']:
+        if new_role not in ['customer', 'admin']:
             return Response({'detail': 'Invalid role. Must be customer, owner, or admin.'}, status=status.HTTP_400_BAD_REQUEST)
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -886,8 +884,8 @@ class NotificationView(APIView):
         role = get_role(request.user)
         notifications = []
 
-        if role in ['owner', 'admin']:
-            # Show pending orders to owners/admins
+        if role in ['admin']:
+            # Show pending orders to admins
             for order in Order.objects.filter(status='pending').order_by('-created_at')[:10]:
                 notifications.append({
                     'id': f'new-order-{order.id}',
@@ -897,7 +895,7 @@ class NotificationView(APIView):
                     'created_at': order.created_at,
                 })
 
-        if role == 'customer':
+        if role == 'user':
             # Show order status updates to customers
             for h in StatusHistory.objects.filter(order__created_by=request.user).order_by('-changed_at')[:10]:
                 notifications.append({

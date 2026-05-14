@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { sendChatMessage, fetchChatbotInfo } from '../api/ordersApi'
+import { useAuth } from '@/context/AuthContext'
 
 // ── Styles ────────────────────────────────────────────────────────────────
 const C = {
@@ -193,13 +194,16 @@ const STYLE = {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function ChatbotWidget() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [provider, setProvider] = useState('fallback')
+  const [streamingMessage, setStreamingMessage] = useState('')
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
+  const abortControllerRef = useRef(null)
 
   // Fetch chatbot info on mount
   useEffect(() => {
@@ -212,7 +216,16 @@ export default function ChatbotWidget() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, loading])
+  }, [messages, loading, streamingMessage])
+
+  // Cleanup streaming on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -222,26 +235,100 @@ export default function ChatbotWidget() {
     setMessages((prev) => [...prev, { id: Date.now() + Math.random(), text, sender }])
   }
 
+  const streamChatMessage = async (message) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
+
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch('/api/chatbot/stream/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message }),
+        signal: abortControllerRef.current.signal,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get streaming response')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let accumulatedText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (data.chunk) {
+                accumulatedText += data.chunk
+                setStreamingMessage(accumulatedText)
+              }
+              if (data.done) {
+                // Add the completed message
+                addMessage(accumulatedText, 'bot')
+                setStreamingMessage('')
+                return
+              }
+              if (data.error) {
+                addMessage(data.error, 'bot')
+                setStreamingMessage('')
+                return
+              }
+            } catch (e) {
+              // Ignore parsing errors for incomplete chunks
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        return // Request was aborted, ignore
+      }
+      console.error('Streaming error:', error)
+      addMessage('Sorry, I encountered an error while processing your message.', 'bot')
+      setStreamingMessage('')
+    }
+  }
+
   const handleSend = async () => {
     const text = input.trim()
-    if (!text) return
+    if (!text || loading) return
 
     // Clear input immediately for responsiveness
     setInput('')
     addMessage(text, 'user')
     setLoading(true)
 
+    // Try streaming first, fallback to regular API
     try {
-      const res = await sendChatMessage(text)
-      const reply = res?.data?.response || "Sorry, I couldn't process that. Please try again."
-      // Simulate a small delay for more natural feel even with fast API
-      await new Promise((r) => setTimeout(r, 400))
-      addMessage(reply, 'bot')
-    } catch (err) {
-      addMessage(
-        "I'm having trouble connecting. You can try again or contact support@amubowls.com.",
-        'bot'
-      )
+      await streamChatMessage(text)
+    } catch (error) {
+      console.warn('Streaming failed, falling back to regular API:', error)
+      try {
+        const res = await sendChatMessage(text)
+        const reply = res?.data?.response || "Sorry, I couldn't process that. Please try again."
+        // Simulate a small delay for more natural feel
+        await new Promise((r) => setTimeout(r, 400))
+        addMessage(reply, 'bot')
+      } catch (err) {
+        addMessage(
+          "I'm having trouble connecting. You can try again or contact support@amubowls.com.",
+          'bot'
+        )
+      }
     } finally {
       setLoading(false)
     }
@@ -322,8 +409,18 @@ export default function ChatbotWidget() {
               </div>
             ))}
 
-            {/* Typing indicator */}
-            {loading && (
+            {/* Streaming message */}
+            {streamingMessage && (
+              <div style={STYLE.bubbleWrapper}>
+                <div style={STYLE.bubbleBot}>
+                  {streamingMessage}
+                  <span style={{ opacity: 0.6, animation: 'blink 1s infinite' }}>▊</span>
+                </div>
+              </div>
+            )}
+
+            {/* Typing indicator (fallback when not streaming) */}
+            {loading && !streamingMessage && (
               <div style={STYLE.typing}>
                 <div style={{ ...STYLE.dot, animationDelay: '0s' }} />
                 <div style={{ ...STYLE.dot, animationDelay: '0.2s' }} />
@@ -344,14 +441,15 @@ export default function ChatbotWidget() {
               onKeyDown={handleKeyDown}
               placeholder="Type your question..."
               aria-label="Chat input"
+              disabled={loading || !!streamingMessage}
             />
             <button
               onClick={handleSend}
-              disabled={loading || !input.trim()}
+              disabled={loading || streamingMessage || !input.trim()}
               style={{
                 ...STYLE.sendBtn,
-                opacity: loading || !input.trim() ? 0.4 : 1,
-                cursor: loading || !input.trim() ? 'wait' : 'pointer',
+                opacity: (loading || streamingMessage || !input.trim()) ? 0.4 : 1,
+                cursor: (loading || streamingMessage || !input.trim()) ? 'wait' : 'pointer',
               }}
               title="Send"
               aria-label="Send message"
@@ -375,6 +473,10 @@ export default function ChatbotWidget() {
         @keyframes bounce {
           0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
           40% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes blink {
+          0%, 50% { opacity: 1; }
+          51%, 100% { opacity: 0; }
         }
       `}</style>
     </>

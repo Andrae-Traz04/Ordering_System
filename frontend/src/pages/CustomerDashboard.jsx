@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 import { fetchOrders, fetchProducts, createOrder, cancelOrder } from '../api/ordersApi'
 
 // ── Color Palette ────────────────────────────────────────────────
@@ -168,7 +168,7 @@ function StatCard({ label, value, icon, delay, accentBg }) {
 
 // ── Cart Sidebar ─────────────────────────────────────────────────
 function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placing }) {
-  const total = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
+  const total = cart.reduce((s, i) => s + (parseFloat(i?.price || 0) * (i?.qty || 0)), 0)
 
   const [confirmId, setConfirmId] = useState(null)
 
@@ -488,7 +488,14 @@ export default function CustomerDashboard() {
 useEffect(() => {
   const saved = localStorage.getItem("cart")
   if (saved) {
-    setCart(JSON.parse(saved))
+    try {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) {
+        setCart(parsed.filter(item => item && item.id && item.price))
+      }
+    } catch (e) {
+      console.error("Failed to parse cart from local storage", e)
+    }
   }
 }, [])
 
@@ -526,12 +533,12 @@ useEffect(() => {
     completed: orders.filter(o => o.status?.toLowerCase() === 'completed').length,
   }
 
-  const cartCount = cart.reduce((s, i) => s + i.qty, 0)
-  const cartTotal = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
+  const cartCount = cart.reduce((s, i) => s + (i?.qty || 0), 0)
+  const cartTotal = cart.reduce((s, i) => s + (parseFloat(i?.price || 0) * (i?.qty || 0)), 0)
 
   const filteredProducts = products.filter(p =>
     (category === 'All' || p.category === category) &&
-    (search === '' || p.name.toLowerCase().includes(search.toLowerCase()))
+    (search === '' || p.name?.toLowerCase().includes(search.toLowerCase()))
   )
 
   const addToCart = (product) => {

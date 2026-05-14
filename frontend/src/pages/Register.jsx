@@ -18,7 +18,7 @@ export default function Register() {
     username: '',
     password: '',
     confirm_password: '',
-    role: 'customer',
+    role: 'user',
     profile_image: null,
   })
   const [error, setError] = useState('')

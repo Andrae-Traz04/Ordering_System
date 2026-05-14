@@ -5,9 +5,10 @@ Falls back to a simple rule-based responder when no API key is configured.
 import json
 import logging
 import os
+import time
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view, permission_classes
@@ -102,7 +103,7 @@ def _fallback_response(message):
 
 
 # ── OpenAI / LLM integration ──────────────────────────────────────────────
-def _call_openai(messages):
+def _call_openai(messages, stream=False):
     """Call OpenAI Chat Completion API."""
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
@@ -120,18 +121,24 @@ def _call_openai(messages):
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 500,
+                "stream": stream,
             },
-            timeout=15,
+            timeout=30,
+            stream=stream,
         )
         resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+
+        if stream:
+            return resp
+        else:
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
     except Exception as e:
         logger.error(f"OpenAI API error: {e}")
         return None
 
 
-def _call_azure_openai(messages):
+def _call_azure_openai(messages, stream=False):
     """Call Azure OpenAI API (if configured)."""
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "")
     api_key = os.getenv("AZURE_OPENAI_API_KEY", "")
@@ -150,12 +157,18 @@ def _call_azure_openai(messages):
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 500,
+                "stream": stream,
             },
-            timeout=15,
+            timeout=30,
+            stream=stream,
         )
         resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+
+        if stream:
+            return resp
+        else:
+            data = resp.json()
+            return data["choices"][0]["message"]["content"]
     except Exception as e:
         logger.error(f"Azure OpenAI API error: {e}")
         return None
@@ -223,6 +236,98 @@ def chatbot_query(request):
         {
             "response": response_text,
             "source": "llm" if (_call_openai(messages) is not None or _call_azure_openai(messages) is not None) else "fallback",
+        }
+    )
+
+
+# ── Streaming chatbot API view ────────────────────────────────────────────
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def chatbot_stream(request):
+    """
+    POST /api/chatbot/stream/
+    Body: { "message": "your question here" }
+
+    Streams the response in real-time using Server-Sent Events (SSE).
+    """
+    message = (request.data or {}).get("message", "").strip()
+    if not message:
+        return Response(
+            {"error": "Message is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Truncate very long messages
+    if len(message) > 2000:
+        message = message[:2000] + "..."
+
+    user = request.user
+    username = user.username
+    role = "unknown"
+    try:
+        from orders.models import UserProfile
+        role = user.profile.role
+    except Exception:
+        pass
+
+    # Build conversation context
+    context_info = (
+        f"You are chatting with {username}, who is a {role} in the ordering system. "
+        f"The system helps customers browse products, place orders, and track deliveries. "
+        f"Current date context: the system is running."
+    )
+
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": context_info},
+        {"role": "user", "content": message},
+    ]
+
+    def generate_stream():
+        """Generator function for streaming response."""
+        try:
+            # Try Azure OpenAI first with streaming
+            response_stream = _call_azure_openai(messages, stream=True)
+
+            if response_stream is None:
+                # Try OpenAI with streaming
+                response_stream = _call_openai(messages, stream=True)
+
+            if response_stream is None:
+                # Fallback to rule-based (not streamed)
+                response_text = _fallback_response(message)
+                yield f"data: {json.dumps({'chunk': response_text, 'done': True})}\n\n"
+                return
+
+            # Stream the response
+            accumulated_text = ""
+            for line in response_stream.iter_lines():
+                if line:
+                    line = line.decode('utf-8')
+                    if line.startswith('data: '):
+                        try:
+                            data = json.loads(line[6:])
+                            if 'choices' in data and data['choices']:
+                                delta = data['choices'][0].get('delta', {})
+                                if 'content' in delta:
+                                    chunk = delta['content']
+                                    accumulated_text += chunk
+                                    yield f"data: {json.dumps({'chunk': chunk, 'done': False})}\n\n"
+                        except json.JSONDecodeError:
+                            continue
+
+            # Send final done signal
+            yield f"data: {json.dumps({'chunk': '', 'done': True})}\n\n"
+
+        except Exception as e:
+            logger.error(f"Streaming error: {e}")
+            yield f"data: {json.dumps({'error': 'An error occurred while processing your message.', 'done': True})}\n\n"
+
+    return StreamingHttpResponse(
+        generate_stream(),
+        content_type='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
         }
     )
 
