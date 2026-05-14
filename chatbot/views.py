@@ -52,18 +52,23 @@ User:
 {user_message}
 """
 
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "qwen2.5:0.5b",
-                "prompt": prompt,
-                "stream": False
-            }
-        )
-
-        data = response.json()
-
-        ai_response = data["response"]
+        try:
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": "qwen2.5:0.5b",
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            ai_response = data.get("response", "Error: No response from AI model.")
+        except requests.exceptions.RequestException as e:
+            ai_response = f"Error communicating with AI model: {str(e)}"
+        except KeyError:
+            ai_response = "Error: Unexpected response format from AI model."
 
         # save AI response
         ai_chat = ChatMessage.objects.create(
