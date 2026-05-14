@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'orders',
+    'chatbot',
 ]
 
 # Optionally include cloudinary apps when the package is installed in the environment

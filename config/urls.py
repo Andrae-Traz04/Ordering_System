@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('orders.urls')),
+    path('api/v1/', include('chatbot.urls')),
 ]
 
 try:
