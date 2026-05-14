@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
-const roleInfo = {
-  customer: { label: 'Customer', desc: 'Shop & Order' },
-  owner: { label: 'Owner', desc: 'Manage Store' },
-  admin: { label: 'Admin', desc: 'Full Access' },
-}
+
 
 export default function Register() {
   const { register: registerUser } = useAuth()
@@ -18,7 +14,6 @@ export default function Register() {
     username: '',
     password: '',
     confirm_password: '',
-    role: 'user',
     profile_image: null,
   })
   const [error, setError] = useState('')
@@ -38,7 +33,6 @@ export default function Register() {
 
   const submit = async (e) => {
     e.preventDefault()
-    if (!form.role) { setError('Please select a role.'); return }
     if (form.password !== form.confirm_password) {
       setError('Passwords do not match.')
       return
@@ -51,7 +45,7 @@ export default function Register() {
     payload.append('last_name', form.last_name.trim())
     payload.append('password', form.password)
     payload.append('confirm_password', form.confirm_password)
-    payload.append('role', form.role)
+    payload.append('role', 'customer')  // Always customer for new registrations
     if (form.profile_image) {
       payload.append('profile_image', form.profile_image)
     }
@@ -198,24 +192,7 @@ export default function Register() {
             />
           </div>
 
-          <div className="input-group">
-            <label>I am a...</label>
-            <div className="role-selector">
-              {Object.entries(roleInfo).map(([key, info]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`role-btn ${form.role === key ? 'active' : ''}`}
-                  onClick={() => setForm({ ...form, role: key })}
-                >
-                  <span className="role-label">{info.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="role-desc">
-              {roleInfo[form.role]?.desc}
-            </p>
-          </div>
+
 
           <button type="submit" className="capsule-btn" disabled={loading}>
             {loading ? 'Creating...' : 'Sign Up'}

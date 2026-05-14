@@ -10,7 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Author, Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product
+from .models import Author, Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product, OwnerApplication
 from .serializers import (
     AuthorSerializer,
     RegisterSerializer,
@@ -22,6 +22,9 @@ from .serializers import (
     OrderCreateSerializer,
     StatusUpdateSerializer,
     ReviewSerializer,
+    OwnerApplicationSerializer,
+    OwnerApplicationCreateSerializer,
+    OwnerApplicationReviewSerializer,
 )
 from .email_utils import send_activation_email, send_password_reset_email
 
@@ -863,6 +866,116 @@ class ReviewView(APIView):
                 comment=serializer.validated_data.get('comment', ''),
             )
             return Response(ReviewSerializer(order.review).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─────────────────────────────────────────────
+#  OWNER APPLICATION VIEWS
+# ─────────────────────────────────────────────
+
+class OwnerApplicationCreateView(APIView):
+    """Allow customers to apply for owner status."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    def post(self, request):
+        # Check if user is already an owner/admin
+        if is_admin(request.user):
+            return Response(
+                {'error': 'You are already an owner/admin.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user already has a pending or approved application
+        existing_app = OwnerApplication.objects.filter(user=request.user).first()
+        if existing_app:
+            if existing_app.status == 'pending':
+                return Response(
+                    {'error': 'You already have a pending application.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            elif existing_app.status == 'approved':
+                return Response(
+                    {'error': 'Your application has already been approved.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        serializer = OwnerApplicationCreateSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            application = serializer.save()
+            return Response({
+                'message': 'Your owner application has been submitted successfully!',
+                'application_id': application.id
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class OwnerApplicationListView(APIView):
+    """List applications - admins see all, users see their own."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    def get(self, request):
+        if is_admin(request.user):
+            applications = OwnerApplication.objects.all().order_by('-submitted_at')
+        else:
+            applications = OwnerApplication.objects.filter(user=request.user)
+
+        serializer = OwnerApplicationSerializer(applications, many=True)
+        return Response({'applications': serializer.data})
+
+class OwnerApplicationDetailView(APIView):
+    """View application details."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            application = OwnerApplication.objects.get(pk=pk)
+        except OwnerApplication.DoesNotExist:
+            return Response({'error': 'Application not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Users can only see their own applications, admins can see all
+        if not is_admin(request.user) and application.user != request.user:
+            return Response({'error': 'Permission denied.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = OwnerApplicationSerializer(application)
+        return Response(serializer.data)
+
+class OwnerApplicationReviewView(APIView):
+    """Admins can approve/reject applications."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes     = [IsAdmin]
+
+    def post(self, request, pk):
+        try:
+            application = OwnerApplication.objects.get(pk=pk)
+        except OwnerApplication.DoesNotExist:
+            return Response({'error': 'Application not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if application.status != 'pending':
+            return Response(
+                {'error': 'This application has already been reviewed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = OwnerApplicationReviewSerializer(application, data=request.data, context={'request': request})
+        if serializer.is_valid():
+            application = serializer.save()
+
+            # If approved, update user role
+            if application.status == 'approved':
+                try:
+                    profile = application.user.profile
+                    profile.role = 'admin'
+                    profile.save()
+                except UserProfile.DoesNotExist:
+                    # Create profile if it doesn't exist
+                    UserProfile.objects.create(user=application.user, role='admin')
+
+            return Response({
+                'message': f'Application {application.status}.',
+                'application': OwnerApplicationSerializer(application).data
+            })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

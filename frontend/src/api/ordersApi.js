@@ -65,6 +65,12 @@ export const updateUserRole = (userId, role) => API.patch(`/users/${userId}/role
 export const fetchNotifications = () => API.get('/notifications/')
 export const submitReview = (orderId, data) => API.post(`/orders/${orderId}/review/`, data)
 
+// Owner Applications
+export const createOwnerApplication = (data) => API.post('/owner-applications/create/', data)
+export const fetchOwnerApplications = () => API.get('/owner-applications/')
+export const fetchOwnerApplication = (id) => API.get(`/owner-applications/${id}/`)
+export const reviewOwnerApplication = (id, data) => API.post(`/owner-applications/${id}/review/`, data)
+
 // Chatbot
 export const sendChatMessage = (message) => API.post('/chatbot/', { message })
 export const fetchChatbotInfo = () => API.get('/chatbot/info/')

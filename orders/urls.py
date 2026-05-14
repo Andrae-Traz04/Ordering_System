@@ -67,6 +67,12 @@ urlpatterns = [
     path('users/',                 views.UserListView.as_view(),        name='user-list'),
     path('users/<int:pk>/role/',   views.UserRoleUpdateView.as_view(), name='user-role-update'),
 
+    # Owner Applications
+    path('owner-applications/',           views.OwnerApplicationListView.as_view(),   name='owner-application-list'),
+    path('owner-applications/create/',    views.OwnerApplicationCreateView.as_view(), name='owner-application-create'),
+    path('owner-applications/<int:pk>/',  views.OwnerApplicationDetailView.as_view(), name='owner-application-detail'),
+    path('owner-applications/<int:pk>/review/', views.OwnerApplicationReviewView.as_view(), name='owner-application-review'),
+
     # Notifications
     path('notifications/', views.NotificationView.as_view(), name='notifications'),
 

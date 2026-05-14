@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.dateparse import parse_date
-from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review
+from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review, OwnerApplication
 from .models import Author
 
 
@@ -148,7 +148,7 @@ class RegisterSerializer(serializers.Serializer):
     last_name        = serializers.CharField(max_length=150)
     password         = serializers.CharField(min_length=6, write_only=True)
     confirm_password = serializers.CharField(min_length=6, write_only=True)
-    role             = serializers.ChoiceField(choices=['user', 'customer', 'admin'])
+    role             = serializers.CharField(required=False, default='customer')  # Always customer for new registrations
     profile_image    = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
@@ -195,8 +195,8 @@ class RegisterSerializer(serializers.Serializer):
         user.is_active = False
         user.save(update_fields=['is_active'])
 
-        # Map role for profile: customer -> user, owner -> admin (for now)
-        profile_role = 'user' if role == 'customer' else ('admin' if role in ['owner', 'admin'] else 'user')
+        # All new registrations are customers (user role)
+        profile_role = 'user'
         UserProfile.objects.create(user=user, role=profile_role, profile_image=profile_image)
 
         # Auto-create Customer record for customer role
@@ -211,6 +211,60 @@ class RegisterSerializer(serializers.Serializer):
             )
 
         return user
+
+
+# ─────────────────────────────────────────────
+#  OWNER APPLICATION SERIALIZERS
+# ─────────────────────────────────────────────
+
+class OwnerApplicationSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField(read_only=True)
+    submitted_at = serializers.DateTimeField(read_only=True)
+    reviewed_at = serializers.DateTimeField(read_only=True)
+    reviewed_by = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = OwnerApplication
+        fields = [
+            'id', 'user', 'business_name', 'business_description', 'business_address',
+            'phone_number', 'website', 'experience_years', 'motivation',
+            'status', 'submitted_at', 'reviewed_at', 'reviewed_by', 'review_notes'
+        ]
+        read_only_fields = ['id', 'user', 'submitted_at', 'reviewed_at', 'reviewed_by']
+
+class OwnerApplicationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OwnerApplication
+        fields = [
+            'business_name', 'business_description', 'business_address',
+            'phone_number', 'website', 'experience_years', 'motivation'
+        ]
+
+    def validate_experience_years(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Experience years cannot be negative.")
+        if value > 50:
+            raise serializers.ValidationError("Please enter a reasonable number of experience years.")
+        return value
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+class OwnerApplicationReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OwnerApplication
+        fields = ['status', 'review_notes']
+        extra_kwargs = {
+            'status': {'required': True},
+            'review_notes': {'required': False}
+        }
+
+    def update(self, validated_data):
+        from django.utils import timezone
+        validated_data['reviewed_by'] = self.context['request'].user
+        validated_data['reviewed_at'] = timezone.now()
+        return super().update(validated_data)
 
 
 # ─────────────────────────────────────────────

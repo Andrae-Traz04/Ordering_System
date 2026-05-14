@@ -73,6 +73,37 @@ class Product(models.Model):
         return f"{self.name} (₱{self.price})"
 
 
+class OwnerApplication(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='owner_application'
+    )
+    business_name = models.CharField(max_length=200)
+    business_description = models.TextField()
+    business_address = models.TextField()
+    phone_number = models.CharField(max_length=20)
+    website = models.URLField(blank=True)
+    experience_years = models.PositiveIntegerField()
+    motivation = models.TextField()
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_applications'
+    )
+    review_notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.business_name} ({self.status})"
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),

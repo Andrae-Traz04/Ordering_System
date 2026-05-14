@@ -15,6 +15,7 @@ import Customers from '@/pages/Customers'
 import Users from '@/pages/Users'
 import ProductsPage from '@/pages/ProductsPage'
 import Profile from '@/pages/Profile'
+import ApplyForOwner from '@/pages/ApplyForOwner'
 
 
 function PrivateRoute({ children, roles }) {
@@ -98,6 +99,11 @@ export default function App() {
         {/* Profile - all authenticated users */}
         <Route path="profile" element={
           <PrivateRoute><Profile /></PrivateRoute>
+        } />
+
+        {/* Apply for Owner - customers only */}
+        <Route path="apply-owner" element={
+          <PrivateRoute><ApplyForOwner /></PrivateRoute>
         } />
 
         {/* Admin & Owner Routes (duplicate removed) */}

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import './Profile.css';
 
 const Profile = () => {
   const { user, updateUser, refreshUser } = useAuth();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [formData, setFormData] = useState({
@@ -122,9 +124,20 @@ const Profile = () => {
           </div>
         </div>
         {!isEditing && (
-          <button className="btn btn-primary" onClick={() => setIsEditing(true)}>
-            Edit Profile
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button className="btn btn-primary" onClick={() => setIsEditing(true)}>
+              Edit Profile
+            </button>
+            {user?.role === 'user' && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => navigate('/apply-owner')}
+                style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none' }}
+              >
+                Apply for Owner
+              </button>
+            )}
+          </div>
         )}
       </div>
 

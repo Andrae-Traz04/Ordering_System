@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   fetchOrders, fetchSummary, fetchUsers, fetchCustomers,
   deleteOrder, updateStatus, updateUserRole,
+  fetchOwnerApplications, reviewOwnerApplication,
 } from '../api/ordersApi'
 
 // ── Design tokens ────────────────────────────────────────────────
@@ -52,6 +53,7 @@ const Icon = ({ d, size = 16, color = 'currentColor', stroke = true }) => (
 const Icons = {
   orders:     ['M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2', 'M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'],
   users:      ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2', 'M23 21v-2a4 4 0 00-3-3.87', 'M16 3.13a4 4 0 010 7.75', 'M9 7a4 4 0 100 8 4 4 0 000-8z'],
+  applications: ['M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'],
   revenue:    ['M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6'],
   trending:   ['M23 6l-9.5 9.5-5-5L1 18', 'M17 6h6v6'],
   trash:      ['M3 6h18', 'M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2'],
@@ -212,6 +214,110 @@ function DeleteOrderModal({ order, onClose, onDeleted }) {
   )
 }
 
+// ── Application Review Modal ──────────────────────────────────────
+function ApplicationReviewModal({ app, onClose, onReviewed }) {
+  const [status, setStatus] = useState('approved')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const save = async () => {
+    setSaving(true); setError('')
+    try {
+      await reviewOwnerApplication(app.id, { status, review_notes: notes })
+      onReviewed()
+      onClose()
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Failed to review application.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
+      <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:480, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+          <div style={{ width:40, height:40, borderRadius:12, background:C.amberBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Icon d={Icons.applications} size={20} color={C.amber} />
+          </div>
+          <div>
+            <h3 style={{ fontSize:16, fontWeight:700, color:C.accent }}>Review Application</h3>
+            <p style={{ fontSize:12, color:C.muted }}>{app.business_name} by {app.user}</p>
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ padding:'10px 14px', background:C.redBg, color:C.red, borderRadius:10, fontSize:13, fontWeight:600, marginBottom:14 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Application Details */}
+        <div style={{ background:C.bg, borderRadius:12, padding:16, marginBottom:20 }}>
+          <h4 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:12 }}>Application Details</h4>
+          <div style={{ display:'grid', gap:8, fontSize:13 }}>
+            <div><strong>Business:</strong> {app.business_name}</div>
+            <div><strong>Description:</strong> {app.business_description}</div>
+            <div><strong>Address:</strong> {app.business_address}</div>
+            <div><strong>Phone:</strong> {app.phone_number}</div>
+            <div><strong>Website:</strong> {app.website || 'Not provided'}</div>
+            <div><strong>Experience:</strong> {app.experience_years} years</div>
+            <div style={{ marginTop:8 }}><strong>Motivation:</strong></div>
+            <div style={{ background:C.white, padding:10, borderRadius:8, border:`1px solid ${C.border}`, fontSize:12, color:C.muted }}>
+              {app.motivation}
+            </div>
+          </div>
+        </div>
+
+        {/* Review Options */}
+        <div style={{ marginBottom:20 }}>
+          <h4 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:12 }}>Decision</h4>
+          <div style={{ display:'flex', gap:8 }}>
+            {[
+              { value: 'approved', label: 'Approve', color: C.green, bg: C.greenBg },
+              { value: 'rejected', label: 'Reject', color: C.red, bg: C.redBg }
+            ].map(option => (
+              <button key={option.value} onClick={() => setStatus(option.value)} style={{
+                flex:1, padding:'12px', borderRadius:12,
+                border:`2px solid ${status === option.value ? option.color : C.border}`,
+                background: status === option.value ? option.bg : C.white,
+                color: status === option.value ? option.color : C.accent,
+                fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s'
+              }}>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div style={{ marginBottom:20 }}>
+          <label style={{ display:'block', fontSize:13, fontWeight:600, color:C.accent, marginBottom:6 }}>
+            Review Notes (optional)
+          </label>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Add any notes about your decision..."
+            rows={3}
+            style={{ width:'100%', padding:12, border:`1px solid ${C.border}`, borderRadius:8, fontSize:13, fontFamily:'inherit', resize:'vertical' }}
+          />
+        </div>
+
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving} style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:saving ? C.border : (status === 'approved' ? C.green : C.red), color:C.white, fontWeight:700, fontSize:13, cursor:saving?'wait':'pointer', fontFamily:'inherit' }}>
+            {saving ? 'Saving...' : `Confirm ${status === 'approved' ? 'Approval' : 'Rejection'}`}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Main Component ───────────────────────────────────────────────
 export default function AdminDashboard() {
   const { user }  = useAuth()
@@ -221,8 +327,10 @@ export default function AdminDashboard() {
   // Data
   const [summary,   setSummary]   = useState(null)
   const [orders,    setOrders]    = useState([])
-  const [users,     setUsers]     = useState([])
-  const [customers, setCustomers] = useState([])
+  const [users,        setUsers]        = useState([])
+  const [customers,    setCustomers]    = useState([])
+  const [applications, setApplications] = useState([])
+  const [applicationModal, setApplicationModal] = useState(null)
 
   // UI
   const [loading,      setLoading]      = useState(true)
@@ -239,12 +347,13 @@ export default function AdminDashboard() {
     if (!user) return
     setLoading(true); setError('')
     try {
-      const [sRes, oRes, uRes, cRes] = await Promise.all([
-        fetchSummary(), fetchOrders(), fetchUsers(), fetchCustomers(),
+      const [sRes, oRes, uRes, cRes, aRes] = await Promise.all([
+        fetchSummary(), fetchOrders(), fetchUsers(), fetchCustomers(), fetchOwnerApplications(),
       ])
       setSummary(sRes.data)
       setOrders(oRes.data.orders || [])
       setUsers(uRes.data.users || [])
+      setApplications(aRes.data.applications || [])
       setCustomers(cRes.data.customers || [])
     } catch {
       setError('Failed to load data. Is Django running?')
@@ -259,10 +368,11 @@ export default function AdminDashboard() {
   const filteredUsers  = roleFilter   ? users.filter(u => u.role === roleFilter)       : users
 
   const tabs = [
-    { id: 'overview',  label: 'Overview',  icon: Icons.chart   },
-    { id: 'orders',    label: 'Orders',    icon: Icons.orders   },
-    { id: 'users',     label: 'Users',     icon: Icons.users    },
-    { id: 'customers', label: 'Customers', icon: Icons.customers },
+    { id: 'overview',     label: 'Overview',     icon: Icons.chart       },
+    { id: 'orders',       label: 'Orders',       icon: Icons.orders      },
+    { id: 'users',        label: 'Users',        icon: Icons.users       },
+    { id: 'customers',    label: 'Customers',    icon: Icons.customers   },
+    { id: 'applications', label: 'Applications', icon: Icons.applications },
   ]
 
   return (
@@ -566,12 +676,79 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          {/* ── APPLICATIONS TAB ── */}
+          {tab === 'applications' && (
+            <div style={{ animation:'fadeUp 0.35s ease both' }}>
+              <div style={{ background:C.amberBg, border:`1px solid #fcd34d`, borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:8, fontSize:13, color:C.amber.replace('f59e0b', '92400e'), fontWeight:600 }}>
+                <Icon d={Icons.applications} size={16} color={C.amber} />
+                Review owner applications from customers who want to become owners.
+              </div>
+
+              <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 120px', padding:'10px 20px', gap:12, background:C.bg, borderBottom:`1px solid ${C.border}` }}>
+                  {['ID','Business','User','Status','Applied','Action'].map(h => (
+                    <span key={h} style={{ fontSize:10, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
+                  ))}
+                </div>
+                {applications.length === 0 ? (
+                  <div style={{ padding:'60px', textAlign:'center', color:C.light, fontSize:13, fontWeight:600 }}>No applications yet</div>
+                ) : applications.map((app, i) => (
+                  <div key={app.id} style={{
+                    display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 120px',
+                    padding:'13px 20px', gap:12, alignItems:'center',
+                    borderBottom: i < applications.length-1 ? `1px solid ${C.bg}` : 'none',
+                    transition:'background 0.12s',
+                    animation:'fadeUp 0.4s ease both', animationDelay:`${i*35}ms`,
+                  }}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+                  >
+                    <span style={{ fontSize:11, color:C.light }}>#{app.id}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ width:28, height:28, borderRadius:8, background:C.amberBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:C.amber }}>
+                        {app.business_name?.charAt(0)?.toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:C.accent }}>{app.business_name}</div>
+                        <div style={{ fontSize:11, color:C.muted, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{app.business_description}</div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize:12, color:C.muted }}>{app.user}</span>
+                    <div style={{
+                      padding:'4px 8px', borderRadius:12, fontSize:10, fontWeight:700, textAlign:'center',
+                      background: app.status === 'approved' ? C.greenBg : app.status === 'rejected' ? C.redBg : C.amberBg,
+                      color: app.status === 'approved' ? C.green : app.status === 'rejected' ? C.red : C.amber,
+                    }}>
+                      {app.status}
+                    </div>
+                    <span style={{ fontSize:11, color:C.light }}>{new Date(app.submitted_at).toLocaleDateString()}</span>
+                    {app.status === 'pending' ? (
+                      <button onClick={() => setApplicationModal(app)} style={{
+                        display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8,
+                        border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600,
+                        fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s'
+                      }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor=C.amber; e.currentTarget.style.color=C.amber; e.currentTarget.style.background=C.amberBg}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.muted; e.currentTarget.style.background=C.white}}>
+                        <Icon d={Icons.edit} size={12} color="currentColor" />
+                        Review
+                      </button>
+                    ) : (
+                      <span style={{ fontSize:11, color:C.light }}>Reviewed {new Date(app.reviewed_at).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* Modals */}
-      {roleModal   && <RoleModal    user={roleModal}   onClose={() => setRoleModal(null)}   onUpdated={() => { load(); notify(`Role updated for ${roleModal.username}`) }} />}
-      {deleteModal && <DeleteOrderModal order={deleteModal} onClose={() => setDeleteModal(null)} onDeleted={() => { load(); notify(`Order ${deleteModal.order_number} deleted`) }} />}
+      {roleModal        && <RoleModal             user={roleModal}        onClose={() => setRoleModal(null)}        onUpdated={() => { load(); notify(`Role updated for ${roleModal.username}`) }} />}
+      {deleteModal      && <DeleteOrderModal      order={deleteModal}     onClose={() => setDeleteModal(null)}     onDeleted={() => { load(); notify(`Order ${deleteModal.order_number} deleted`) }} />}
+      {applicationModal && <ApplicationReviewModal app={applicationModal} onClose={() => setApplicationModal(null)} onReviewed={() => { load(); notify(`Application reviewed for ${applicationModal.business_name}`) }} />}
     </>
   )
 }
