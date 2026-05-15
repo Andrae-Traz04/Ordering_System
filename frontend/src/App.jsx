@@ -28,10 +28,11 @@ function PrivateRoute({ children, roles }) {
 
 // ── Dashboard Router ─────────────────────────────────────────
 function DashboardComponent() {
-   const { user } = useAuth()
-   if (user?.role === 'admin')  return <AdminDashboard />
-   return <CustomerDashboard />
-}
+    const { user } = useAuth()
+    if (user?.role === 'admin')  return <AdminDashboard />
+    if (user?.role === 'owner')  return <OwnerDashboard />
+    return <CustomerDashboard />
+  }
 
 export default function App() {
   const { user, authChecked } = useAuth()

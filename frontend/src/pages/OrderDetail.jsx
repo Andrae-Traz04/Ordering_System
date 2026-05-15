@@ -18,6 +18,24 @@ const NEXT_LABEL = {
   completed: 'Mark as Completed',
 }
 
+// ── Design tokens (shared) ────────────────────────────────────────
+const C = {
+  primary:   '#7C3AED',
+  primary2:  '#9B6DFF',
+  dark:      '#2D1F6E',
+  mid:       '#9B8FC0',
+  light:     '#C4B8E8',
+  white:     '#fff',
+  border:    '#F0EBFF',
+  pageBg:    '#FAF8FF',
+  success:   '#10B981',
+  successBg: '#ECFDF5',
+  warn:      '#F59E0B',
+  warnBg:    '#FFFBEB',
+  red:       '#ef4444',
+  redBg:     '#fef2f2',
+}
+
 function StarRating({ value, onChange, readonly }) {
   const [hovered, setHovered] = useState(0)
   return (
@@ -31,7 +49,7 @@ function StarRating({ value, onChange, readonly }) {
           style={{
             fontSize: 32,
             cursor: readonly ? 'default' : 'pointer',
-            color: star <= (hovered || value) ? '#f59e0b' : '#e8e8f0',
+            color: star <= (hovered || value) ? C.warn : C.border,
             transition: 'color 0.1s',
             userSelect: 'none',
           }}
@@ -40,7 +58,7 @@ function StarRating({ value, onChange, readonly }) {
         </span>
       ))}
       {!readonly && (
-        <span style={{ fontSize: 13, color: '#7c7ca0', alignSelf: 'center', marginLeft: 8 }}>
+        <span style={{ fontSize: 13, color: C.mid, alignSelf: 'center', marginLeft: 8 }}>
           {value === 1 ? 'Poor' : value === 2 ? 'Fair' : value === 3 ? 'Good' : value === 4 ? 'Very Good' : 'Excellent'}
         </span>
       )}
@@ -146,11 +164,11 @@ export default function OrderDetail() {
   if (!order)  return <div className="alert alert-error">{error || 'Order not found.'}</div>
 
   const nextStatus  = NEXT[order.status]
-const userRole       = user?.role || user?.profile?.role
-   const isAdmin        = userRole === 'admin'
-   const isUser         = userRole === 'user'
-   const isMyOrder      = order.created_by_id === user?.id
-   const canReview      = isUser && isMyOrder && order.status === 'completed' && !order.review
+  const userRole       = user?.role || user?.profile?.role
+  const isAdmin        = userRole === 'admin'
+  const isUser         = userRole === 'user'
+  const isMyOrder      = order.created_by_id === user?.id
+  const canReview      = isUser && isMyOrder && order.status === 'completed' && !order.review
   const hasReview      = !!order.review
 
   return (
@@ -166,7 +184,7 @@ const userRole       = user?.role || user?.profile?.role
             <span className="font-mono" style={{ fontSize: 18 }}>{order.order_number}</span>
             <StatusBadge status={order.status} />
           </div>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: C.mid, marginTop: 4 }}>
             Created {new Date(order.created_at).toLocaleString()}
             {order.created_by_username && (
               <span> by <strong>{order.created_by_username}</strong></span>
@@ -187,8 +205,8 @@ const userRole       = user?.role || user?.profile?.role
         <div className="card-body">
           <Stepper currentStatus={order.status} />
 
-{/* Admin can advance status */}
-           {isAdmin && nextStatus && (
+          {/* Admin can advance status */}
+          {isAdmin && nextStatus && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn btn-success" onClick={advance} disabled={updating}>
                 {updating ? 'Updating...' : `→ ${NEXT_LABEL[nextStatus]}`}
@@ -196,8 +214,8 @@ const userRole       = user?.role || user?.profile?.role
             </div>
           )}
 
-{/* User sees status info only */}
-           {isUser && nextStatus && order.status !== 'cancelled' && (
+          {/* User sees status info only */}
+          {isUser && nextStatus && order.status !== 'cancelled' && (
             <div className="alert alert-info" style={{ marginTop: 0 }}>
               ⏳ Your order is being processed. We will update you soon!
             </div>
@@ -268,7 +286,7 @@ const userRole       = user?.role || user?.profile?.role
           </table>
           <div className="total-row">
             <span style={{ fontWeight: 600 }}>Total</span>
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#6c63ff' }}>
+            <span style={{ fontSize: 20, fontWeight: 700, color: C.primary }}>
               ${parseFloat(order.total_amount).toFixed(2)}
             </span>
           </div>
@@ -289,7 +307,7 @@ const userRole       = user?.role || user?.profile?.role
                       ? <><strong>{h.from_status}</strong> → <strong>{h.to_status}</strong></>
                       : <>Order created as <strong>{h.to_status}</strong></>
                     }
-                    {h.note && <span style={{ color: '#aaa' }}> — {h.note}</span>}
+                    {h.note && <span style={{ color: C.mid }}> — {h.note}</span>}
                   </div>
                   <div className="history-time">
                     {new Date(h.changed_at).toLocaleString()}
@@ -315,13 +333,13 @@ const userRole       = user?.role || user?.profile?.role
               /* Show existing review */
               <div>
                 <StarRating value={order.review.rating} readonly />
-                <div style={{ marginTop: 12, fontSize: 14, color: '#1a1a2e', lineHeight: 1.6 }}>
+                <div style={{ marginTop: 12, fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
                   {order.review.comment
                     ? `"${order.review.comment}"`
-                    : <em style={{ color: '#aaa' }}>No comment left.</em>
+                    : <em style={{ color: C.mid }}>No comment left.</em>
                   }
                 </div>
-                <div style={{ fontSize: 11, color: '#aaa', marginTop: 10 }}>
+                <div style={{ fontSize: 11, color: C.mid, marginTop: 10 }}>
                   By <strong>{order.review.customer_username}</strong> on{' '}
                   {new Date(order.review.created_at).toLocaleDateString()}
                 </div>
@@ -335,7 +353,7 @@ const userRole       = user?.role || user?.profile?.role
                 <div style={{ marginBottom: 20 }}>
                   <label style={{
                     display: 'block', marginBottom: 10,
-                    fontWeight: 600, fontSize: 13, color: '#4a4a6a',
+                    fontWeight: 600, fontSize: 13, color: C.dark,
                   }}>
                     Your Rating *
                   </label>
@@ -351,7 +369,7 @@ const userRole       = user?.role || user?.profile?.role
                     onChange={e => setReviewComment(e.target.value)}
                     style={{
                       padding: '9px 13px',
-                      border: '1.5px solid #e8e8f0',
+                      border: `1.5px solid ${C.border}`,
                       borderRadius: 8,
                       fontSize: 13,
                       fontFamily: 'inherit',
@@ -359,8 +377,8 @@ const userRole       = user?.role || user?.profile?.role
                       resize: 'vertical',
                       transition: 'border-color 0.15s',
                     }}
-                    onFocus={e => e.target.style.borderColor = '#6c63ff'}
-                    onBlur={e => e.target.style.borderColor = '#e8e8f0'}
+                    onFocus={e => e.target.style.borderColor = C.primary}
+                    onBlur={e => e.target.style.borderColor = C.border}
                   />
                 </div>
 
@@ -377,8 +395,8 @@ const userRole       = user?.role || user?.profile?.role
         </div>
       )}
 
-{/* Cancel — User only, pending orders */}
-       {isUser && isMyOrder && order.status === 'pending' && (
+      {/* Cancel — User only, pending orders */}
+      {isUser && isMyOrder && order.status === 'pending' && (
         <div className="card">
           <div className="card-body">
             {!confirmCancel ? (
@@ -390,7 +408,7 @@ const userRole       = user?.role || user?.profile?.role
               </button>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                <span style={{ fontSize: 13, color: C.red, fontWeight: 600 }}>
                   Cancel this order? This cannot be undone.
                 </span>
                 <button
@@ -427,7 +445,7 @@ const userRole       = user?.role || user?.profile?.role
               )
               : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+                  <span style={{ fontSize: 13, color: C.red, fontWeight: 600 }}>
                     Are you sure? This cannot be undone.
                   </span>
                   <button

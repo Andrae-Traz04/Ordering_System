@@ -149,7 +149,7 @@ export default function CreateOrder() {
             </table>
             <div className="total-row">
               <span style={{ fontWeight: 600 }}>Total</span>
-              <span style={{ fontSize: 20, fontWeight: 700, color: '#6c63ff' }}>
+              <span style={{ fontSize: 20, fontWeight: 700, color: '#7C3AED' }}>
                 ${total.toFixed(2)}
               </span>
             </div>

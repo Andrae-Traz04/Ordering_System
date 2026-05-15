@@ -4,6 +4,23 @@ import { useAuth } from '@/context/AuthContext'
 import { fetchOrders } from '@/api/ordersApi'
 import StatusBadge from '@/components/StatusBadge'
 
+const C = {
+  primary: '#7C3AED',
+  primary2: '#9B6DFF',
+  dark: '#2D1F6E',
+  mid: '#9B8FC0',
+  light: '#C4B8E8',
+  white: '#fff',
+  border: '#F0EBFF',
+  pageBg: '#FAF8FF',
+  success: '#10B981',
+  successBg: '#ECFDF5',
+  warn: '#F59E0B',
+  warnBg: '#FFFBEB',
+  red: '#ef4444',
+  redBg: '#fef2f2',
+}
+
 export default function Orders() {
   const { user } = useAuth()
   const [orders, setOrders] = useState([])
@@ -66,13 +83,13 @@ export default function Orders() {
                       <tr key={o.id}>
                         <td><span className="font-mono">{o.order_number}</span></td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>{o.customer_name}</div>
-                          <div style={{ fontSize: 11, color: '#aaa' }}>{o.customer_email}</div>
+                          <div style={{ fontWeight: 600, color: C.dark }}>{o.customer_name}</div>
+                          <div style={{ fontSize: 11, color: C.mid }}>{o.customer_email}</div>
                         </td>
                         <td>{o.item_count} item{o.item_count !== 1 ? 's' : ''}</td>
                         <td><strong>${parseFloat(o.total_amount).toFixed(2)}</strong></td>
                         <td><StatusBadge status={o.status} /></td>
-                        <td style={{ fontSize: 12, color: '#aaa' }}>
+                        <td style={{ fontSize: 12, color: C.mid }}>
                           {new Date(o.created_at).toLocaleDateString()}
                         </td>
                         <td>

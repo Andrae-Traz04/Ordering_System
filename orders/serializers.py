@@ -260,11 +260,11 @@ class OwnerApplicationReviewSerializer(serializers.ModelSerializer):
             'review_notes': {'required': False}
         }
 
-    def update(self, validated_data):
+    def update(self, instance, validated_data):
         from django.utils import timezone
         validated_data['reviewed_by'] = self.context['request'].user
         validated_data['reviewed_at'] = timezone.now()
-        return super().update(validated_data)
+        return super().update(instance, validated_data)
 
 
 # ─────────────────────────────────────────────

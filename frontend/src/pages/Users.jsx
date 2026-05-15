@@ -1,10 +1,27 @@
 import { useState, useEffect } from 'react'
 import { fetchUsers } from '@/api/ordersApi'
 
+const C = {
+  primary: '#7C3AED',
+  primary2: '#9B6DFF',
+  dark: '#2D1F6E',
+  mid: '#9B8FC0',
+  light: '#C4B8E8',
+  white: '#fff',
+  border: '#F0EBFF',
+  pageBg: '#FAF8FF',
+  success: '#10B981',
+  successBg: '#ECFDF5',
+  warn: '#F59E0B',
+  warnBg: '#FFFBEB',
+  red: '#ef4444',
+  redBg: '#fef2f2',
+}
+
 const roleColor = {
-  customer: { bg: '#dbeafe', color: '#2563eb' },
-  owner:    { bg: '#fef3c7', color: '#d97706' },
-  admin:    { bg: '#d1fae5', color: '#059669' },
+  customer: { bg: '#EFF6FF', color: '#3B82F6' },
+  owner:    { bg: '#FFF7ED', color: '#EA580C' },
+  admin:    { bg: '#ECFDF5', color: '#10B981' },
 }
 
 export default function Users() {
@@ -42,14 +59,14 @@ export default function Users() {
                 <tbody>
                   {users.map(u => (
                     <tr key={u.id}>
-                      <td style={{ color: '#aaa', fontSize: 12 }}>#{u.id}</td>
-                      <td style={{ fontWeight: 600 }}>{u.username}</td>
+                      <td style={{ color: C.mid, fontSize: 12 }}>#{u.id}</td>
+                      <td style={{ fontWeight: 600, color: C.dark }}>{u.username}</td>
                       <td>
                         <span style={{
                           padding: '3px 10px', borderRadius: 20,
                           fontSize: 11, fontWeight: 700,
-                          background: roleColor[u.role]?.bg || '#f0f0f0',
-                          color: roleColor[u.role]?.color || '#555',
+                          background: roleColor[u.role]?.bg || C.border,
+                          color: roleColor[u.role]?.color || C.mid,
                           textTransform: 'uppercase',
                         }}>
                           {u.role || 'No role'}

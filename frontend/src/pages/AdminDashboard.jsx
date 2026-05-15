@@ -9,37 +9,38 @@ import {
 
 // ── Design tokens ────────────────────────────────────────────────
 const C = {
-  accent:   '#0f172a',
-  accent2:  '#1e293b',
-  blue:     '#3b82f6',
-  blue2:    '#1d4ed8',
-  blueBg:   '#eff6ff',
-  red:      '#ef4444',
-  redBg:    '#fef2f2',
-  green:    '#10b981',
-  greenBg:  '#ecfdf5',
-  amber:    '#f59e0b',
-  amberBg:  '#fffbeb',
-  purple:   '#8b5cf6',
-  purpleBg: '#f5f3ff',
-  border:   '#e2e8f0',
-  muted:    '#64748b',
-  light:    '#94a3b8',
-  white:    '#ffffff',
-  bg:       '#f8fafc',
+  primary:   '#7C3AED',
+  primary2:  '#9B6DFF',
+  primaryBg: '#EFF6FF',
+  softBg:    '#F3EEFF',
+  softBg2:   '#EDEAFF',
+  border:    '#F0EBFF',
+  border2:   '#E0D8FF',
+  dark:      '#2D1F6E',
+  dark2:     '#1e293b',
+  mid:       '#9B8FC0',
+  light:     '#C4B8E8',
+  white:     '#fff',
+  pageBg:    '#FAF8FF',
+  success:   '#10B981',
+  successBg: '#ECFDF5',
+  warn:      '#F59E0B',
+  warnBg:    '#FFFBEB',
+  red:       '#ef4444',
+  redBg:     '#fef2f2',
 }
 
 const STATUS = {
-  pending:    { color: C.amber,  bg: C.amberBg,  label: 'Pending'    },
-  processing: { color: C.blue,   bg: C.blueBg,   label: 'Processing' },
-  shipped:    { color: C.purple, bg: C.purpleBg, label: 'Shipped'    },
-  completed:  { color: C.green,  bg: C.greenBg,  label: 'Completed'  },
+  pending:    { color: '#F59E0B', bg: '#FFFBEB', label: 'Pending'    },
+  processing: { color: '#6C47FF', bg: '#EDEAFF', label: 'Processing' },
+  shipped:    { color: '#9B6DFF', bg: '#F3EEFF', label: 'Shipped'    },
+  completed:  { color: '#10B981', bg: '#ECFDF5', label: 'Completed'  },
 }
 
 const ROLE_META = {
-  customer: { color: C.blue,   bg: C.blueBg,   label: 'Customer' },
-  owner:    { color: C.amber,  bg: C.amberBg,  label: 'Owner'    },
-  admin:    { color: C.green,  bg: C.greenBg,  label: 'Admin'    },
+  customer: { color: '#3B82F6', bg: '#EFF6FF', label: 'Customer' },
+  owner:    { color: '#EA580C', bg: '#FFF7ED', label: 'Owner'    },
+  admin:    { color: '#10B981', bg: '#ECFDF5', label: 'Admin'    },
 }
 
 // ── SVG Icons ────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ function StatCard({ label, value, icon, accent, delay = 0 }) {
         <Icon d={Icons[icon]} size={20} color={C.white} />
       </div>
       <p style={{ fontSize:11, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{label}</p>
-      <p style={{ fontSize:30, fontWeight:800, color:C.accent, lineHeight:1 }}>{value}</p>
+      <p style={{ fontSize:30, fontWeight:800, color:C.dark, lineHeight:1 }}>{value}</p>
     </div>
   )
 }
@@ -124,60 +125,60 @@ function RoleModal({ user, onClose, onUpdated }) {
     }
   }
 
-  return (
-    <>
-      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
-      <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:400, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-          <div style={{ width:40, height:40, borderRadius:12, background:C.blueBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Icon d={Icons.shield} size={20} color={C.blue} />
-          </div>
-          <div>
-            <h3 style={{ fontSize:16, fontWeight:700, color:C.accent }}>Change Role</h3>
-            <p style={{ fontSize:12, color:C.muted }}>@{user.username}</p>
-          </div>
-        </div>
+return (
+     <>
+       <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
+       <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:400, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
+         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+           <div style={{ width:40, height:40, borderRadius:12, background:C.softBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+             <Icon d={Icons.shield} size={20} color={C.primary} />
+           </div>
+           <div>
+             <h3 style={{ fontSize:16, fontWeight:700, color:C.dark }}>Change Role</h3>
+             <p style={{ fontSize:12, color:C.mid }}>@{user.username}</p>
+           </div>
+         </div>
 
-        {error && (
-          <div style={{ padding:'10px 14px', background:C.redBg, color:C.red, borderRadius:10, fontSize:13, fontWeight:600, marginBottom:14 }}>
-            {error}
-          </div>
-        )}
+         {error && (
+           <div style={{ padding:'10px 14px', background:C.redBg, color:C.red, borderRadius:10, fontSize:13, fontWeight:600, marginBottom:14 }}>
+             {error}
+           </div>
+         )}
 
-        <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
-          {['customer', 'owner', 'admin'].map(r => {
-            const m = ROLE_META[r]
-            return (
-              <button key={r} onClick={() => setRole(r)} style={{
-                display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
-                borderRadius:12, border:`2px solid ${role === r ? m.color : C.border}`,
-                background: role === r ? m.bg : C.white,
-                cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s', textAlign:'left',
-              }}>
-                <div style={{ width:10, height:10, borderRadius:'50%', background: role === r ? m.color : C.border, transition:'all 0.15s' }} />
-                <div>
-                  <p style={{ fontSize:14, fontWeight:700, color: role === r ? m.color : C.accent }}>{m.label}</p>
-                  <p style={{ fontSize:11, color:C.muted }}>
-                    {r === 'customer' ? 'Browse products, place orders' : r === 'owner' ? 'Manage products and orders' : 'Full system access'}
-                  </p>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+         <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
+           {['customer', 'owner', 'admin'].map(r => {
+             const m = ROLE_META[r]
+             return (
+               <button key={r} onClick={() => setRole(r)} style={{
+                 display:'flex', alignItems:'center', gap:12, padding:'12px 16px',
+                 borderRadius:12, border:`2px solid ${role === r ? m.color : C.border}`,
+                 background: role === r ? m.bg : C.white,
+                 cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s', textAlign:'left',
+               }}>
+                 <div style={{ width:10, height:10, borderRadius:'50%', background: role === r ? m.color : C.border, transition:'all 0.15s' }} />
+                 <div>
+                   <p style={{ fontSize:14, fontWeight:700, color: role === r ? m.color : C.dark }}>{m.label}</p>
+                   <p style={{ fontSize:11, color:C.mid }}>
+                     {r === 'customer' ? 'Browse products, place orders' : r === 'owner' ? 'Manage products and orders' : 'Full system access'}
+                   </p>
+                 </div>
+               </button>
+             )
+           })}
+         </div>
 
-        <div style={{ display:'flex', gap:10 }}>
-          <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
-            Cancel
-          </button>
-          <button onClick={save} disabled={saving} style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:saving ? C.border : C.blue2, color:C.white, fontWeight:700, fontSize:13, cursor:saving?'wait':'pointer', fontFamily:'inherit' }}>
-            {saving ? 'Saving...' : 'Save Role'}
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
+         <div style={{ display:'flex', gap:10 }}>
+           <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+             Cancel
+           </button>
+           <button onClick={save} disabled={saving} style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:saving ? C.border : C.primary, color:C.white, fontWeight:700, fontSize:13, cursor:saving?'wait':'pointer', fontFamily:'inherit' }}>
+             {saving ? 'Saving...' : 'Save Role'}
+           </button>
+         </div>
+       </div>
+     </>
+   )
+ }
 
 // ── Delete Confirm Modal ─────────────────────────────────────────
 function DeleteOrderModal({ order, onClose, onDeleted }) {
@@ -189,30 +190,30 @@ function DeleteOrderModal({ order, onClose, onDeleted }) {
     catch { setDeleting(false) }
   }
 
-  return (
-    <>
-      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
-      <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:380, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
-        <div style={{ textAlign:'center', marginBottom:20 }}>
-          <div style={{ width:56, height:56, borderRadius:16, background:C.redBg, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-            <Icon d={Icons.trash} size={24} color={C.red} />
-          </div>
-          <h3 style={{ fontSize:17, fontWeight:700, color:C.accent, marginBottom:8 }}>Delete Order?</h3>
-          <p style={{ fontSize:13, color:C.muted, lineHeight:1.5 }}>
-            Permanently delete <strong style={{ color:C.accent }}>{order.order_number}</strong>?
-            This action cannot be undone.
-          </p>
-        </div>
-        <div style={{ display:'flex', gap:10 }}>
-          <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>Cancel</button>
-          <button onClick={handle} disabled={deleting} style={{ flex:1, padding:'11px', borderRadius:10, border:'none', background:deleting?'#FCA5A5':C.red, color:C.white, fontWeight:700, fontSize:13, cursor:deleting?'wait':'pointer', fontFamily:'inherit' }}>
-            {deleting ? 'Deleting...' : 'Delete'}
-          </button>
-        </div>
-      </div>
-    </>
-  )
-}
+return (
+     <>
+       <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
+       <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:380, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
+         <div style={{ textAlign:'center', marginBottom:20 }}>
+           <div style={{ width:56, height:56, borderRadius:16, background:C.redBg, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+             <Icon d={Icons.trash} size={24} color={C.red} />
+           </div>
+           <h3 style={{ fontSize:17, fontWeight:700, color:C.dark, marginBottom:8 }}>Delete Order?</h3>
+           <p style={{ fontSize:13, color:C.mid, lineHeight:1.5 }}>
+             Permanently delete <strong style={{ color:C.dark }}>{order.order_number}</strong>?
+             This action cannot be undone.
+           </p>
+         </div>
+         <div style={{ display:'flex', gap:10 }}>
+           <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>Cancel</button>
+           <button onClick={handle} disabled={deleting} style={{ flex:1, padding:'11px', borderRadius:10, border:'none', background:deleting?'#FCA5A5':C.red, color:C.white, fontWeight:700, fontSize:13, cursor:deleting?'wait':'pointer', fontFamily:'inherit' }}>
+             {deleting ? 'Deleting...' : 'Delete'}
+           </button>
+         </div>
+       </div>
+     </>
+   )
+ }
 
 // ── Application Review Modal ──────────────────────────────────────
 function ApplicationReviewModal({ app, onClose, onReviewed }) {
@@ -233,19 +234,19 @@ function ApplicationReviewModal({ app, onClose, onReviewed }) {
     }
   }
 
-  return (
-    <>
-      <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
-      <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:480, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
-          <div style={{ width:40, height:40, borderRadius:12, background:C.amberBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Icon d={Icons.applications} size={20} color={C.amber} />
-          </div>
-          <div>
-            <h3 style={{ fontSize:16, fontWeight:700, color:C.accent }}>Review Application</h3>
-            <p style={{ fontSize:12, color:C.muted }}>{app.business_name} by {app.user}</p>
-          </div>
-        </div>
+return (
+     <>
+       <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, backdropFilter:'blur(3px)' }} />
+       <div style={{ position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:'100%', maxWidth:480, background:C.white, borderRadius:20, boxShadow:'0 20px 60px rgba(0,0,0,0.15)', zIndex:301, padding:'28px', animation:'modalIn 0.2s ease' }}>
+         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+           <div style={{ width:40, height:40, borderRadius:12, background:C.softBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+             <Icon d={Icons.applications} size={20} color={C.warn} />
+           </div>
+           <div>
+             <h3 style={{ fontSize:16, fontWeight:700, color:C.dark }}>Review Application</h3>
+             <p style={{ fontSize:12, color:C.mid }}>{app.business_name} by {app.user}</p>
+           </div>
+         </div>
 
         {error && (
           <div style={{ padding:'10px 14px', background:C.redBg, color:C.red, borderRadius:10, fontSize:13, fontWeight:600, marginBottom:14 }}>
@@ -254,8 +255,8 @@ function ApplicationReviewModal({ app, onClose, onReviewed }) {
         )}
 
         {/* Application Details */}
-        <div style={{ background:C.bg, borderRadius:12, padding:16, marginBottom:20 }}>
-          <h4 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:12 }}>Application Details</h4>
+        <div style={{ background:C.pageBg, borderRadius:12, padding:16, marginBottom:20 }}>
+          <h4 style={{ fontSize:14, fontWeight:700, color:C.dark, marginBottom:12 }}>Application Details</h4>
           <div style={{ display:'grid', gap:8, fontSize:13 }}>
             <div><strong>Business:</strong> {app.business_name}</div>
             <div><strong>Description:</strong> {app.business_description}</div>
@@ -264,7 +265,7 @@ function ApplicationReviewModal({ app, onClose, onReviewed }) {
             <div><strong>Website:</strong> {app.website || 'Not provided'}</div>
             <div><strong>Experience:</strong> {app.experience_years} years</div>
             <div style={{ marginTop:8 }}><strong>Motivation:</strong></div>
-            <div style={{ background:C.white, padding:10, borderRadius:8, border:`1px solid ${C.border}`, fontSize:12, color:C.muted }}>
+            <div style={{ background:C.white, padding:10, borderRadius:8, border:`1px solid ${C.border}`, fontSize:12, color:C.mid }}>
               {app.motivation}
             </div>
           </div>
@@ -272,17 +273,17 @@ function ApplicationReviewModal({ app, onClose, onReviewed }) {
 
         {/* Review Options */}
         <div style={{ marginBottom:20 }}>
-          <h4 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:12 }}>Decision</h4>
+          <h4 style={{ fontSize:14, fontWeight:700, color:C.dark, marginBottom:12 }}>Decision</h4>
           <div style={{ display:'flex', gap:8 }}>
             {[
-              { value: 'approved', label: 'Approve', color: C.green, bg: C.greenBg },
+              { value: 'approved', label: 'Approve', color: C.success, bg: C.successBg },
               { value: 'rejected', label: 'Reject', color: C.red, bg: C.redBg }
             ].map(option => (
               <button key={option.value} onClick={() => setStatus(option.value)} style={{
                 flex:1, padding:'12px', borderRadius:12,
                 border:`2px solid ${status === option.value ? option.color : C.border}`,
                 background: status === option.value ? option.bg : C.white,
-                color: status === option.value ? option.color : C.accent,
+                color: status === option.value ? option.color : C.dark,
                 fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s'
               }}>
                 {option.label}
@@ -293,7 +294,7 @@ function ApplicationReviewModal({ app, onClose, onReviewed }) {
 
         {/* Notes */}
         <div style={{ marginBottom:20 }}>
-          <label style={{ display:'block', fontSize:13, fontWeight:600, color:C.accent, marginBottom:6 }}>
+          <label style={{ display:'block', fontSize:13, fontWeight:600, color:C.dark, marginBottom:6 }}>
             Review Notes (optional)
           </label>
           <textarea
@@ -306,10 +307,10 @@ function ApplicationReviewModal({ app, onClose, onReviewed }) {
         </div>
 
         <div style={{ display:'flex', gap:10 }}>
-          <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+          <button onClick={onClose} style={{ flex:1, padding:'11px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
             Cancel
           </button>
-          <button onClick={save} disabled={saving} style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:saving ? C.border : (status === 'approved' ? C.green : C.red), color:C.white, fontWeight:700, fontSize:13, cursor:saving?'wait':'pointer', fontFamily:'inherit' }}>
+          <button onClick={save} disabled={saving} style={{ flex:2, padding:'11px', borderRadius:10, border:'none', background:saving ? C.border : (status === 'approved' ? C.success : C.red), color:C.white, fontWeight:700, fontSize:13, cursor:saving?'wait':'pointer', fontFamily:'inherit' }}>
             {saving ? 'Saving...' : `Confirm ${status === 'approved' ? 'Approval' : 'Rejection'}`}
           </button>
         </div>
@@ -384,61 +385,61 @@ export default function AdminDashboard() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position:'fixed', top:20, right:20, zIndex:400, background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:'12px 18px', fontSize:13, fontWeight:600, color:C.accent, boxShadow:'0 8px 24px rgba(0,0,0,0.1)', display:'flex', alignItems:'center', gap:8 }}>
+        <div style={{ position:'fixed', top:20, right:20, zIndex:400, background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:'12px 18px', fontSize:13, fontWeight:600, color:C.dark, boxShadow:'0 8px 24px rgba(0,0,0,0.1)', display:'flex', alignItems:'center', gap:8 }}>
           <Icon d={Icons.check} size={14} color={C.green} />
           {toast}
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, animation:'fadeUp 0.4s ease both' }}>
-        <div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-            <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg, #0f172a, #1e293b)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <Icon d={Icons.shield} size={14} color={C.white} />
-            </div>
-            <p style={{ fontSize:11, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.1em' }}>Admin Control</p>
-          </div>
-          <h1 style={{ fontSize:22, fontWeight:800, color:C.accent }}>System Administration</h1>
-          <p style={{ fontSize:13, color:C.muted, marginTop:2 }}>Full access to all system data and controls</p>
-        </div>
-        <button onClick={load} style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
-          <Icon d={Icons.refresh} size={14} color={C.muted} />
-          Refresh
-        </button>
-      </div>
+{/* Header */}
+       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:24, animation:'fadeUp 0.4s ease both' }}>
+         <div>
+           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+             <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg, #7C3AED, #9B6DFF)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+               <Icon d={Icons.shield} size={14} color={C.white} />
+             </div>
+             <p style={{ fontSize:11, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.1em' }}>Admin Control</p>
+           </div>
+           <h1 style={{ fontSize:22, fontWeight:800, color:C.dark }}>System Administration</h1>
+           <p style={{ fontSize:13, color:C.mid, marginTop:2 }}>Full access to all system data and controls</p>
+         </div>
+         <button onClick={load} style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:10, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+           <Icon d={Icons.refresh} size={14} color={C.mid} />
+           Refresh
+         </button>
+       </div>
 
-      {error && (
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', background:C.redBg, color:C.red, borderRadius:12, marginBottom:20, fontSize:13, fontWeight:600 }}>
-          <Icon d={Icons.warning} size={16} color={C.red} />
-          {error}
-        </div>
-      )}
+       {error && (
+         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', background:C.redBg, color:C.red, borderRadius:12, marginBottom:20, fontSize:13, fontWeight:600 }}>
+           <Icon d={Icons.warning} size={16} color={C.red} />
+           {error}
+         </div>
+       )}
 
-      {/* Tabs */}
-      <div style={{ display:'flex', gap:4, marginBottom:24, background:C.bg, borderRadius:12, padding:4, border:`1px solid ${C.border}`, width:'fit-content', animation:'fadeUp 0.4s ease both', animationDelay:'60ms' }}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
-            display:'flex', alignItems:'center', gap:7, padding:'8px 16px', borderRadius:9, border:'none',
-            background: tab === t.id ? C.white : 'transparent',
-            color: tab === t.id ? C.accent : C.muted,
-            fontWeight: tab === t.id ? 700 : 500, fontSize:13,
-            cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s',
-            boxShadow: tab === t.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-          }}>
-            <Icon d={t.icon} size={14} color={tab === t.id ? C.accent : C.muted} />
-            {t.label}
-          </button>
-        ))}
-      </div>
+       {/* Tabs */}
+       <div style={{ display:'flex', gap:4, marginBottom:24, background:C.pageBg, borderRadius:12, padding:4, border:`1px solid ${C.border}`, width:'fit-content', animation:'fadeUp 0.4s ease both', animationDelay:'60ms' }}>
+         {tabs.map(t => (
+           <button key={t.id} onClick={() => setTab(t.id)} style={{
+             display:'flex', alignItems:'center', gap:7, padding:'8px 16px', borderRadius:9, border:'none',
+             background: tab === t.id ? C.white : 'transparent',
+             color: tab === t.id ? C.dark : C.mid,
+             fontWeight: tab === t.id ? 700 : 500, fontSize:13,
+             cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s',
+             boxShadow: tab === t.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+           }}>
+             <Icon d={t.icon} size={14} color={tab === t.id ? C.primary : C.mid} />
+             {t.label}
+           </button>
+         ))}
+       </div>
 
-      {loading ? (
-        <div style={{ textAlign:'center', padding:'80px 0' }}>
-          <div style={{ width:32, height:32, border:`3px solid ${C.border}`, borderTopColor:C.blue, borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }} />
-          <p style={{ color:C.light, fontWeight:600 }}>Loading data...</p>
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-        </div>
-      ) : (
+       {loading ? (
+         <div style={{ textAlign:'center', padding:'80px 0' }}>
+           <div style={{ width:32, height:32, border:`3px solid ${C.border}`, borderTopColor:C.primary, borderRadius:'50%', animation:'spin 0.8s linear infinite', margin:'0 auto 12px' }} />
+           <p style={{ color:C.mid, fontWeight:600 }}>Loading data...</p>
+           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+         </div>
+       ) : (
         <>
           {/* ── OVERVIEW TAB ── */}
           {tab === 'overview' && summary && (
@@ -455,8 +456,8 @@ export default function AdminDashboard() {
               {/* Role breakdown */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24 }}>
                 <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, padding:'20px', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                  <h3 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
-                    <Icon d={Icons.users} size={16} color={C.blue} /> User Roles Breakdown
+                  <h3 style={{ fontSize:14, fontWeight:700, color:C.dark, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
+                    <Icon d={Icons.users} size={16} color={C.primary} /> User Roles Breakdown
                   </h3>
                   {['customer', 'owner', 'admin'].map(r => {
                     const count = users.filter(u => u.role === r).length
@@ -465,10 +466,10 @@ export default function AdminDashboard() {
                     return (
                       <div key={r} style={{ marginBottom:12 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                          <span style={{ fontSize:12, fontWeight:600, color:C.muted }}>{m.label}</span>
+                          <span style={{ fontSize:12, fontWeight:600, color:C.mid }}>{m.label}</span>
                           <span style={{ fontSize:12, fontWeight:700, color:m.color }}>{count} ({pct}%)</span>
                         </div>
-                        <div style={{ height:6, background:C.bg, borderRadius:99 }}>
+                        <div style={{ height:6, background:C.pageBg, borderRadius:99 }}>
                           <div style={{ height:6, width:`${pct}%`, background:m.color, borderRadius:99, transition:'width 0.5s ease' }} />
                         </div>
                       </div>
@@ -477,8 +478,8 @@ export default function AdminDashboard() {
                 </div>
 
                 <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, padding:'20px', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                  <h3 style={{ fontSize:14, fontWeight:700, color:C.accent, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
-                    <Icon d={Icons.chart} size={16} color={C.blue} /> Order Status Breakdown
+                  <h3 style={{ fontSize:14, fontWeight:700, color:C.dark, marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
+                    <Icon d={Icons.chart} size={16} color={C.primary} /> Order Status Breakdown
                   </h3>
                   {Object.entries(STATUS).map(([key, m]) => {
                     const count = (summary.by_status || {})[key] || 0
@@ -486,10 +487,10 @@ export default function AdminDashboard() {
                     return (
                       <div key={key} style={{ marginBottom:12 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                          <span style={{ fontSize:12, fontWeight:600, color:C.muted }}>{m.label}</span>
+                          <span style={{ fontSize:12, fontWeight:600, color:C.mid }}>{m.label}</span>
                           <span style={{ fontSize:12, fontWeight:700, color:m.color }}>{count} ({pct}%)</span>
                         </div>
-                        <div style={{ height:6, background:C.bg, borderRadius:99 }}>
+                        <div style={{ height:6, background:C.pageBg, borderRadius:99 }}>
                           <div style={{ height:6, width:`${pct}%`, background:m.color, borderRadius:99, transition:'width 0.5s ease' }} />
                         </div>
                       </div>
@@ -509,8 +510,8 @@ export default function AdminDashboard() {
                   return (
                     <button key={s||'all'} onClick={() => setStatusFilter(s)} style={{
                       padding:'6px 14px', borderRadius:20, border:'none',
-                      background: statusFilter === s ? (s ? m.color : C.accent2) : (s ? m?.bg : C.bg),
-                      color: statusFilter === s ? C.white : (s ? m?.color : C.muted),
+                      background: statusFilter === s ? (s ? m.color : C.dark2) : (s ? m?.bg : C.pageBg),
+                      color: statusFilter === s ? C.white : (s ? m?.color : C.mid),
                       fontWeight:700, fontSize:12, cursor:'pointer', fontFamily:'inherit',
                       border: `1px solid ${statusFilter === s ? 'transparent' : C.border}`,
                       transition:'all 0.15s',
@@ -525,7 +526,7 @@ export default function AdminDashboard() {
               </div>
 
               <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'130px 1fr 90px 110px 110px 80px', padding:'10px 20px', gap:12, background:C.bg, borderBottom:`1px solid ${C.border}` }}>
+                <div style={{ display:'grid', gridTemplateColumns:'130px 1fr 90px 110px 110px 80px', padding:'10px 20px', gap:12, background:C.pageBg, borderBottom:`1px solid ${C.border}` }}>
                   {['Order #','Customer','Total','Status','Date','Action'].map(h => (
                     <span key={h} style={{ fontSize:10, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -536,21 +537,21 @@ export default function AdminDashboard() {
                   <div key={o.id} style={{
                     display:'grid', gridTemplateColumns:'130px 1fr 90px 110px 110px 80px',
                     padding:'13px 20px', gap:12, alignItems:'center',
-                    borderBottom: i < filteredOrders.length-1 ? `1px solid ${C.bg}` : 'none',
+                    borderBottom: i < filteredOrders.length-1 ? `1px solid ${C.pageBg}` : 'none',
                     transition:'background 0.12s',
                     animation:'fadeUp 0.4s ease both', animationDelay:`${i*35}ms`,
                   }}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.pageBg}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                   >
-                    <button onClick={() => navigate(`/orders/${o.id}`)} style={{ background:'none', border:'none', fontSize:12, fontWeight:700, color:C.blue, cursor:'pointer', fontFamily:'inherit', textAlign:'left', padding:0 }}>
+                    <button onClick={() => navigate(`/orders/${o.id}`)} style={{ background:'none', border:'none', fontSize:12, fontWeight:700, color:C.primary, cursor:'pointer', fontFamily:'inherit', textAlign:'left', padding:0 }}>
                       {o.order_number}
                     </button>
                     <div>
-                      <p style={{ fontSize:13, fontWeight:600, color:C.accent }}>{o.customer_name || '—'}</p>
+                      <p style={{ fontSize:13, fontWeight:600, color:C.dark }}>{o.customer_name || '—'}</p>
                       <p style={{ fontSize:11, color:C.light }}>{o.customer_email || ''}</p>
                     </div>
-                    <span style={{ fontSize:13, fontWeight:700, color:C.accent }}>₱{parseFloat(o.total_amount||0).toFixed(2)}</span>
+                    <span style={{ fontSize:13, fontWeight:700, color:C.dark }}>₱{parseFloat(o.total_amount||0).toFixed(2)}</span>
                     <StatusPill status={o.status} />
                     <span style={{ fontSize:11, color:C.light }}>{new Date(o.created_at).toLocaleDateString()}</span>
                     {/* Admin-only: delete button */}
@@ -569,8 +570,8 @@ export default function AdminDashboard() {
           {/* ── USERS TAB — Admin exclusive ── */}
           {tab === 'users' && (
             <div style={{ animation:'fadeUp 0.35s ease both' }}>
-              <div style={{ background:C.blueBg, border:`1px solid #bfdbfe`, borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:8, fontSize:13, color:C.blue2, fontWeight:600 }}>
-                <Icon d={Icons.shield} size={16} color={C.blue} />
+              <div style={{ background:C.primaryBg, border:`1px solid #bfdbfe`, borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:8, fontSize:13, color:C.primary2, fontWeight:600 }}>
+                <Icon d={Icons.shield} size={16} color={C.primary} />
                 Admin exclusive: You can change user roles to control what they can access.
               </div>
 
@@ -578,8 +579,8 @@ export default function AdminDashboard() {
                 {['', 'customer', 'owner', 'admin'].map(r => (
                   <button key={r||'all'} onClick={() => setRoleFilter(r)} style={{
                     padding:'6px 14px', borderRadius:20, border:`1px solid ${roleFilter===r ? 'transparent' : C.border}`,
-                    background: roleFilter===r ? C.accent2 : C.white,
-                    color: roleFilter===r ? C.white : C.muted,
+                    background: roleFilter===r ? C.dark2 : C.white,
+                    color: roleFilter===r ? C.white : C.mid,
                     fontWeight:700, fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s',
                   }}>
                     {r ? ROLE_META[r].label : 'All Users'}
@@ -591,7 +592,7 @@ export default function AdminDashboard() {
               </div>
 
               <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 100px', padding:'10px 20px', gap:12, background:C.bg, borderBottom:`1px solid ${C.border}` }}>
+                <div style={{ display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 100px', padding:'10px 20px', gap:12, background:C.pageBg, borderBottom:`1px solid ${C.border}` }}>
                   {['ID','Username','Email','Role','Joined','Action'].map(h => (
                     <span key={h} style={{ fontSize:10, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -602,29 +603,29 @@ export default function AdminDashboard() {
                   <div key={u.id} style={{
                     display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 100px',
                     padding:'13px 20px', gap:12, alignItems:'center',
-                    borderBottom: i < filteredUsers.length-1 ? `1px solid ${C.bg}` : 'none',
+                    borderBottom: i < filteredUsers.length-1 ? `1px solid ${C.pageBg}` : 'none',
                     transition:'background 0.12s',
                     animation:'fadeUp 0.4s ease both', animationDelay:`${i*35}ms`,
                   }}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.pageBg}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                   >
                     <span style={{ fontSize:11, color:C.light }}>#{u.id}</span>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <div style={{ width:28, height:28, borderRadius:8, background:ROLE_META[u.role]?.bg || C.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:ROLE_META[u.role]?.color || C.muted }}>
+                      <div style={{ width:28, height:28, borderRadius:8, background:ROLE_META[u.role]?.bg || C.pageBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:ROLE_META[u.role]?.color || C.mid }}>
                         {u.username?.charAt(0)?.toUpperCase()}
                       </div>
-                      <span style={{ fontSize:13, fontWeight:600, color:C.accent }}>{u.username}</span>
+                      <span style={{ fontSize:13, fontWeight:600, color:C.dark }}>{u.username}</span>
                       {u.id === user?.id && <span style={{ fontSize:10, fontWeight:700, padding:'1px 7px', borderRadius:20, background:C.greenBg, color:C.green }}>You</span>}
                     </div>
-                    <span style={{ fontSize:12, color:C.muted, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.email || '—'}</span>
+                    <span style={{ fontSize:12, color:C.mid, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.email || '—'}</span>
                     <RolePill role={u.role} />
                     <span style={{ fontSize:11, color:C.light }}>{new Date(u.date_joined || Date.now()).toLocaleDateString()}</span>
                     {/* Admin-only: change role */}
                     {u.id !== user?.id ? (
-                      <button onClick={() => setRoleModal(u)} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600, fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s' }}
-                        onMouseEnter={e=>{e.currentTarget.style.borderColor=C.blue; e.currentTarget.style.color=C.blue; e.currentTarget.style.background=C.blueBg}}
-                        onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.muted; e.currentTarget.style.background=C.white}}>
+                      <button onClick={() => setRoleModal(u)} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600, fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s' }}
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor=C.primary; e.currentTarget.style.color=C.primary; e.currentTarget.style.background=C.primaryBg}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.mid; e.currentTarget.style.background=C.white}}>
                         <Icon d={Icons.edit} size={12} color="currentColor" />
                         Role
                       </button>
@@ -641,7 +642,7 @@ export default function AdminDashboard() {
           {tab === 'customers' && (
             <div style={{ animation:'fadeUp 0.35s ease both' }}>
               <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 120px 130px 100px', padding:'10px 20px', gap:12, background:C.bg, borderBottom:`1px solid ${C.border}` }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 120px 130px 100px', padding:'10px 20px', gap:12, background:C.pageBg, borderBottom:`1px solid ${C.border}` }}>
                   {['Name','Email','Phone','Orders','Joined'].map(h => (
                     <span key={h} style={{ fontSize:10, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -652,23 +653,23 @@ export default function AdminDashboard() {
                   <div key={c.id} style={{
                     display:'grid', gridTemplateColumns:'1fr 1fr 120px 130px 100px',
                     padding:'13px 20px', gap:12, alignItems:'center',
-                    borderBottom: i < customers.length-1 ? `1px solid ${C.bg}` : 'none',
+                    borderBottom: i < customers.length-1 ? `1px solid ${C.pageBg}` : 'none',
                     transition:'background 0.12s',
                     animation:'fadeUp 0.4s ease both', animationDelay:`${i*35}ms`,
                   }}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.pageBg}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                   >
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <div style={{ width:28, height:28, borderRadius:8, background:C.blueBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:C.blue }}>
+                      <div style={{ width:28, height:28, borderRadius:8, background:C.primaryBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:C.primary }}>
                         {c.name?.charAt(0)?.toUpperCase()}
                       </div>
-                      <span style={{ fontSize:13, fontWeight:600, color:C.accent }}>{c.name}</span>
+                      <span style={{ fontSize:13, fontWeight:600, color:C.dark }}>{c.name}</span>
                     </div>
-                    <span style={{ fontSize:12, color:C.muted, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.email}</span>
-                    <span style={{ fontSize:12, color:C.muted }}>{c.phone || '—'}</span>
-                    <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:C.blue }}>
-                      <Icon d={Icons.orders} size={12} color={C.blue} /> {c.order_count} order{c.order_count !== 1 ? 's' : ''}
+                    <span style={{ fontSize:12, color:C.mid, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.email}</span>
+                    <span style={{ fontSize:12, color:C.mid }}>{c.phone || '—'}</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, fontWeight:700, color:C.primary }}>
+                      <Icon d={Icons.orders} size={12} color={C.primary} /> {c.order_count} order{c.order_count !== 1 ? 's' : ''}
                     </span>
                     <span style={{ fontSize:11, color:C.light }}>{new Date(c.created_at).toLocaleDateString()}</span>
                   </div>
@@ -680,13 +681,13 @@ export default function AdminDashboard() {
           {/* ── APPLICATIONS TAB ── */}
           {tab === 'applications' && (
             <div style={{ animation:'fadeUp 0.35s ease both' }}>
-              <div style={{ background:C.amberBg, border:`1px solid #fcd34d`, borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:8, fontSize:13, color:C.amber.replace('f59e0b', '92400e'), fontWeight:600 }}>
-                <Icon d={Icons.applications} size={16} color={C.amber} />
+              <div style={{ background:C.warnBg, border:`1px solid #fcd34d`, borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:8, fontSize:13, color:C.warn.replace('f59e0b', '92400e'), fontWeight:600 }}>
+                <Icon d={Icons.applications} size={16} color={C.warn} />
                 Review owner applications from customers who want to become owners.
               </div>
 
               <div style={{ background:C.white, borderRadius:16, border:`1px solid ${C.border}`, overflow:'hidden', boxShadow:'0 1px 8px rgba(0,0,0,0.04)' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 120px', padding:'10px 20px', gap:12, background:C.bg, borderBottom:`1px solid ${C.border}` }}>
+                <div style={{ display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 120px', padding:'10px 20px', gap:12, background:C.pageBg, borderBottom:`1px solid ${C.border}` }}>
                   {['ID','Business','User','Status','Applied','Action'].map(h => (
                     <span key={h} style={{ fontSize:10, fontWeight:700, color:C.light, textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -697,28 +698,28 @@ export default function AdminDashboard() {
                   <div key={app.id} style={{
                     display:'grid', gridTemplateColumns:'50px 1fr 1fr 120px 130px 120px',
                     padding:'13px 20px', gap:12, alignItems:'center',
-                    borderBottom: i < applications.length-1 ? `1px solid ${C.bg}` : 'none',
+                    borderBottom: i < applications.length-1 ? `1px solid ${C.pageBg}` : 'none',
                     transition:'background 0.12s',
                     animation:'fadeUp 0.4s ease both', animationDelay:`${i*35}ms`,
                   }}
-                    onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.pageBg}
                     onMouseLeave={e=>e.currentTarget.style.background='transparent'}
                   >
                     <span style={{ fontSize:11, color:C.light }}>#{app.id}</span>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <div style={{ width:28, height:28, borderRadius:8, background:C.amberBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:C.amber }}>
+                      <div style={{ width:28, height:28, borderRadius:8, background:C.warnBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:C.warn }}>
                         {app.business_name?.charAt(0)?.toUpperCase()}
                       </div>
                       <div>
-                        <div style={{ fontSize:13, fontWeight:600, color:C.accent }}>{app.business_name}</div>
-                        <div style={{ fontSize:11, color:C.muted, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{app.business_description}</div>
+                        <div style={{ fontSize:13, fontWeight:600, color:C.dark }}>{app.business_name}</div>
+                        <div style={{ fontSize:11, color:C.mid, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{app.business_description}</div>
                       </div>
                     </div>
-                    <span style={{ fontSize:12, color:C.muted }}>{app.user}</span>
+                    <span style={{ fontSize:12, color:C.mid }}>{app.user}</span>
                     <div style={{
                       padding:'4px 8px', borderRadius:12, fontSize:10, fontWeight:700, textAlign:'center',
-                      background: app.status === 'approved' ? C.greenBg : app.status === 'rejected' ? C.redBg : C.amberBg,
-                      color: app.status === 'approved' ? C.green : app.status === 'rejected' ? C.red : C.amber,
+                      background: app.status === 'approved' ? C.greenBg : app.status === 'rejected' ? C.redBg : C.warnBg,
+                      color: app.status === 'approved' ? C.green : app.status === 'rejected' ? C.red : C.warn,
                     }}>
                       {app.status}
                     </div>
@@ -726,11 +727,11 @@ export default function AdminDashboard() {
                     {app.status === 'pending' ? (
                       <button onClick={() => setApplicationModal(app)} style={{
                         display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8,
-                        border:`1px solid ${C.border}`, background:C.white, color:C.muted, fontWeight:600,
+                        border:`1px solid ${C.border}`, background:C.white, color:C.mid, fontWeight:600,
                         fontSize:12, cursor:'pointer', fontFamily:'inherit', transition:'all 0.15s'
                       }}
-                        onMouseEnter={e=>{e.currentTarget.style.borderColor=C.amber; e.currentTarget.style.color=C.amber; e.currentTarget.style.background=C.amberBg}}
-                        onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.muted; e.currentTarget.style.background=C.white}}>
+                        onMouseEnter={e=>{e.currentTarget.style.borderColor=C.warn; e.currentTarget.style.color=C.warn; e.currentTarget.style.background=C.warnBg}}
+                        onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border; e.currentTarget.style.color=C.mid; e.currentTarget.style.background=C.white}}>
                         <Icon d={Icons.edit} size={12} color="currentColor" />
                         Review
                       </button>

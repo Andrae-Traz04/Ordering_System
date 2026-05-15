@@ -2,6 +2,23 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { fetchCustomers } from '@/api/ordersApi'
 
+const C = {
+  primary: '#7C3AED',
+  primary2: '#9B6DFF',
+  dark: '#2D1F6E',
+  mid: '#9B8FC0',
+  light: '#C4B8E8',
+  white: '#fff',
+  border: '#F0EBFF',
+  pageBg: '#FAF8FF',
+  success: '#10B981',
+  successBg: '#ECFDF5',
+  warn: '#F59E0B',
+  warnBg: '#FFFBEB',
+  red: '#ef4444',
+  redBg: '#fef2f2',
+}
+
 export default function Customers() {
   const { user } = useAuth()
   const [customers, setCustomers] = useState([])
@@ -39,19 +56,19 @@ export default function Customers() {
                 <tbody>
                   {customers.map(c => (
                     <tr key={c.id}>
-                      <td style={{ fontWeight: 600 }}>{c.name}</td>
-                      <td style={{ color: '#7c7ca0' }}>{c.email}</td>
-                      <td style={{ color: '#7c7ca0' }}>{c.phone || '—'}</td>
+                      <td style={{ fontWeight: 600, color: C.dark }}>{c.name}</td>
+                      <td style={{ color: C.mid }}>{c.email}</td>
+                      <td style={{ color: C.mid }}>{c.phone || '—'}</td>
                       <td>
                         <span style={{
-                          background: '#ede9fe', color: '#7c3aed',
+                          background: C.softBg, color: C.primary,
                           padding: '2px 8px', borderRadius: 12,
                           fontSize: 12, fontWeight: 600
                         }}>
                           {c.order_count}
                         </span>
                       </td>
-                      <td style={{ fontSize: 12, color: '#aaa' }}>
+                      <td style={{ fontSize: 12, color: C.mid }}>
                         {new Date(c.created_at).toLocaleDateString()}
                       </td>
                     </tr>

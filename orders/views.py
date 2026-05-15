@@ -966,11 +966,11 @@ class OwnerApplicationReviewView(APIView):
             if application.status == 'approved':
                 try:
                     profile = application.user.profile
-                    profile.role = 'admin'
+                    profile.role = 'owner'
                     profile.save()
                 except UserProfile.DoesNotExist:
                     # Create profile if it doesn't exist
-                    UserProfile.objects.create(user=application.user, role='admin')
+                    UserProfile.objects.create(user=application.user, role='owner')
 
             return Response({
                 'message': f'Application {application.status}.',
