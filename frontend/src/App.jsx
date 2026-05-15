@@ -92,10 +92,10 @@ export default function App() {
            <PrivateRoute roles={['admin']}><Users /></PrivateRoute>
          } />
 
-         {/* Products - Admin only */}
-         <Route path="products" element={
-           <PrivateRoute roles={['admin']}><ProductsPage /></PrivateRoute>
-         } />
+          {/* Products - Admin and Owner only */}
+          <Route path="products" element={
+            <PrivateRoute roles={['admin', 'owner']}><ProductsPage /></PrivateRoute>
+          } />
 
         {/* Profile - all authenticated users */}
         <Route path="profile" element={

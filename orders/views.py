@@ -46,7 +46,7 @@ def is_admin(user):
 
 def is_staff(user):
     """Admins and staff-level users who can manage orders and products."""
-    return get_role(user) in ['admin']
+    return get_role(user) in ['admin', 'owner']
 
 
 # ─────────────────────────────────────────────
@@ -507,10 +507,10 @@ class ProductListCreateView(APIView):
         return Response({'products': ProductSerializer(products, many=True).data})
 
     def post(self, request):
-        """Create product - admins only."""
+        """Create product - admins and owners only."""
         if not is_staff(request.user):
             return Response(
-                {'detail': 'Only admins can create products.'},
+                {'detail': 'Only admins and owners can create products.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         serializer = ProductCreateSerializer(data=request.data)
