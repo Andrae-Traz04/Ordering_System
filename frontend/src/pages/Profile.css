@@ -15,6 +15,11 @@
   gap: 1rem;
 }
 
+.profile-header.mobile {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .profile-title-wrap {
   display: flex;
   align-items: center;
@@ -90,6 +95,10 @@
   gap: 1rem;
 }
 
+.profile-actions.mobile {
+  flex-direction: column;
+}
+
 .btn {
   padding: 0.75rem 1.5rem;
   border: none;
@@ -115,4 +124,40 @@
 
 .btn-secondary:hover {
   background-color: #cbd5e0;
+}
+
+/* Mobile Styles */
+@media (max-width: 767px) {
+  .profile-page {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-form .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .profile-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 1.3rem;
+  }
+
+  .profile-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+  }
+
+  .profile-actions .btn {
+    width: 100%;
+  }
 }

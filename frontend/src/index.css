@@ -1087,3 +1087,36 @@ td.total {
   }
   
 }
+
+/* Mobile Styles */
+@media (max-width: 767px) {
+  .notification-dropdown {
+    width: 300px;
+    max-width: 90vw;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+  
+  .stat-card {
+    padding: 16px 12px !important;
+  }
+  
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .table-header {
+    padding: 14px 16px !important;
+  }
+  
+  .table-title {
+    font-size: 14px !important;
+  }
+}

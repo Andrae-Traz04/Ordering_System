@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import NotificationBell from '@/components/NotificationBell'
 import ChatbotWidget from '@/components/ChatbotWidget'
+import { useState } from 'react'
 import {
   IconDashboard,
   IconOrders,
@@ -14,46 +15,51 @@ import {
   IconWorkflowProcessing,
   IconWorkflowShipped,
   IconWorkflowCompleted,
+  IconMenu,
+  IconClose,
 } from '@/components/IconLibrary'
 
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
 
-// ── Role-based navigation ──
-  const roleNavItems = {
-      user: [
-        { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
-        { to: '/orders',    icon: IconOrders,    label: 'Orders'    },
-        { to: '/profile',   icon: IconProfile,   label: 'Profile'   },
-      ],
-      owner: [
-        { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
-        { to: '/orders',    icon: IconOrders,    label: 'Orders'    },
-        { to: '/profile',   icon: IconProfile,   label: 'Profile'   },
-      ],
-      admin: [
-        { to: '/dashboard', icon: IconDashboard, label: 'Analytics'  },
-        { to: '/orders',    icon: IconOrders,    label: 'Orders'     },
-        { to: '/customers', icon: IconCustomers, label: 'Customers'  },
-        { to: '/users',     icon: IconUsers,     label: 'Users'      },
-        { to: '/products',  icon: IconProducts,  label: 'Products'   },
-        { to: '/profile',   icon: IconProfile,   label: 'Profile'    },
-      ],
-    }
+  const closeMobileMenu = () => setMobileOpen(false)
 
-   const navItems = roleNavItems[user?.role] || roleNavItems.user
+  // ── Role-based navigation ──
+  const roleNavItems = {
+    user: [
+      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/profile', icon: IconProfile, label: 'Profile' },
+    ],
+    owner: [
+      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/profile', icon: IconProfile, label: 'Profile' },
+    ],
+    admin: [
+      { to: '/dashboard', icon: IconDashboard, label: 'Analytics' },
+      { to: '/orders', icon: IconOrders, label: 'Orders' },
+      { to: '/customers', icon: IconCustomers, label: 'Customers' },
+      { to: '/users', icon: IconUsers, label: 'Users' },
+      { to: '/products', icon: IconProducts, label: 'Products' },
+      { to: '/profile', icon: IconProfile, label: 'Profile' },
+    ],
+  }
+
+  const navItems = roleNavItems[user?.role] || roleNavItems.user
 
   const WORKFLOW = [
-    { label: 'Pending',    color: '#F59E0B', icon: IconWorkflowPending    },
+    { label: 'Pending', color: '#F59E0B', icon: IconWorkflowPending },
     { label: 'Processing', color: '#6C47FF', icon: IconWorkflowProcessing },
-    { label: 'Shipped',    color: '#9B6DFF', icon: IconWorkflowShipped    },
-    { label: 'Completed',  color: '#10B981', icon: IconWorkflowCompleted  },
+    { label: 'Shipped', color: '#9B6DFF', icon: IconWorkflowShipped },
+    { label: 'Completed', color: '#10B981', icon: IconWorkflowCompleted },
   ]
 
   return (
@@ -199,8 +205,8 @@ export default function Layout() {
         }
 
         .amu-role-customer { color: #3B82F6; }
-        .amu-role-owner    { color: #EA580C; }
-        .amu-role-admin    { color: #10B981; }
+        .amu-role-owner { color: #EA580C; }
+        .amu-role-admin { color: #10B981; }
 
         /* ── Workflow legend ─────────────────────── */
         .amu-workflow {
@@ -359,16 +365,111 @@ export default function Layout() {
           overflow-y: auto;
         }
 
+        /* ── Mobile Menu Button ─────────────────── */
+        .amu-mobile-menu-btn {
+          display: none;
+          background: none;
+          border: none;
+          color: #2D1F6E;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 8px;
+          transition: background 0.15s;
+        }
+
+        .amu-mobile-menu-btn:hover {
+          background: #F7F4FF;
+        }
+
+        /* ── Mobile Drawer Overlay ───────────────── */
+        .amu-drawer-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(45, 31, 110, 0.5);
+          z-index: 99;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.2s;
+        }
+
+        .amu-drawer-overlay.open {
+          display: block;
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        /* ── Mobile Drawer ───────────────────────── */
+        .amu-drawer {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 280px;
+          height: 100vh;
+          background: #fff;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+          z-index: 100;
+          display: flex;
+          flex-direction: column;
+          overflow-y: auto;
+        }
+
+        .amu-drawer.open {
+          transform: translateX(0);
+        }
+
+        .amu-drawer-header {
+          padding: 20px;
+          border-bottom: 1.5px solid #F7F4FF;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .amu-drawer-close {
+          background: none;
+          border: none;
+          color: #9B8FC0;
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 6px;
+          transition: background 0.15s;
+        }
+
+        .amu-drawer-close:hover {
+          background: #F7F4FF;
+        }
+
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #F3EEFF; }
         ::-webkit-scrollbar-thumb { background: #C4A8FF; border-radius: 4px; }
+
+        /* ── Mobile Styles ───────────────────────── */
+        @media (max-width: 767px) {
+          .amu-sidebar {
+            display: none;
+          }
+
+          .amu-mobile-menu-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .amu-topbar {
+            padding: 0 16px;
+          }
+
+          .amu-content {
+            padding: 16px;
+          }
+        }
       `}</style>
 
       <div className="amu-layout">
-
-        {/* ── Sidebar ── */}
+        {/* Desktop Sidebar */}
         <aside className="amu-sidebar">
-
           {/* Brand */}
           <div className="amu-brand">
             <div className="amu-brand-icon">✨</div>
@@ -405,7 +506,7 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* Workflow legend */}
+          {/* Workflow legend - hidden on mobile */}
           <div className="amu-workflow">
             <div className="amu-workflow-title">Workflow</div>
             {WORKFLOW.map((item, i) => {
@@ -431,23 +532,78 @@ export default function Layout() {
             </div>
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div className="amu-username">{user?.username || 'User'}</div>
-<div className={`amu-role amu-role-${user?.role || 'user'}`}>
-               {user?.role || 'user'}
+              <div className={`amu-role amu-role-${user?.role || 'user'}`}>
+                {user?.role || 'user'}
               </div>
             </div>
             <button className="amu-logout-btn" onClick={handleLogout} title="Logout">
               <IconLogout size={18} />
             </button>
           </div>
-
         </aside>
+
+        {/* Mobile Drawer */}
+        <div className={`amu-drawer-overlay ${mobileOpen ? 'open' : ''}`} onClick={closeMobileMenu}>
+          <aside className={`amu-drawer ${mobileOpen ? 'open' : ''}`} onClick={e => e.stopPropagation()}>
+            <div className="amu-drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="amu-brand-icon" style={{ width: 32, height: 32, fontSize: 16 }}>✨</div>
+                <div>
+                  <div className="amu-brand-name" style={{ fontSize: 14 }}>Ordering</div>
+                  <div className="amu-brand-sub">System</div>
+                </div>
+              </div>
+              <button className="amu-drawer-close" onClick={closeMobileMenu}>
+                <IconClose size={20} />
+              </button>
+            </div>
+
+            <nav className="amu-nav" style={{ padding: '14px 12px' }}>
+              {navItems.map(item => {
+                const IconComponent = item.icon
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) => `amu-nav-item${isActive ? ' active' : ''}`}
+                    onClick={closeMobileMenu}
+                  >
+                    <span className="amu-nav-icon">
+                      <IconComponent size={18} color="currentColor" />
+                    </span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                )
+              })}
+            </nav>
+
+            <div className="amu-user" style={{ margin: '12px' }}>
+              <div className="amu-avatar">
+                {user?.username?.[0]?.toUpperCase() || 'U'}
+              </div>
+              <div style={{ overflow: 'hidden', flex: 1 }}>
+                <div className="amu-username">{user?.username || 'User'}</div>
+                <div className={`amu-role amu-role-${user?.role || 'user'}`}>
+                  {user?.role || 'user'}
+                </div>
+              </div>
+              <button className="amu-logout-btn" onClick={handleLogout} title="Logout">
+                <IconLogout size={18} />
+              </button>
+            </div>
+          </aside>
+        </div>
 
         {/* ── Main ── */}
         <div className="amu-main">
-
           {/* Topbar */}
           <div className="amu-topbar">
-            <span className="amu-topbar-title">Order Processing System</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button className="amu-mobile-menu-btn" onClick={() => setMobileOpen(true)}>
+                <IconMenu size={24} />
+              </button>
+              <span className="amu-topbar-title">Order Processing System</span>
+            </div>
             <div className="amu-topbar-actions">
               <NotificationBell />
             </div>
@@ -457,9 +613,7 @@ export default function Layout() {
           <div className="amu-content">
             <Outlet />
           </div>
-
         </div>
-
       </div>
 
       {/* Chatbot Widget — renders on every page */}

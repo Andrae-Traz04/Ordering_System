@@ -177,6 +177,14 @@ export default function Dashboard() {
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState('')
   const [filter,        setFilter]        = useState('All')
+  const [isMobile,      setIsMobile]      = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const load = useCallback(async () => {
     if (!user) return
@@ -211,6 +219,10 @@ export default function Dashboard() {
           from { opacity: 0; transform: translateY(14px); }
           to   { opacity: 1; transform: translateY(0);    }
         }
+        @media (max-width: 767px) {
+          .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .stat-card { padding: 16px 12px !important; }
+        }
       `}</style>
 
       {/* Header */}
@@ -244,16 +256,16 @@ export default function Dashboard() {
       ) : (
         <>
           {/* Stats */}
-          {summary && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 20 }}>
-              <StatCard label="Total Orders"  value={summary.total_orders}            icon="📦" delay={0}   accentBg="#EDE9FE" />
-              <StatCard label="Pending"       value={summary.by_status?.pending || 0}  icon="⏳" delay={80}  accentBg="#FFFBEB" />
-              <StatCard label="Processing"    value={summary.by_status?.processing || 0} icon="⚙️" delay={160} accentBg="#EDEAFF" />
-              <StatCard label="Shipped"       value={summary.by_status?.shipped || 0}  icon="🚚" delay={240} accentBg="#F3EEFF" />
-              <StatCard label="Completed"     value={summary.by_status?.completed || 0} icon="✅" delay={320} accentBg="#ECFDF5" />
-              <StatCard label="Revenue (₱)"  value={Math.floor(parseFloat(summary.total_revenue || 0))} icon="💰" delay={400} accentBg="#FEF3C7" />
-            </div>
-          )}
+{summary && (
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+               <StatCard label="Total Orders"  value={summary.total_orders}            icon="📦" delay={0}   accentBg="#EDE9FE" />
+               <StatCard label="Pending"       value={summary.by_status?.pending || 0}  icon="⏳" delay={80}  accentBg="#FFFBEB" />
+               <StatCard label="Processing"    value={summary.by_status?.processing || 0} icon="⚙️" delay={160} accentBg="#EDEAFF" />
+               <StatCard label="Shipped"       value={summary.by_status?.shipped || 0}  icon="🚚" delay={240} accentBg="#F3EEFF" />
+               <StatCard label="Completed"     value={summary.by_status?.completed || 0} icon="✅" delay={320} accentBg="#ECFDF5" />
+               <StatCard label="Revenue (₱)"  value={Math.floor(parseFloat(summary.total_revenue || 0))} icon="💰" delay={400} accentBg="#FEF3C7" />
+             </div>
+           )}
 
           {/* Pipeline */}
           <div style={{
@@ -326,12 +338,14 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Column headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 170px 110px 120px', padding: '10px 22px', gap: 12, background: '#FAF8FF', borderBottom: '1.5px solid #F0EBFF' }}>
-              {['Order #', 'Customer', 'Total', 'Workflow', 'Status', 'Action'].map(h => (
-                <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#C4B8E8', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</span>
-              ))}
-            </div>
+            {/* Column headers - hidden on mobile */}
+            {!isMobile && (
+              <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 90px 170px 110px 120px', padding: '10px 22px', gap: 12, background: '#FAF8FF', borderBottom: '1.5px solid #F0EBFF' }}>
+                {['Order #', 'Customer', 'Total', 'Workflow', 'Status', 'Action'].map(h => (
+                  <span key={h} style={{ fontSize: 10, fontWeight: 700, color: '#C4B8E8', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</span>
+                ))}
+              </div>
+            )}
 
             {/* Rows */}
             {filtered.length === 0 ? (
@@ -346,9 +360,28 @@ export default function Dashboard() {
               </div>
             ) : (
               filtered.map((o, i) => (
-                <div key={o.id}
-                  onClick={() => navigate(`/orders/${o.id}`)}
-                  style={{
+                isMobile ? (
+                  <div key={o.id} onClick={() => navigate(`/orders/${o.id}`)} style={{
+                    padding: '16px', borderBottom: i < filtered.length - 1 ? '1.5px solid #FAF8FF' : 'none',
+                    cursor: 'pointer', animation: 'dashFadeUp 0.4s ease both',
+                    animationDelay: `${i * 45 + 430}ms`,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#9B6DFF' }}>{o.order_number}</span>
+                      <StatusPill status={o.status} />
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#2D1F6E', marginBottom: 4 }}>
+                      {o.customer_name || '—'}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#2D1F6E' }}>
+                        ₱{parseFloat(o.total_amount || 0).toLocaleString()}
+                      </span>
+                      <AdvanceButton order={o} onAdvanced={load} />
+                    </div>
+                  </div>
+                ) : (
+                  <div key={o.id} onClick={() => navigate(`/orders/${o.id}`)} style={{
                     display: 'grid', gridTemplateColumns: '110px 1fr 90px 170px 110px 120px',
                     padding: '13px 22px', gap: 12,
                     borderBottom: i < filtered.length - 1 ? '1.5px solid #FAF8FF' : 'none',
@@ -356,25 +389,22 @@ export default function Dashboard() {
                     animation: 'dashFadeUp 0.4s ease both',
                     animationDelay: `${i * 45 + 430}ms`,
                     transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#FAF8FF'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#9B6DFF' }}>{o.order_number}</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#2D1F6E' }}>
-                      {o.customer_name || '—'}
+                  }} onMouseEnter={e => e.currentTarget.style.background = '#FAF8FF'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#9B6DFF' }}>{o.order_number}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#2D1F6E' }}>
+                        {o.customer_name || '—'}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#C4B8E8', marginTop: 1 }}>{timeAgo(o.created_at)}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#C4B8E8', marginTop: 1 }}>{timeAgo(o.created_at)}</div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#2D1F6E' }}>
+                      ₱{parseFloat(o.total_amount || 0).toLocaleString()}
+                    </span>
+                    <WorkflowStepper status={o.status} />
+                    <StatusPill status={o.status} />
+                    <AdvanceButton order={o} onAdvanced={load} />
                   </div>
-                  {/* FIX: backend returns total_amount not total_price */}
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#2D1F6E' }}>
-                    ₱{parseFloat(o.total_amount || 0).toLocaleString()}
-                  </span>
-                  <WorkflowStepper status={o.status} />
-                  <StatusPill status={o.status} />
-                  <AdvanceButton order={o} onAdvanced={load} />
-                </div>
+                )
               ))
             )}
 

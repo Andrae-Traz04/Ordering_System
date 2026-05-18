@@ -428,20 +428,26 @@ export default function ProductsPage() {
                     )}
                   </div>
 
-                  {/* Card body */}
-                  <div style={{ padding: '14px 14px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', flex: 1, marginRight: 6, lineHeight: 1.3 }}>{p.name}</p>
-                      <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.category}</span>
-                    </div>
-                    {p.description && (
-                      <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                        {p.description}
-                      </p>
-                    )}
-                    <p style={{ fontSize: 17, fontWeight: 800, color: '#6C47FF', marginBottom: 12 }}>
-                      ₱{parseFloat(p.price).toFixed(2)}
-                    </p>
+                   {/* Card body */}
+                   <div style={{ padding: '14px 14px 12px' }}>
+                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 3 }}>
+                       <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', flex: 1, marginRight: 6, lineHeight: 1.3 }}>{p.name}</p>
+                       <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.category}</span>
+                     </div>
+                     {p.description && (
+                       <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 8, lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                         {p.description}
+                       </p>
+                     )}
+                     {p.created_by_username && (
+                       <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 4, lineHeight: 1.4 }}>
+                         by{' '}
+                         <span style={{ fontWeight: 600, color: '#111827' }}>{p.created_by_username}</span>
+                       </p>
+                     )}
+                     <p style={{ fontSize: 17, fontWeight: 800, color: '#6C47FF', marginBottom: 12 }}>
+                       ₱{parseFloat(p.price).toFixed(2)}
+                     </p>
 
                     {/* Actions */}
                     <div style={{ display: 'flex', gap: 8 }}>
