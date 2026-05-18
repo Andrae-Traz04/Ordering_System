@@ -38,11 +38,12 @@ export default function Layout() {
       { to: '/orders', icon: IconOrders, label: 'Orders' },
       { to: '/profile', icon: IconProfile, label: 'Profile' },
     ],
-    owner: [
-      { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
-      { to: '/orders', icon: IconOrders, label: 'Orders' },
-      { to: '/profile', icon: IconProfile, label: 'Profile' },
-    ],
+owner: [
+       { to: '/dashboard', icon: IconDashboard, label: 'Dashboard' },
+       { to: '/orders', icon: IconOrders, label: 'Orders' },
+       { to: '/products', icon: IconProducts, label: 'Products' },
+       { to: '/profile', icon: IconProfile, label: 'Profile' },
+     ],
     admin: [
       { to: '/dashboard', icon: IconDashboard, label: 'Analytics' },
       { to: '/orders', icon: IconOrders, label: 'Orders' },

@@ -88,15 +88,20 @@ export default function OwnerDashboard() {
   return (
     <div className="owner-dashboard">
 
-      {/* Header */}
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <div className="dashboard-subtitle">Business Dashboard</div>
-          <h1>{greeting}, {user?.username}! 👋</h1>
-          <p>Manage all orders and track business metrics</p>
-        </div>
-        <button className="refresh-btn" onClick={load}>↻ Refresh</button>
-      </div>
+       {/* Header */}
+       <div className="dashboard-header">
+         <div className="dashboard-title">
+           <div className="dashboard-subtitle">Business Dashboard</div>
+           <h1>{greeting}, {user?.username}! 👋</h1>
+           <p>Manage all orders and track business metrics</p>
+         </div>
+         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+<button className="refresh-btn" onClick={load}>↻ Refresh</button>
+            <button className="refresh-btn" onClick={() => navigate('/products')} style={{ background: 'linear-gradient(135deg, #6C47FF, #9B6DFF)', color: '#fff', border: 'none', fontWeight: 700 }}>
+              Manage Products
+            </button>
+         </div>
+       </div>
 
       {/* Error */}
       {error && <div className="alert alert-error">⚠️ {error}</div>}
