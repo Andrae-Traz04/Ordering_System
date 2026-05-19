@@ -1,6 +1,22 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import Layout from '@/components/Layout'
+import MobileLayout from '@/components/MobileLayout'
+import { useState, useEffect } from 'react'
+
+function ResponsiveLayout({ children }) {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  if (isMobile) return <MobileLayout>{children}</MobileLayout>
+  return <Layout>{children}</Layout>
+}
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ActivationPending from '@/pages/ActivationPending'
@@ -54,14 +70,18 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Auth Routes */}
-      <Route path="/activation-pending" element={<ActivationPending />} />
-      <Route path="/activate/:uid/:token" element={<ActivateAccount />} />
-      <Route path="/login"    element={!authChecked ? null : (!user ? <Login />    : <Navigate to="/profile" replace />)} />
-      <Route path="/register" element={!authChecked ? null : (!user ? <Register /> : <Navigate to="/profile" replace />)} />
+       {/* Auth Routes */}
+       <Route path="/activation-pending" element={<ActivationPending />} />
+       <Route path="/activate/:uid/:token" element={<ActivateAccount />} />
+       <Route path="/login"    element={!authChecked ? null : (!user ? 
+           <ResponsiveLayout><Login /></ResponsiveLayout> 
+           : <Navigate to="/profile" replace />)} />
+       <Route path="/register" element={!authChecked ? null : (!user ? 
+           <ResponsiveLayout><Register /></ResponsiveLayout> 
+           : <Navigate to="/profile" replace />)} />
 
       {/* Protected Routes */}
-      <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+      <Route path="/" element={<PrivateRoute><ResponsiveLayout /></PrivateRoute>}>
         <Route index element={<Navigate to="/profile" replace />} />
 
         {/* Dashboard - role-based */}

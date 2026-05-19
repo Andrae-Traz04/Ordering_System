@@ -1,11 +1,38 @@
 import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
 import { Platform } from 'react-native'
+import Constants from 'expo-constants'
 
-const API_BASE_URL = 'http://10.0.2.2:8000/api'
+const FALLBACK_LAN_HOST = '192.168.254.121:8000'
+
+const resolveApiBaseUrl = () => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()
+  if (envUrl) {
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`
+  }
+
+  if (Platform.OS === 'web') {
+    return '/api'
+  }
+
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri
+  if (hostUri) {
+    const host = hostUri.split(':')[0]
+    return `http://${host}:8000/api`
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:8000/api'
+  }
+
+  return `http://${FALLBACK_LAN_HOST}/api`
+}
+
+const API_BASE_URL = resolveApiBaseUrl()
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 15000,
 })
 
 // Helper function to get token based on platform

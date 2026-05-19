@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from './src/context/AuthContext'
 import LoginScreen from './src/screens/LoginScreen'
 import DashboardScreen from './src/screens/DashboardScreen'
 import { ActivityIndicator, View } from 'react-native'
+import { colors } from './src/theme/design'
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 
 const Stack = createNativeStackNavigator()
 
@@ -13,16 +15,22 @@ function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bgBottom }}>
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     )
   }
 
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.panelDark },
+        headerTintColor: colors.textPrimary,
+        contentStyle: { backgroundColor: colors.bgBottom },
+      }}
+    >
       {user ? (
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
       ) : (
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       )}
@@ -32,11 +40,15 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <NavigationContainer>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </NavigationContainer>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bgBottom }}>
+        <AuthProvider>
+          <NavigationContainer>
+            <AppNavigator />
+            <StatusBar style="light" />
+          </NavigationContainer>
+        </AuthProvider>
+      </SafeAreaView>
+    </SafeAreaProvider>
   )
 }
