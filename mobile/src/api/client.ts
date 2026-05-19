@@ -1,5 +1,6 @@
 import axios from 'axios'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as SecureStore from 'expo-secure-store'
+import { Platform } from 'react-native'
 
 const API_BASE_URL = 'http://10.0.2.2:8000/api'
 
@@ -7,8 +8,34 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
 })
 
+// Helper function to get token based on platform
+const getToken = async () => {
+  if (Platform.OS === 'web') {
+    // For web, use localStorage
+    return localStorage.getItem('access_token')
+  } else {
+    // For native, use SecureStore
+    return await SecureStore.getItemAsync('access_token')
+  }
+}
+
+// Helper function to delete tokens based on platform
+const deleteTokens = async () => {
+  if (Platform.OS === 'web') {
+    // For web, use localStorage
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user')
+  } else {
+    // For native, use SecureStore
+    await SecureStore.deleteItemAsync('access_token')
+    await SecureStore.deleteItemAsync('refresh_token')
+    await SecureStore.deleteItemAsync('user')
+  }
+}
+
 api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('access_token')
+  const token = await getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -19,9 +46,7 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     if (err.response?.status === 401) {
-      await AsyncStorage.removeItem('access_token')
-      await AsyncStorage.removeItem('refresh_token')
-      await AsyncStorage.removeItem('user')
+      await deleteTokens()
     }
     return Promise.reject(err)
   }
@@ -32,6 +57,14 @@ export const activateAccount = (uid: string, token: string) => api.post(`/auth/a
 export const login = (data: any) => api.post('/auth/login/', data)
 export const logout = (refresh: string) => api.post('/auth/logout/', { refresh })
 export const fetchMe = () => api.get('/auth/me/')
+
+// Normalize user data - extract role from profile
+export const normalizeUser = (payload: any) => {
+  const raw = payload?.user ? payload.user : payload
+  const role = raw?.profile?.role || raw?.role || 'user'
+  return { ...raw, role, profile: raw?.profile || null }
+}
+
 export const updateProfile = (data: any) => api.put('/auth/me/', data)
 
 export const fetchProducts = (params = {}) => api.get('/products/', { params })

@@ -9,6 +9,12 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState<boolean>(false)
   const { login } = useAuth()
 
+  const normalizeUserPayload = (payload: any) => {
+    const raw = payload?.user ? payload.user : payload
+    const role = raw?.profile?.role || raw?.role || 'user'
+    return { ...raw, role, profile: raw?.profile || null }
+  }
+
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password')
@@ -18,10 +24,12 @@ export default function LoginScreen() {
     setLoading(true)
     try {
       const res = await apiLogin({ email, password })
-      const { access, refresh, user } = res.data
-      await login(access, refresh, user)
+      const { access, refresh } = res.data
+      const userData = normalizeUserPayload(res.data)
+      await login(access, refresh, userData)
     } catch (error: any) {
-      Alert.alert('Login Failed', error.response?.data?.detail || error.message || 'Invalid credentials')
+      const msg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Invalid credentials'
+      Alert.alert('Login Failed', msg)
     } finally {
       setLoading(false)
     }
