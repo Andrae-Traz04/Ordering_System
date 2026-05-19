@@ -3,7 +3,8 @@ import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { AuthProvider, useAuth } from './src/context/AuthContext'
 import LoginScreen from './src/screens/LoginScreen'
-import DashboardScreen from './src/screens/DashboardScreen'
+import OwnerDashboardScreen from './src/screens/OwnerDashboardScreen'
+import CustomerDashboardScreen from './src/screens/CustomerDashboardScreen'
 import { ActivityIndicator, View } from 'react-native'
 import { colors } from './src/theme/design'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
@@ -21,6 +22,20 @@ function AppNavigator() {
     )
   }
 
+  if (!user) {
+    return (
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.panelDark },
+          headerTintColor: colors.textPrimary,
+          contentStyle: { backgroundColor: colors.bgBottom },
+        }}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+      </Stack.Navigator>
+    )
+  }
+
   return (
     <Stack.Navigator
       screenOptions={{
@@ -29,10 +44,10 @@ function AppNavigator() {
         contentStyle: { backgroundColor: colors.bgBottom },
       }}
     >
-      {user ? (
-        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
+      {user.role === 'owner' || user.role === 'admin' ? (
+        <Stack.Screen name="Dashboard" component={OwnerDashboardScreen} options={{ headerShown: false }} />
       ) : (
-        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Dashboard" component={CustomerDashboardScreen} options={{ headerShown: false }} />
       )}
     </Stack.Navigator>
   )

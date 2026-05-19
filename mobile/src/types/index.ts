@@ -17,12 +17,14 @@ export interface Product {
   category: string
   stock: number
   image?: string
+  quantity?: number
+  emoji?: string
 }
 
 export interface Order {
   id: number
   customer_name: string
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'completed'
   total: number
   created_at: string
   items: OrderItem[]
