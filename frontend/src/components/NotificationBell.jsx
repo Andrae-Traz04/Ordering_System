@@ -44,6 +44,9 @@ export default function NotificationBell() {
   }, [])
 
   const load = useCallback(() => {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+
     fetchNotifications()
       .then(r => {
         if (r.data?.notifications) {
@@ -55,6 +58,8 @@ export default function NotificationBell() {
 
   // Load notifications on mount and window focus
   useEffect(() => {
+    if (!localStorage.getItem('access_token')) return
+
     load()
     
     const onFocus = () => load()
@@ -101,6 +106,8 @@ export default function NotificationBell() {
   }, [updateReadStatus, navigate])
 
   const handleBellClick = useCallback(() => {
+    if (!localStorage.getItem('access_token')) return
+
     setOpen(prev => !prev)
     if (!open) load()
   }, [open, load])

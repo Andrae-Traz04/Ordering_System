@@ -36,9 +36,10 @@ import ApplyForOwner from '@/pages/ApplyForOwner'
 
 function PrivateRoute({ children, roles }) {
   const { user, authChecked } = useAuth()
+  const hasToken = Boolean(localStorage.getItem('access_token'))
   if (!authChecked) return null // Will show loading from App
-  if (!user) return <Navigate to="/login" replace />
-  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
+  if (!user && !hasToken) return <Navigate to="/login" replace />
+  if (user && roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />
   return children
 }
 
@@ -73,11 +74,11 @@ export default function App() {
        {/* Auth Routes */}
        <Route path="/activation-pending" element={<ActivationPending />} />
        <Route path="/activate/:uid/:token" element={<ActivateAccount />} />
-       <Route path="/login"    element={!authChecked ? null : (!user ? 
-           <ResponsiveLayout><Login /></ResponsiveLayout> 
+         <Route path="/login"    element={!authChecked ? null : (!user ? 
+           <Login /> 
            : <Navigate to="/profile" replace />)} />
-       <Route path="/register" element={!authChecked ? null : (!user ? 
-           <ResponsiveLayout><Register /></ResponsiveLayout> 
+         <Route path="/register" element={!authChecked ? null : (!user ? 
+           <Register /> 
            : <Navigate to="/profile" replace />)} />
 
       {/* Protected Routes */}
