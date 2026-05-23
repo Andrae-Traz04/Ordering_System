@@ -36,9 +36,11 @@ export default function LoginScreen() {
     setLoading(true)
     try {
       const res = await apiLogin({ email, password })
-      const { access, refresh } = res.data
-      const userData = normalizeUserPayload(res.data)
+      // Backend returns: { access, refresh, user }
+      const { access, refresh, user: userObj } = res.data
+      const userData = normalizeUserPayload(userObj ? { user: userObj } : res.data)
       await login(access, refresh, userData)
+
     } catch (error: any) {
       const msg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Invalid credentials'
       Alert.alert('Login Failed', msg)
