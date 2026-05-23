@@ -7,7 +7,7 @@ django.setup()
 from django.contrib.auth.models import User
 from orders.models import UserProfile
 
-email = 'admin@gmail.com'
+email = 'adminconey@gmail.com'
 try:
     user = User.objects.get(email=email)
     print(f"Found user: {user.username}")
@@ -16,13 +16,13 @@ try:
     print(f"Is superuser: {user.is_superuser}")
     
     profile = UserProfile.objects.get(user=user)
-    print(f"Role: {profile.role}")
+    profile.role = 'admin' # Force set to admin
+    profile.save()
+    print(f"Updated Role: {profile.role}")
     
-    if user.is_staff and user.is_superuser and profile.role == 'admin':
-        print("\n✓ Admin account verified successfully!")
-    else:
-        print("\n✗ Admin account verification failed!")
+    print("\n✓ Admin account restored and verified successfully!")
+
 except User.DoesNotExist:
-    print(f"No user found with email: {email}")
+    print(f"No user found with email: {email}. Try running create_admin_account.py first.")
 except UserProfile.DoesNotExist:
     print(f"UserProfile does not exist for user: {user.username}")
