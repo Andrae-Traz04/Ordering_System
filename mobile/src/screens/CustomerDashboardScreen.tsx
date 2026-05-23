@@ -10,13 +10,14 @@ import {
   Alert,
   ScrollView,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { fetchProducts, fetchOrders, createOrder, cancelOrder } from '../api/client'
 import { Product, Order } from '../types'
 import { colors, radii, spacing, typeScale } from '../theme/design'
 
 export default function CustomerDashboardScreen() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [tab, setTab] = useState<'shop' | 'orders'>('shop')
   const [products, setProducts] = useState<Product[]>([])
   const [orders, setOrders] = useState<Order[]>([])
@@ -51,11 +52,11 @@ export default function CustomerDashboardScreen() {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
     shipped: orders.filter(o => o.status === 'shipped').length,
-    completed: orders.filter(o => o.status === 'delivered' || o.status === 'completed').length,
+    completed: orders.filter(o => o.status === 'completed').length,
   }
 
   const cartCount = cart.length
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price || 0), 0)
+  const cartTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0) // Fixed cart total calculation
 
   const filteredProducts = products.filter(p =>
     (category === 'All' || p.category === category) &&
@@ -270,12 +271,9 @@ export default function CustomerDashboardScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.welcome}>Hi {user?.first_name || 'there'}!</Text>
-        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.tabRow}>
@@ -307,7 +305,7 @@ export default function CustomerDashboardScreen() {
       <View style={styles.content}>
         {tab === 'shop' ? renderShopTab() : renderOrdersTab()}
       </View>
-    </View>
+    </SafeAreaView>
   )
 }
 
@@ -332,16 +330,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: typeScale.title,
     fontWeight: '700',
-  },
-  logoutBtn: {
-    backgroundColor: colors.panelDark,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
-  },
-  logoutText: {
-    color: colors.textSecondary,
-    fontSize: 12,
   },
   tabRow: {
     flexDirection: 'row',
