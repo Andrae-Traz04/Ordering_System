@@ -5,6 +5,8 @@ export interface User {
   role: 'user' | 'owner' | 'admin';
   first_name?: string;
   last_name?: string;
+  profile_image?: string | null;
+  address?: string | null;
 }
 
 export interface Product {
@@ -15,6 +17,7 @@ export interface Product {
   category: string;
   emoji?: string;
   badge?: string;
+  image?: string;
   is_active: boolean;
   quantity?: number; // Optional for cart management
 }

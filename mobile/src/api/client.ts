@@ -29,9 +29,17 @@ const resolveApiBaseUrl = () => {
 }
 
 const API_BASE_URL = resolveApiBaseUrl()
+const API_ROOT_URL = API_BASE_URL.replace(/\/api(?:\/v1)?$/, '') || '/'
+
+let refreshPromise: Promise<string> | null = null
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 15000,
+})
+
+const refreshApi = axios.create({
+  baseURL: API_ROOT_URL,
   timeout: 15000,
 })
 
@@ -61,6 +69,59 @@ const deleteTokens = async () => {
   }
 }
 
+const getRefreshToken = async () => {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('refresh_token')
+  }
+  return await SecureStore.getItemAsync('refresh_token')
+}
+
+const saveAccessToken = async (token: string) => {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('access_token', token)
+  } else {
+    await SecureStore.setItemAsync('access_token', token)
+  }
+}
+
+const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = await getRefreshToken()
+      if (!refreshToken) {
+        throw new Error('Missing refresh token')
+      }
+
+      const response = await refreshApi.post('/api/token/refresh/', {
+        refresh: refreshToken,
+      })
+
+      const newAccess = response.data?.access
+      if (!newAccess) {
+        throw new Error('Missing access token in refresh response')
+      }
+
+      await saveAccessToken(newAccess)
+      return newAccess
+    })().finally(() => {
+      refreshPromise = null
+    })
+  }
+
+  return refreshPromise
+}
+
+const isAuthEndpoint = (url?: string) => {
+  if (!url) return false
+  return (
+    url.includes('/auth/login/') ||
+    url.includes('/auth/register/') ||
+    url.includes('/auth/logout/') ||
+    url.includes('/auth/me/') ||
+    url.includes('/api/token/refresh/')
+  )
+}
+
 api.interceptors.request.use(async (config) => {
   const token = await getToken()
   if (token) {
@@ -72,6 +133,22 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (res) => res,
   async (err) => {
+    const originalConfig = err.config || {}
+
+    if (err.response?.status === 401 && !originalConfig._retry && !isAuthEndpoint(originalConfig.url)) {
+      originalConfig._retry = true
+
+      try {
+        const newAccess = await refreshAccessToken()
+        originalConfig.headers = originalConfig.headers || {}
+        originalConfig.headers.Authorization = `Bearer ${newAccess}`
+        return api(originalConfig)
+      } catch (refreshErr) {
+        await deleteTokens()
+        return Promise.reject(refreshErr)
+      }
+    }
+
     if (err.response?.status === 401) {
       await deleteTokens()
     }
@@ -87,7 +164,9 @@ export const setAuthToken = (token: string | null) => {
   }
 }
 
-export const register = (data: any) => api.post('/auth/register/', data)
+export const register = (data: any) => {
+  return api.post('/auth/register/', data)
+}
 export const activateAccount = (uid: string, token: string) => api.post(`/auth/activate/${uid}/${token}/`)
 // Auth endpoints in backend are mounted under /api/v1/auth/*
 export const login = (data: any) => api.post('/auth/login/', data)
@@ -103,7 +182,9 @@ export const normalizeUser = (payload: any) => {
   return { ...raw, role, profile: raw?.profile || null }
 }
 
-export const updateProfile = (data: any) => api.put('/auth/me/', data)
+export const updateProfile = (data: any) => {
+  return api.put('/auth/me/', data)
+}
 
 export const fetchProducts = (params = {}) => api.get('/products/', { params })
 export const fetchProduct = (id: number) => api.get(`/products/${id}/`)
@@ -134,3 +215,25 @@ export const reviewOwnerApplication = (id: number, data: any) => api.post(`/owne
 
 export const sendChatMessage = (message: string) => api.post('/chatbot/', { message })
 export const fetchChatbotInfo = () => api.get('/chatbot/info/')
+
+// Upload profile image separately
+export const uploadProfileImage = (formData: FormData) => {
+  return api.put('/auth/me/', formData, {
+    timeout: 30000,
+  })
+}
+
+// Alternative endpoint if the above doesn't work
+export const uploadAvatar = (formData: FormData) => {
+  return api.put('/auth/me/', formData)
+}
+
+// Update profile without image (using regular JSON)
+export const updateProfileData = (data: {
+  first_name?: string
+  last_name?: string
+  email?: string
+  address?: string
+}) => {
+  return api.patch('/users/profile/', data)
+}

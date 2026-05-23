@@ -11,6 +11,7 @@ import {
   ScrollView,
   RefreshControl,
   Modal,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
@@ -161,6 +162,11 @@ export default function CustomerDashboardScreen() {
     return (
       <TouchableOpacity style={styles.productCard} onPress={() => addToCart(item)} activeOpacity={0.8}>
         <View style={styles.productImageContainer}>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.productImage} />
+          ) : (
+            <Text style={styles.productEmoji}>{item.emoji || '📦'}</Text>
+          )}
           {item.badge && (
             <View style={styles.productBadge}>
               <Text style={styles.productBadgeText}>{item.badge}</Text>
@@ -389,11 +395,7 @@ export default function CustomerDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView} 
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-      >
+      <View style={styles.screenBody}>
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -441,7 +443,7 @@ export default function CustomerDashboardScreen() {
           {activeTab === 'cart' && renderCartTab()}
           {activeTab === 'orders' && renderOrdersTab()}
         </View>
-      </ScrollView>
+      </View>
 
       {/* Cart Modal */}
       <Modal visible={showCartModal} animationType="slide" transparent>
@@ -491,7 +493,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgPrimary,
   },
-  scrollView: {
+  screenBody: {
     flex: 1,
   },
   loadingContainer: {
@@ -676,7 +678,19 @@ const styles = StyleSheet.create({
   productImageContainer: {
     position: 'relative',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 132,
+    borderRadius: radii.lg,
+    backgroundColor: colors.bgPrimary,
     marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  productEmoji: {
+    fontSize: 42,
   },
   productBadge: {
     position: 'absolute',

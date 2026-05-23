@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Modal,
   Alert,
+  Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
@@ -166,7 +167,15 @@ export default function OwnerProductsScreen() {
 
   const renderProduct = ({ item }: { item: Product }) => (
     <View style={styles.productCard}>
-      <View style={[styles.productHeader, { justifyContent: 'flex-end' }]}>
+      <View style={styles.productHeader}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={styles.productImage} />
+        ) : (
+          <View style={styles.productEmojiWrap}>
+            <Text style={styles.productEmoji}>{item.emoji || '📦'}</Text>
+          </View>
+        )}
+        <View style={styles.productActionsRow}>
         <View style={styles.productActions}>
           <TouchableOpacity onPress={() => openEditModal(item)} style={styles.editButton}>
             <Text style={styles.editButtonText}>Edit</Text>
@@ -177,6 +186,7 @@ export default function OwnerProductsScreen() {
           }} style={styles.deleteButton}>
             <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>
+        </View>
         </View>
       </View>
       <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
@@ -461,10 +471,33 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   productHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    position: 'relative',
     marginBottom: spacing.sm,
+  },
+  productImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgPrimary,
+  },
+  productEmojiWrap: {
+    width: '100%',
+    height: 120,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productEmoji: {
+    fontSize: 40,
+  },
+  productActionsRow: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   productActions: {
     flexDirection: 'row',

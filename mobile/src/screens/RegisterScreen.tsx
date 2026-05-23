@@ -30,39 +30,36 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
   const [profileUri, setProfileUri] = useState<string | null>(null)
-  const [picking, setPicking] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const avatarLetter = useMemo(() => {
-    const t = (firstName || username || '').trim()
-    return t ? t[0].toUpperCase() : '?'
-  }, [firstName, username])
+  const profileInitials = useMemo(() => {
+    const first = firstName.trim()[0] || ''
+    const last = lastName.trim()[0] || ''
+    const combined = `${first}${last}`.trim()
+    if (combined) return combined.toUpperCase()
+    const usernameInitial = username.trim()[0]
+    return usernameInitial ? usernameInitial.toUpperCase() : 'U'
+  }, [firstName, lastName, username])
 
-  const pickImage = async () => {
-    try {
-      setPicking(true)
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (!perm.granted) {
-        Alert.alert('Permission needed', 'Media library permission is required to upload a profile picture.')
-        return
-      }
+  const pickProfilePhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Photo access is required to add a profile picture.')
+      return
+    }
 
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      })
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    })
 
-      if (res.canceled) return
-      const uri = res.assets?.[0]?.uri
-      if (uri) setProfileUri(uri)
-    } finally {
-      setPicking(false)
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      setProfileUri(result.assets[0].uri)
     }
   }
 
@@ -92,21 +89,23 @@ export default function RegisterScreen() {
       form.append('email', email)
       form.append('username', username)
       form.append('password', password)
+      form.append('confirm_password', confirmPassword)
       form.append('role', 'customer')
 
       if (profileUri) {
         const filename = profileUri.split('/').pop() || 'profile.jpg'
-        const match = /(\.[a-zA-Z0-9]+)$/.exec(filename)
-        const ext = (match?.[1] || '.jpg').replace('.', '')
-        const type = `image/${ext}`
+        const extension = (filename.match(/\.(\w+)$/)?.[1] || 'jpg').toLowerCase()
+        const mimeType = extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg'
+
         form.append('profile_image', {
           uri: profileUri,
           name: filename,
-          type,
+          type: mimeType,
         } as any)
       }
 
       await register(form)
+
       Alert.alert('Success', 'Registration successful! Please login.', [
         { text: 'OK', onPress: () => navigation.navigate('Login') }
       ])
@@ -140,20 +139,35 @@ export default function RegisterScreen() {
           ) : null}
 
           <View style={styles.formContainer}>
-            <View style={styles.avatarSection}>
-              <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+            <View style={styles.photoCard}>
+              <TouchableOpacity style={styles.photoRing} onPress={pickProfilePhoto} activeOpacity={0.86}>
                 {profileUri ? (
-                  <Image source={{ uri: profileUri }} style={styles.avatar} />
+                  <Image source={{ uri: profileUri }} style={styles.photoImage} />
                 ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+                  <View style={styles.photoFallback}>
+                    <Text style={styles.photoFallbackText}>{profileInitials}</Text>
                   </View>
                 )}
-                <View style={styles.cameraIcon}>
-                  <Text style={styles.cameraIconText}>+</Text>
-                </View>
               </TouchableOpacity>
-              <Text style={styles.avatarHint}>Tap to add profile photo</Text>
+
+              <View style={styles.photoCopy}>
+                <Text style={styles.photoTitle}>Optional profile photo</Text>
+                <Text style={styles.photoSubtitle}>
+                  Add a picture now, or skip it and finish your account first.
+                </Text>
+
+                <View style={styles.photoActions}>
+                  <TouchableOpacity style={styles.photoButton} onPress={pickProfilePhoto} activeOpacity={0.88}>
+                    <Text style={styles.photoButtonText}>{profileUri ? 'Change Photo' : 'Choose Photo'}</Text>
+                  </TouchableOpacity>
+
+                  {profileUri ? (
+                    <TouchableOpacity style={styles.photoGhostButton} onPress={() => setProfileUri(null)} activeOpacity={0.88}>
+                      <Text style={styles.photoGhostText}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
             </View>
 
             <View style={styles.row}>
@@ -316,49 +330,84 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     ...shadows.lg,
   },
-  avatarSection: {
-    alignItems: 'center',
+  photoCard: {
+    backgroundColor: colors.bgPrimary,
+    borderRadius: radii.lg,
+    padding: spacing.md,
     marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  avatarContainer: {
-    position: 'relative',
+  photoRing: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: colors.bgCard,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.sm,
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  photoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 38,
   },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  photoFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 38,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLetter: {
-    fontSize: 40,
+  photoFallbackText: {
+    ...typography.heading,
     color: colors.textInverse,
-    fontWeight: 'bold',
   },
-  cameraIcon: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.bgCard,
-    borderRadius: 20,
-    padding: 8,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    ...shadows.sm,
+  photoCopy: {
+    flex: 1,
   },
-  cameraIconText: {
-    fontSize: 16,
+  photoTitle: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
   },
-  avatarHint: {
+  photoSubtitle: {
     ...typography.caption,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
+    color: colors.textSecondary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  photoActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  photoButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+  },
+  photoButtonText: {
+    ...typography.caption,
+    color: colors.textInverse,
+    fontWeight: '700',
+  },
+  photoGhostButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary + '10',
+  },
+  photoGhostText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '700',
   },
   row: {
     flexDirection: 'row',

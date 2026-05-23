@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   login: (accessToken: string, refreshToken: string, userData: User) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -107,6 +108,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await fetchMe();
+      const me = res.data as any;
+      const normalizedMe = normalizeUser(me);
+      await saveToStorage('user', JSON.stringify(normalizedMe));
+      setUser(normalizedMe);
+      setIsAuthenticated(true);
+      return normalizedMe;
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
+      return null;
+    }
+  };
+
   const logout = async () => {
     try {
       await removeFromStorage('access_token');
@@ -121,7 +137,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

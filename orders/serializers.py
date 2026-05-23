@@ -275,23 +275,34 @@ class OwnerApplicationReviewSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     created_by_username = serializers.SerializerMethodField()
     created_by_id = serializers.IntegerField(source='created_by.id', read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model  = Product
         fields = [
             'id', 'name', 'description', 'price', 'category',
-            'emoji', 'badge', 'is_active', 'created_by_id', 'created_by_username', 'created_at',
+            'emoji', 'badge', 'image', 'is_active', 'created_by_id', 'created_by_username', 'created_at',
         ]
         read_only_fields = ['created_by_id', 'created_by_username', 'created_at']
 
     def get_created_by_username(self, obj):
         return obj.created_by.username if obj.created_by else None
 
+    def get_image(self, obj):
+        if not obj.image:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.image.url)
+        return obj.image.url
+
 
 class ProductCreateSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_null=True)
+
     class Meta:
         model  = Product
-        fields = ['name', 'description', 'price', 'category', 'emoji', 'badge', 'is_active']
+        fields = ['name', 'description', 'price', 'category', 'emoji', 'badge', 'image', 'is_active']
         read_only_fields = ['created_by']
 
 
@@ -374,6 +385,7 @@ class OrderSerializer(serializers.ModelSerializer):
     items          = OrderItemSerializer(many=True, read_only=True)
     status_history = StatusHistorySerializer(many=True, read_only=True)
     review         = ReviewSerializer(read_only=True)
+    total          = serializers.SerializerMethodField()
 
     customer_name  = serializers.CharField(source='customer.name',  read_only=True)
     customer_email = serializers.CharField(source='customer.email', read_only=True)
@@ -387,14 +399,14 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Order
         fields = [
-            'id', 'order_number', 'status', 'notes', 'total_amount',
+            'id', 'order_number', 'status', 'notes', 'total_amount', 'total',
             'created_at', 'updated_at',
             'customer_name', 'customer_email', 'customer_phone',
             'created_by_id', 'created_by_username',
             'item_count', 'items', 'status_history', 'review',
         ]
         read_only_fields = [
-            'id', 'order_number', 'status', 'total_amount',
+            'id', 'order_number', 'status', 'total_amount', 'total',
             'created_at', 'updated_at', 'created_by_id', 'created_by_username',
             'customer_name', 'customer_email', 'customer_phone',
             'item_count', 'items', 'status_history', 'review',
@@ -402,6 +414,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_item_count(self, obj):
         return obj.items.count()
+
+    def get_total(self, obj):
+        return obj.total_amount or 0
 
 
 # ─────────────────────────────────────────────

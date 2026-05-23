@@ -6,6 +6,7 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -193,12 +194,19 @@ class AuthorDetailView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user  = serializer.save()
             
+            # Manually update profile fields that might be skipped by RegisterSerializer
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            if 'profile_image' in request.FILES:
+                profile.profile_image = request.FILES['profile_image']
+                profile.save()
+
             # Send activation email
             success, activation_url = send_activation_email(user)
             
@@ -475,6 +483,7 @@ class LogoutView(APIView):
 class MeView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes     = [IsAuthenticated]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
 
     def get(self, request):
         user_serializer = UserSerializer(request.user, context={'request': request})
@@ -483,8 +492,24 @@ class MeView(APIView):
     def put(self, request):
         serializer = UserSerializer(request.user, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            user = serializer.save()
+            
+            # Manually update profile fields that might be skipped by UserSerializer
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile_updated = False
+            
+            if 'address' in request.data:
+                profile.address = request.data['address']
+                profile_updated = True
+                
+            if 'profile_image' in request.FILES:
+                profile.profile_image = request.FILES['profile_image']
+                profile_updated = True
+                
+            if profile_updated:
+                profile.save()
+                
+            return Response(UserSerializer(user, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -840,7 +865,7 @@ class ReviewView(APIView):
 
     def post(self, request, pk):
         """Create a review for a completed order - customers only."""
-        if get_role(request.user) != 'customer':
+        if get_role(request.user) not in ['user', 'customer']:
             return Response(
                 {'detail': 'Only customers can leave reviews.'},
                 status=status.HTTP_403_FORBIDDEN

@@ -22,13 +22,32 @@ const inp = {
 
 function ProductModal({ product, onClose, onSaved }) {
   const isEdit = !!product?.id
+  const emptyForm = { name: '', description: '', price: '', category: 'Others', emoji: '📦', badge: '', is_active: true }
   const [form, setForm] = useState(
-    product || { name: '', description: '', price: '', category: 'Others', emoji: '📦', badge: '', is_active: true }
+    product || emptyForm
   )
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(product?.image || '')
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  useEffect(() => {
+    setForm(product || emptyForm)
+    setImageFile(null)
+    setImagePreview(product?.image || '')
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product])
+
+  const onPickImage = (file) => {
+    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview)
+    setImageFile(file)
+    setImagePreview(file ? URL.createObjectURL(file) : (product?.image || ''))
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -36,7 +55,15 @@ function ProductModal({ product, onClose, onSaved }) {
     if (!form.price || parseFloat(form.price) < 0) { setError('Valid price is required'); return }
     setSaving(true); setError('')
     try {
-      isEdit ? await updateProduct(product.id, form) : await createProduct(form)
+      const payload = imageFile ? new FormData() : { ...form }
+      if (imageFile) {
+        Object.entries(form).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) payload.append(key, String(value))
+        })
+        payload.append('image', imageFile)
+      }
+
+      isEdit ? await updateProduct(product.id, payload) : await createProduct(payload)
       onSaved(); onClose()
     } catch (err) {
       const d = err.response?.data
@@ -113,6 +140,27 @@ function ProductModal({ product, onClose, onSaved }) {
                 >{em}</button>
               ))}
             </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
+              Product Photo
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={e => onPickImage(e.target.files?.[0] || null)}
+              style={{ width: '100%', fontSize: 13 }}
+            />
+            {imagePreview && (
+              <div style={{ marginTop: 10, borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
+                <img
+                  src={imagePreview}
+                  alt="Product preview"
+                  style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Name */}
@@ -414,8 +462,12 @@ export default function ProductsPage() {
                   onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 8px rgba(0,0,0,0.04)' }}
                 >
                   {/* Card top */}
-                  <div style={{ background: '#EDEAFF', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, position: 'relative' }}>
-                    {p.emoji || '📦'}
+                  <div style={{ background: '#EDEAFF', height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, position: 'relative', overflow: 'hidden' }}>
+                    {p.image ? (
+                      <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span>{p.emoji || '📦'}</span>
+                    )}
                     {p.badge && (
                       <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#fff', color: '#6C47FF', border: '1px solid #ddd6fe' }}>
                         {p.badge}

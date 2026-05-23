@@ -1,14 +1,14 @@
 import React from 'react';
-import { Text, View, Platform } from 'react-native';
+import { Alert, Pressable, Text, View, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useAuth } from '../context/AuthContext';
 
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminOrdersScreen from '../screens/AdminOrdersScreen';
 import AdminCustomersScreen from '../screens/AdminCustomersScreen';
 import AdminUsersScreen from '../screens/AdminUsersScreen';
 import OwnerProductsScreen from '../screens/OwnerProductsScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import { colors, typography, shadows, spacing } from '../theme/design';
 
@@ -118,10 +118,40 @@ function OrdersStack() {
 
 // Main Admin Navigator with Stack for nested navigation
 export default function AdminTabNavigator() {
+  const { logout, user } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Are you sure you want to log out of the admin account?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: logout },
+    ]);
+  };
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AdminTabs" component={AdminTabs} />
-      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: colors.bgCard,
+          shadowColor: 'transparent',
+          elevation: 0,
+        },
+        headerTintColor: colors.textPrimary,
+      }}
+    >
+      <Stack.Screen
+        name="AdminTabs"
+        component={AdminTabs}
+        options={{
+          title: user?.first_name || user?.username || 'Admin',
+          headerRight: () => (
+            <Pressable onPress={handleLogout} style={{ marginRight: spacing.md }}>
+              <Text style={{ color: colors.primary, fontWeight: '700' }}>Logout</Text>
+            </Pressable>
+          ),
+        }}
+      />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: 'Order Detail' }} />
     </Stack.Navigator>
   );
 }

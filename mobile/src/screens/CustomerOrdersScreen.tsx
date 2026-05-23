@@ -83,6 +83,12 @@ export default function CustomerOrdersScreen() {
     return 'Good evening'
   }
 
+  const formatOrderTotal = (order: any) => {
+    const rawTotal = order?.total ?? order?.total_amount ?? 0
+    const numericTotal = Number(rawTotal)
+    return Number.isFinite(numericTotal) ? numericTotal.toFixed(2) : '0.00'
+  }
+
   const renderOrder = ({ item }: { item: Order }) => {
     const config = STATUS_CONFIG[item.status?.toLowerCase()] || STATUS_CONFIG.pending
     return (
@@ -106,7 +112,7 @@ export default function CustomerOrdersScreen() {
             <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
           </View>
         </View>
-        <Text style={styles.orderTotal}>₱{Number(item.total).toFixed(2)}</Text>
+        <Text style={styles.orderTotal}>₱{formatOrderTotal(item)}</Text>
         {item.status === 'pending' && (
           <TouchableOpacity
             style={[styles.cancelButton, cancellingId === item.id && styles.buttonDisabled]}

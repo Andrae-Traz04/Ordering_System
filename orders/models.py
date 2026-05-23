@@ -63,6 +63,7 @@ class Product(models.Model):
     category    = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Others')
     emoji       = models.CharField(max_length=10, blank=True, default='📦')
     badge       = models.CharField(max_length=50, blank=True)  # e.g. "New", "Best Seller"
+    image       = models.ImageField(upload_to='products/', null=True, blank=True)
     is_active   = models.BooleanField(default=True)
     created_by  = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='products'
