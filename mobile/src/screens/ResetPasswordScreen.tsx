@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   View,
   Text,
@@ -7,47 +7,14 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Pressable,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
 import axios from 'axios'
+import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design'
 
-import * as SecureStore from 'expo-secure-store'
-import { colors, radii, spacing, typeScale } from '../theme/design'
-import RedErrorPill from '../components/RedErrorPill'
-
-// Resolve API base URL similar to mobile/src/api/client.ts
-import Constants from 'expo-constants'
-import { Platform } from 'react-native'
-
-const FALLBACK_LAN_HOST = '192.168.254.121:8000'
-
-const resolveApiBaseUrl = () => {
-  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()
-  if (envUrl) {
-    return envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`
-  }
-
-  if (Platform.OS === 'web') {
-    return '/api'
-  }
-
-  const hostUri = (Constants as any).expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri
-  if (hostUri) {
-    const host = hostUri.split(':')[0]
-    return `http://${host}:8000/api/v1`
-  }
-
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8000/api/v1'
-  }
-
-  return `http://${FALLBACK_LAN_HOST}/api/v1`
-}
-
-const API_BASE_URL = resolveApiBaseUrl()
+const API_BASE_URL = 'YOUR_API_BASE_URL' // Replace with your actual API URL
 
 function calcStrength(pw: string) {
   const length6 = pw.length >= 6
@@ -104,13 +71,6 @@ export default function ResetPasswordScreen({ route }: any) {
     { key: 'hasSpecial', label: 'Contains a special character', ok: strength.checks.hasSpecial },
   ]
 
-  useEffect(() => {
-    if (!userId || !token) {
-      setErrorStage('error')
-      setErrorMsg('Invalid reset link.')
-    }
-  }, [userId, token])
-
   const submit = async () => {
     setErrorMsg('')
 
@@ -128,15 +88,8 @@ export default function ResetPasswordScreen({ route }: any) {
 
     setSubmitting(true)
     try {
-      // Backend expects: /auth/password-reset/confirm/<uid>/<token>/
-      // We'll try common endpoint patterns; adjust if your backend differs.
       const url = `${API_BASE_URL}/auth/password-reset/confirm/${userId}/${token}/`
-
-      await axios.post(url, { new_password: password, token, uid: userId }, {
-        timeout: 15000,
-        headers: { 'Content-Type': 'application/json' },
-      })
-
+      await axios.post(url, { new_password: password, token, uid: userId })
       setErrorStage('success')
       setTimeout(() => navigation.navigate('Login'), 3000)
     } catch (e: any) {
@@ -152,9 +105,9 @@ export default function ResetPasswordScreen({ route }: any) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerWrap}>
-          <Text style={styles.successTitle}>Password updated</Text>
+          <Text style={styles.successTitle}>Password Updated!</Text>
           <Text style={styles.subtitle}>Redirecting to login...</Text>
-          <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: spacing.lg }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.lg }} />
         </View>
       </SafeAreaView>
     )
@@ -164,7 +117,9 @@ export default function ResetPasswordScreen({ route }: any) {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.centerWrap}>
-          <RedErrorPill message={errorMsg} />
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={() => {
@@ -173,7 +128,7 @@ export default function ResetPasswordScreen({ route }: any) {
             }}
             disabled={submitting}
           >
-            <Text style={styles.primaryButtonText}>{submitting ? 'Working...' : 'Try Again'}</Text>
+            <Text style={styles.primaryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -182,99 +137,206 @@ export default function ResetPasswordScreen({ route }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.appName}>MY STORE</Text>
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>Choose a strong new password.</Text>
 
-        <Text style={styles.label}>New Password *</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.formContainer}>
+          <Text style={styles.label}>New Password *</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholderTextColor={colors.textMuted}
+            placeholder="Enter new password"
+          />
 
-        <View style={styles.meterWrap}>
-          <Text style={styles.meterLabel}>{strength.label}</Text>
-          <View style={styles.meterTrack}>
-            <View style={[styles.meterFill, { width: `${(strength.score / 5) * 100}%` }]} />
-          </View>
-        </View>
-
-        <View style={styles.checklist}>
-          {checks.map(c => (
-            <View key={c.key} style={styles.checkRow}>
-              <Text style={[styles.checkIcon, c.ok ? styles.checkIconOk : styles.checkIconBad]}>{c.ok ? '✓' : '•'}</Text>
-              <Text style={[styles.checkText, c.ok ? styles.checkTextOk : styles.checkTextBad]}>{c.label}</Text>
+          <View style={styles.meterWrap}>
+            <Text style={styles.meterLabel}>{strength.label}</Text>
+            <View style={styles.meterTrack}>
+              <View style={[styles.meterFill, { width: `${(strength.score / 5) * 100}%` }]} />
             </View>
-          ))}
+          </View>
+
+          <View style={styles.checklist}>
+            {checks.map(c => (
+              <View key={c.key} style={styles.checkRow}>
+                <Text style={[styles.checkIcon, c.ok ? styles.checkIconOk : styles.checkIconBad]}>
+                  {c.ok ? '✓' : '○'}
+                </Text>
+                <Text style={[styles.checkText, c.ok ? styles.checkTextOk : styles.checkTextBad]}>
+                  {c.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Confirm Password *</Text>
+          <TextInput 
+            style={styles.input} 
+            value={confirm} 
+            onChangeText={setConfirm} 
+            secureTextEntry
+            placeholderTextColor={colors.textMuted}
+            placeholder="Confirm your password"
+          />
+
+          <Pressable style={[styles.primaryButton, submitting && styles.buttonDisabled]} onPress={submit} disabled={submitting}>
+            <Text style={styles.primaryButtonText}>{submitting ? 'Updating...' : 'Update Password'}</Text>
+          </Pressable>
         </View>
-
-        <Text style={styles.label}>Confirm Password *</Text>
-        <TextInput style={styles.input} value={confirm} onChangeText={setConfirm} secureTextEntry />
-
-        <Pressable style={[styles.primaryButton, submitting && { opacity: 0.7 }]} onPress={submit} disabled={submitting}>
-          <Text style={styles.primaryButtonText}>{submitting ? 'Updating...' : 'Update Password'}</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgBottom },
-  content: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
-  centerWrap: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  title: { color: colors.textPrimary, fontWeight: '900', fontSize: 28 },
-  subtitle: { color: colors.textSecondary, fontWeight: '700', marginTop: spacing.xs, lineHeight: 22 },
-  label: { color: colors.textPrimary, fontWeight: '800', marginTop: spacing.md, marginBottom: spacing.xs },
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+  },
+  content: {
+    flexGrow: 1,
+    padding: spacing.lg,
+    justifyContent: 'center',
+  },
+  centerWrap: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  appName: {
+    ...typography.caption,
+    color: colors.primary,
+    letterSpacing: 2,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  title: {
+    ...typography.hero,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+    textAlign: 'center',
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    textAlign: 'center',
+  },
+  formContainer: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
+    ...shadows.lg,
+  },
+  label: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
-    backgroundColor: colors.panelSoft,
+    backgroundColor: colors.bgPrimary,
     borderWidth: 1,
-    borderColor: '#A98DF6',
+    borderColor: colors.borderLight,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     color: colors.textPrimary,
-    fontWeight: '700',
+    fontSize: typeScale.body,
   },
-  meterWrap: { marginTop: spacing.sm },
-  meterLabel: { color: colors.textSecondary, fontWeight: '900' },
+  meterWrap: {
+    marginTop: spacing.sm,
+  },
+  meterLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: 'bold',
+  },
   meterTrack: {
-    height: 12,
-    backgroundColor: '#eee',
-    borderRadius: 999,
+    height: 8,
+    backgroundColor: colors.borderLight,
+    borderRadius: radii.pill,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
-  meterFill: { height: 12, backgroundColor: colors.accent, borderRadius: 999 },
+  meterFill: {
+    height: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+  },
   checklist: {
     marginTop: spacing.md,
-    backgroundColor: colors.panel,
+    backgroundColor: colors.bgPrimary,
     borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#9D82F2',
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-  checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  checkIcon: { width: 24, textAlign: 'center', fontWeight: '900' },
-  checkIconOk: { color: '#22c55e' },
-  checkIconBad: { color: '#9ca3af' },
-  checkText: { flex: 1, fontWeight: '800' },
-  checkTextOk: { color: colors.textPrimary },
-  checkTextBad: { color: colors.textMuted },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  checkIcon: {
+    width: 24,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  checkIconOk: {
+    color: colors.success,
+  },
+  checkIconBad: {
+    color: colors.textMuted,
+  },
+  checkText: {
+    flex: 1,
+    ...typography.body,
+  },
+  checkTextOk: {
+    color: colors.textPrimary,
+  },
+  checkTextBad: {
+    color: colors.textSecondary,
+  },
   primaryButton: {
     marginTop: spacing.lg,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
     borderRadius: radii.md,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#5B3900',
+    ...shadows.sm,
   },
-  primaryButtonText: { color: '#4B2A00', fontWeight: '900', fontSize: 16 },
-  successTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 26, textAlign: 'center' },
+  primaryButtonText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  errorContainer: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+  },
+  successTitle: {
+    ...typography.hero,
+    color: colors.success,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
 })
-
