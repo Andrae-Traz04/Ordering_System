@@ -1,20 +1,29 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native'
+import { 
+  View, Text, StyleSheet, FlatList, TouchableOpacity, 
+  ActivityIndicator, Alert, RefreshControl 
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { useNavigation } from '@react-navigation/native'
+import { fetchOrders, cancelOrder } from '../api/client'
+import { Order } from '../types'
+import { colors, radii, spacing, typography, shadows } from '../theme/design'
 
-import { fetchOrders, createOrder, cancelOrder, fetchProducts } from '../api/client'
-import { Product, Order } from '../types'
-import { colors, radii, spacing, typeScale } from '../theme/design'
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Pending', color: colors.statusPending },
+  processing: { label: 'Processing', color: colors.statusProcessing },
+  shipped: { label: 'Shipped', color: colors.statusShipped },
+  completed: { label: 'Completed', color: colors.statusCompleted },
+  cancelled: { label: 'Cancelled', color: colors.statusCancelled },
+}
 
 export default function CustomerOrdersScreen() {
   const { user } = useAuth()
-
+  const navigation = useNavigation<any>()
   const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [refreshing, setRefreshing] = useState<boolean>(false)
-
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
 
   const loadOrders = useCallback(async () => {
@@ -26,7 +35,6 @@ export default function CustomerOrdersScreen() {
       setOrders(Array.isArray(data) ? data : [])
     } catch (e) {
       console.error(e)
-      setOrders([])
     } finally {
       setLoading(false)
     }
@@ -43,48 +51,83 @@ export default function CustomerOrdersScreen() {
   }
 
   const handleCancelOrder = async (orderId: number) => {
-    setCancellingId(orderId)
-    try {
-      await cancelOrder(orderId)
-      await loadOrders()
-    } catch {
-      Alert.alert('Error', 'Failed to cancel order')
-    } finally {
-      setCancellingId(null)
-    }
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingId(orderId)
+            try {
+              await cancelOrder(orderId)
+              await loadOrders()
+              Alert.alert('Success', 'Order cancelled successfully')
+            } catch {
+              Alert.alert('Error', 'Failed to cancel order')
+            } finally {
+              setCancellingId(null)
+            }
+          }
+        }
+      ]
+    )
   }
 
-  const navigation = useNavigation<any>()
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 18) return 'Good afternoon'
+    return 'Good evening'
+  }
 
-  const renderOrder = ({ item }: { item: Order }) => (
-    <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}>
-      <View style={styles.orderCard}>
-        <View style={styles.orderRow}>
-          <Text style={styles.orderId}>Order #{item.id}</Text>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>{item.status}</Text>
+  const renderOrder = ({ item }: { item: Order }) => {
+    const config = STATUS_CONFIG[item.status?.toLowerCase()] || STATUS_CONFIG.pending
+    return (
+      <TouchableOpacity 
+        style={styles.orderCard} 
+        onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.orderHeader}>
+          <View>
+            <Text style={styles.orderNumber}>Order #{item.order_number || item.id}</Text>
+            <Text style={styles.orderDate}>
+              {new Date(item.created_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: config.color + '15' }]}>
+            <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
           </View>
         </View>
         <Text style={styles.orderTotal}>₱{Number(item.total).toFixed(2)}</Text>
-        <Text style={styles.orderDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
         {item.status === 'pending' && (
           <TouchableOpacity
-            style={styles.cancelBtn}
+            style={[styles.cancelButton, cancellingId === item.id && styles.buttonDisabled]}
             onPress={() => handleCancelOrder(item.id)}
             disabled={cancellingId === item.id}
           >
-            <Text style={styles.cancelBtnText}>{cancellingId === item.id ? 'Cancelling...' : 'Cancel'}</Text>
+            <Text style={styles.cancelButtonText}>
+              {cancellingId === item.id ? 'Cancelling...' : 'Cancel Order'}
+            </Text>
           </TouchableOpacity>
         )}
-      </View>
-    </TouchableOpacity>
-  )
+      </TouchableOpacity>
+    )
+  }
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingScreen}>
-          <ActivityIndicator size="large" color={colors.accent} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading your orders...</Text>
         </View>
       </SafeAreaView>
     )
@@ -92,20 +135,26 @@ export default function CustomerOrdersScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcome}>Hi {user?.first_name || 'there'}!</Text>
-          <Text style={styles.title}>My Orders</Text>
-        </View>
-      </View>
-
       <FlatList
         data={orders}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderOrder}
-        contentContainerStyle={orders.length === 0 ? styles.listEmpty : styles.listContent}
+        contentContainerStyle={orders.length === 0 ? styles.emptyContent : styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-        ListEmptyComponent={<Text style={styles.empty}>No orders yet</Text>}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.storeName}>MY STORE</Text>
+            <Text style={styles.greeting}>{getGreeting()}, {user?.first_name || 'Customer'}</Text>
+            <Text style={styles.title}>My Orders</Text>
+            <Text style={styles.subtitle}>Track and manage your order history</Text>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No orders yet</Text>
+            <Text style={styles.emptyHint}>Start shopping to see your orders here</Text>
+          </View>
+        }
       />
     </SafeAreaView>
   )
@@ -114,97 +163,119 @@ export default function CustomerOrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgBottom,
+    backgroundColor: colors.bgPrimary,
   },
-  loadingScreen: {
+  centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bgBottom,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
   },
   header: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    margin: spacing.md,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  storeName: {
+    ...typography.caption,
+    color: colors.primary,
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
+  },
+  greeting: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  title: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  listContent: {
+    padding: spacing.md,
+    paddingTop: 0,
+  },
+  emptyContent: {
+    flexGrow: 1,
+    padding: spacing.md,
+  },
+  orderCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    padding: spacing.md,
-    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  welcome: {
+  orderNumber: {
+    ...typography.subheading,
     color: colors.textPrimary,
-    fontSize: typeScale.title,
-    fontWeight: '700',
-  },
-  title: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 4,
-  },
-  listContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-  listEmpty: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xl,
-  },
-  empty: {
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  orderCard: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  orderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  orderId: {
-    color: colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 15,
-  },
-  statusPill: {
-    backgroundColor: '#5A2ECB',
-    borderRadius: radii.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  statusText: {
-    color: colors.textSecondary,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  orderTotal: {
-    color: colors.accent,
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: spacing.sm,
+    marginBottom: 2,
   },
   orderDate: {
-    color: colors.textMuted,
-    marginTop: 4,
+    ...typography.caption,
+    color: colors.textSecondary,
   },
-  cancelBtn: {
-    backgroundColor: '#fef2f2',
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    gap: 4,
+  },
+  statusText: {
+    ...typography.caption,
+    fontWeight: 'bold',
+  },
+  orderTotal: {
+    ...typography.heading,
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
+  cancelButton: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
+    borderColor: colors.error + '30',
   },
-  cancelBtnText: {
-    color: '#ef4444',
-    fontWeight: '600',
-    fontSize: 12,
+  cancelButtonText: {
+    ...typography.bodyBold,
+    color: colors.error,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  emptyHint: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
 })
