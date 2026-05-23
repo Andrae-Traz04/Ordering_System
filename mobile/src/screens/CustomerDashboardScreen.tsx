@@ -9,24 +9,28 @@ import {
   TextInput,
   Alert,
   ScrollView,
+  RefreshControl,
+  Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { fetchProducts, fetchOrders, createOrder, cancelOrder } from '../api/client'
 import { Product, Order } from '../types'
-import { colors, radii, spacing, typeScale } from '../theme/design'
+import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design'
 
 export default function CustomerDashboardScreen() {
   const { user } = useAuth()
-  const [tab, setTab] = useState<'shop' | 'orders'>('shop')
+  const [activeTab, setActiveTab] = useState<'shop' | 'cart' | 'orders'>('shop')
   const [products, setProducts] = useState<Product[]>([])
   const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [category, setCategory] = useState<string>('All')
-  const [search, setSearch] = useState<string>('')
-  const [cart, setCart] = useState<Product[]>([])
-  const [placing, setPlacing] = useState<boolean>(false)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [category, setCategory] = useState('All')
+  const [search, setSearch] = useState('')
+  const [cart, setCart] = useState<(Product & { quantity: number })[]>([])
+  const [placing, setPlacing] = useState(false)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [showCartModal, setShowCartModal] = useState(false)
 
   const CATEGORIES = ['All', 'Electronics', 'Beauty', 'Fitness', 'Gifts', 'Kitchen', 'Others']
 
@@ -35,8 +39,8 @@ export default function CustomerDashboardScreen() {
     setLoading(true)
     try {
       const [pRes, oRes] = await Promise.all([fetchProducts(), fetchOrders()])
-      setProducts(pRes.data.products || [])
-      setOrders(oRes.data.orders || oRes.data || [])
+      setProducts(pRes.data?.products || pRes.data || [])
+      setOrders(oRes.data?.orders || oRes.data || [])
     } catch (err) {
       console.error(err)
     } finally {
@@ -48,6 +52,19 @@ export default function CustomerDashboardScreen() {
     loadData()
   }, [loadData])
 
+  const onRefresh = async () => {
+    setRefreshing(true)
+    await loadData()
+    setRefreshing(false)
+  }
+
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 18) return 'Good afternoon'
+    return 'Good evening'
+  }
+
   const stats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
@@ -55,8 +72,8 @@ export default function CustomerDashboardScreen() {
     completed: orders.filter(o => o.status === 'completed').length,
   }
 
-  const cartCount = cart.length
-  const cartTotal = cart.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0) // Fixed cart total calculation
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0)
 
   const filteredProducts = products.filter(p =>
     (category === 'All' || p.category === category) &&
@@ -66,13 +83,14 @@ export default function CustomerDashboardScreen() {
   const addToCart = (product: Product) => {
     const exists = cart.find(i => i.id === product.id)
     if (exists) {
-      setCart(cart.map(i => i.id === product.id ? { ...i, quantity: (i.quantity || 1) + 1 } : i))
+      setCart(cart.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i))
     } else {
       setCart([...cart, { ...product, quantity: 1 }])
     }
+    Alert.alert('Added to Cart', `${product.name} added to your cart`)
   }
 
-  const updateQty = (id: number, qty: number) => {
+  const updateCartQty = (id: number, qty: number) => {
     if (qty <= 0) {
       setCart(cart.filter(i => i.id !== id))
     } else {
@@ -81,7 +99,10 @@ export default function CustomerDashboardScreen() {
   }
 
   const placeOrder = async () => {
-    if (!cart.length) return
+    if (!cart.length) {
+      Alert.alert('Cart Empty', 'Add items to your cart before placing an order.')
+      return
+    }
     setPlacing(true)
     try {
       await createOrder({
@@ -90,14 +111,15 @@ export default function CustomerDashboardScreen() {
         items: cart.map(i => ({
           product_id: i.id,
           product_name: i.name,
-          quantity: i.quantity || 1,
+          quantity: i.quantity,
           unit_price: i.price,
         })),
       })
       setCart([])
+      setShowCartModal(false)
       Alert.alert('Success', 'Order placed successfully!')
       await loadData()
-      setTab('orders')
+      setActiveTab('orders')
     } catch (err: any) {
       const msg = err?.response?.data
         ? Object.values(err.response.data).flat().join(', ')
@@ -109,112 +131,169 @@ export default function CustomerDashboardScreen() {
   }
 
   const handleCancelOrder = async (orderId: number) => {
-    setCancellingId(orderId)
-    try {
-      await cancelOrder(orderId)
-      await loadData()
-    } catch (err) {
-      Alert.alert('Error', 'Failed to cancel order')
-    } finally {
-      setCancellingId(null)
-    }
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingId(orderId)
+            try {
+              await cancelOrder(orderId)
+              await loadData()
+              Alert.alert('Success', 'Order cancelled successfully')
+            } catch {
+              Alert.alert('Error', 'Failed to cancel order')
+            } finally {
+              setCancellingId(null)
+            }
+          }
+        }
+      ]
+    )
   }
 
   const renderProduct = ({ item }: { item: Product }) => {
     const inCart = cart.find(c => c.id === item.id)
     return (
-      <View style={styles.productCard}>
-        <View style={styles.productImage}>
-          <Text style={styles.productEmoji}>📦</Text>
+      <TouchableOpacity style={styles.productCard} onPress={() => addToCart(item)} activeOpacity={0.8}>
+        <View style={styles.productImageContainer}>
+          {item.badge && (
+            <View style={styles.productBadge}>
+              <Text style={styles.productBadgeText}>{item.badge}</Text>
+            </View>
+          )}
         </View>
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.productCategory}>{item.category}</Text>
           <Text style={styles.productPrice}>₱{Number(item.price).toFixed(2)}</Text>
         </View>
-        <View style={styles.productActions}>
-          {inCart ? (
-            <View style={styles.qtyControls}>
-              <TouchableOpacity onPress={() => updateQty(item.id, (inCart.quantity || 1) - 1)}>
-                <Text style={styles.qtyBtn}>−</Text>
-              </TouchableOpacity>
-              <Text style={styles.qtyText}>{inCart.quantity || 1}</Text>
-              <TouchableOpacity onPress={() => updateQty(item.id, (inCart.quantity || 1) + 1)}>
-                <Text style={styles.qtyBtn}>+</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.addBtn} onPress={() => addToCart(item)}>
-              <Text style={styles.addBtnText}>Add</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+        <TouchableOpacity 
+          style={[styles.addButton, inCart && styles.inCartButton]} 
+          onPress={() => addToCart(item)}
+        >
+          <Text style={styles.addButtonText}>{inCart ? '✓ Added' : 'Add to Cart'}</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
     )
   }
 
-  const renderOrder = ({ item }: { item: Order }) => (
-    <View style={styles.orderCard}>
-      <View style={styles.orderRow}>
-        <Text style={styles.orderId}>Order #{item.id}</Text>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusText}>{item.status}</Text>
+  const renderOrder = ({ item }: { item: Order }) => {
+    const statusColors: Record<string, string> = {
+      pending: colors.statusPending,
+      processing: colors.statusProcessing,
+      shipped: colors.statusShipped,
+      completed: colors.statusCompleted,
+      cancelled: colors.statusCancelled,
+    }
+    const status = item.status?.toLowerCase() || 'pending'
+    
+    return (
+      <TouchableOpacity style={styles.orderCard} activeOpacity={0.8}>
+        <View style={styles.orderHeader}>
+          <Text style={styles.orderId}>Order #{item.order_number || item.id}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: statusColors[status] + '15' }]}>
+            <Text style={[styles.statusText, { color: statusColors[status] }]}>
+              {status.toUpperCase()}
+            </Text>
+          </View>
         </View>
+        <Text style={styles.orderTotal}>₱{Number(item.total).toFixed(2)}</Text>
+        <Text style={styles.orderDate}>
+          {new Date(item.created_at).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          })}
+        </Text>
+        {item.status === 'pending' && (
+          <TouchableOpacity
+            style={styles.cancelOrderButton}
+            onPress={() => handleCancelOrder(item.id)}
+            disabled={cancellingId === item.id}
+          >
+            <Text style={styles.cancelOrderText}>
+              {cancellingId === item.id ? 'Cancelling...' : 'Cancel Order'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    )
+  }
+
+  const renderCartItem = ({ item }: { item: Product & { quantity: number } }) => (
+    <View style={styles.cartItem}>
+      <View style={styles.cartItemInfo}>
+        <Text style={styles.cartItemName}>{item.name}</Text>
+        <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} each</Text>
       </View>
-      <Text style={styles.orderTotal}>₱{Number(item.total).toFixed(2)}</Text>
-      <Text style={styles.orderDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
-      {item.status === 'pending' && (
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => handleCancelOrder(item.id)}
-          disabled={cancellingId === item.id}
+      <View style={styles.cartItemControls}>
+        <TouchableOpacity 
+          style={styles.cartQtyButton} 
+          onPress={() => updateCartQty(item.id, item.quantity - 1)}
         >
-          <Text style={styles.cancelBtnText}>
-            {cancellingId === item.id ? 'Cancelling...' : 'Cancel'}
-          </Text>
+          <Text style={styles.cartQtyButtonText}>−</Text>
         </TouchableOpacity>
-      )}
+        <Text style={styles.cartQtyText}>{item.quantity}</Text>
+        <TouchableOpacity 
+          style={styles.cartQtyButton} 
+          onPress={() => updateCartQty(item.id, item.quantity + 1)}
+        >
+          <Text style={styles.cartQtyButtonText}>+</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.cartRemoveButton} 
+          onPress={() => updateCartQty(item.id, 0)}
+        >
+          <Text style={styles.cartRemoveText}>Remove</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   )
 
   const renderShopTab = () => (
     <>
-      <View style={styles.summaryRow}>
-        {['Total', 'Pending', 'Shipped', 'Completed'].map((label, i) => {
-          const values = [stats.total, stats.pending, stats.shipped, stats.completed]
-          return (
-            <View key={label} style={styles.statCard}>
-              <Text style={styles.statValue}>{values[i]}</Text>
-              <Text style={styles.statLabel}>{label}</Text>
-            </View>
-          )
-        })}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Text style={styles.statValue}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Total Orders</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: colors.statusPending }]}>{stats.pending}</Text>
+          <Text style={styles.statLabel}>Pending</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: colors.statusShipped }]}>{stats.shipped}</Text>
+          <Text style={styles.statLabel}>Shipped</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: colors.statusCompleted }]}>{stats.completed}</Text>
+          <Text style={styles.statLabel}>Completed</Text>
+        </View>
       </View>
 
-      <View style={styles.filterRow}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={styles.filterSection}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search..."
+            placeholderTextColor={colors.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
           {CATEGORIES.map(cat => (
             <TouchableOpacity
               key={cat}
-              style={[
-                styles.categoryBtn,
-                category === cat && styles.categoryBtnActive,
-              ]}
+              style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
               onPress={() => setCategory(cat)}
             >
-              <Text
-                style={[
-                  styles.categoryBtnText,
-                  category === cat && styles.categoryBtnTextActive,
-                ]}
-              >
+              <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextActive]}>
                 {cat}
               </Text>
             </TouchableOpacity>
@@ -223,7 +302,9 @@ export default function CustomerDashboardScreen() {
       </View>
 
       {filteredProducts.length === 0 ? (
-        <Text style={styles.empty}>No products available</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No products available yet.</Text>
+        </View>
       ) : (
         <FlatList
           data={filteredProducts}
@@ -231,80 +312,176 @@ export default function CustomerDashboardScreen() {
           renderItem={renderProduct}
           numColumns={2}
           columnWrapperStyle={styles.productRow}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </>
   )
 
-  const renderOrdersTab = () => (
-    <>
-      <View style={styles.summaryRow}>
-        {['Total', 'Pending', 'Shipped', 'Completed'].map((label, i) => {
-          const values = [stats.total, stats.pending, stats.shipped, stats.completed]
-          return (
-            <View key={label} style={styles.statCard}>
-              <Text style={styles.statValue}>{values[i]}</Text>
-              <Text style={styles.statLabel}>{label}</Text>
-            </View>
-          )
-        })}
-      </View>
-
-      {orders.length === 0 ? (
-        <Text style={styles.empty}>No orders yet</Text>
+  const renderCartTab = () => (
+    <View style={styles.cartContainer}>
+      {cart.length === 0 ? (
+        <View style={styles.emptyCartContainer}>
+          <Text style={styles.emptyCartTitle}>Your cart is empty</Text>
+          <Text style={styles.emptyCartText}>Browse products and add items to get started</Text>
+          <TouchableOpacity style={styles.shopNowButton} onPress={() => setActiveTab('shop')}>
+            <Text style={styles.shopNowButtonText}>Browse Products</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderOrder}
-        />
+        <>
+          <FlatList
+            data={cart}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderCartItem}
+            showsVerticalScrollIndicator={false}
+          />
+          <View style={styles.cartFooter}>
+            <View style={styles.cartTotalRow}>
+              <Text style={styles.cartTotalLabel}>Total Items:</Text>
+              <Text style={styles.cartTotalValue}>{cartCount}</Text>
+            </View>
+            <View style={styles.cartTotalRow}>
+              <Text style={styles.cartTotalLabel}>Total Amount:</Text>
+              <Text style={styles.cartTotalPrice}>₱{cartTotal.toFixed(2)}</Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.checkoutButton, placing && styles.buttonDisabled]} 
+              onPress={placeOrder}
+              disabled={placing}
+            >
+              <Text style={styles.checkoutButtonText}>
+                {placing ? 'Placing Order...' : 'Proceed to Checkout'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </>
       )}
-    </>
+    </View>
+  )
+
+  const renderOrdersTab = () => (
+    <FlatList
+      data={orders}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={renderOrder}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      ListEmptyComponent={
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No orders yet</Text>
+          <TouchableOpacity style={styles.shopNowButton} onPress={() => setActiveTab('shop')}>
+            <Text style={styles.shopNowButtonText}>Start Shopping</Text>
+          </TouchableOpacity>
+        </View>
+      }
+    />
   )
 
   if (loading) {
     return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     )
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.welcome}>Hi {user?.first_name || 'there'}!</Text>
-      </View>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.storeName}>MY STORE</Text>
+            <Text style={styles.greeting}>
+              {getGreeting()}, {user?.first_name || user?.username || 'Customer'}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              Browse products, manage your cart and track orders.
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => setShowCartModal(true)} style={styles.cartIconContainer}>
+            <Text style={styles.cartIcon}>Cart</Text>
+            {cartCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.tabRow}>
-        {(['shop', 'orders'] as const).map(tabKey => (
-          <TouchableOpacity
-            key={tabKey}
-            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
-            onPress={() => setTab(tabKey)}
-          >
-            <Text
-              style={[
-                styles.tabBtnText,
-                tab === tabKey && styles.tabBtnTextActive,
-              ]}
+        {/* Tab Bar */}
+        <View style={styles.tabBar}>
+          {[
+            { key: 'shop', label: 'Shop', icon: '' },
+            { key: 'cart', label: 'Cart', icon: '' },
+            { key: 'orders', label: 'My Orders', icon: '' },
+          ].map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, activeTab === tab.key && styles.activeTab]}
+              onPress={() => setActiveTab(tab.key as any)}
             >
-              {tabKey === 'shop' ? '🛍️ Shop' : '📦 Orders'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        {cartCount > 0 && (
-          <TouchableOpacity style={styles.cartBtn} onPress={placeOrder} disabled={placing}>
-            <Text style={styles.cartBtnText}>
-              🛒 {cartCount} - ₱{cartTotal.toFixed(2)}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+              {tab.icon ? <Text style={styles.tabIcon}>{tab.icon}</Text> : null}
+              <Text style={[styles.tabLabel, activeTab === tab.key && styles.activeTabLabel]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <View style={styles.content}>
-        {tab === 'shop' ? renderShopTab() : renderOrdersTab()}
-      </View>
+        {/* Content */}
+        <View style={styles.content}>
+          {activeTab === 'shop' && renderShopTab()}
+          {activeTab === 'cart' && renderCartTab()}
+          {activeTab === 'orders' && renderOrdersTab()}
+        </View>
+      </ScrollView>
+
+      {/* Cart Modal */}
+      <Modal visible={showCartModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Your Cart</Text>
+              <TouchableOpacity onPress={() => setShowCartModal(false)} style={styles.modalClose}>
+                <Text style={styles.modalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {cart.length === 0 ? (
+              <View style={styles.emptyCartModal}>
+                <Text style={styles.emptyCartText}>Your cart is empty</Text>
+              </View>
+            ) : (
+              <>
+                <FlatList
+                  data={cart}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={renderCartItem}
+                  style={styles.modalCartList}
+                />
+                <View style={styles.modalFooter}>
+                  <Text style={styles.modalTotal}>Total: ₱{cartTotal.toFixed(2)}</Text>
+                  <TouchableOpacity 
+                    style={[styles.modalCheckout, placing && styles.buttonDisabled]} 
+                    onPress={placeOrder}
+                    disabled={placing}
+                  >
+                    <Text style={styles.modalCheckoutText}>
+                      {placing ? 'Placing...' : 'Place Order'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -312,240 +489,483 @@ export default function CustomerDashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgBottom,
+    backgroundColor: colors.bgPrimary,
   },
-  loadingScreen: {
+  scrollView: {
     flex: 1,
-    alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
     justifyContent: 'center',
-    backgroundColor: colors.bgBottom,
+    alignItems: 'center',
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
+    backgroundColor: colors.bgCard,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomLeftRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
+    ...shadows.sm,
   },
-  welcome: {
+  storeName: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
+  },
+  greeting: {
+    ...typography.title,
     color: colors.textPrimary,
-    fontSize: typeScale.title,
-    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  tabBtn: {
-    backgroundColor: colors.panelSoft,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    marginRight: spacing.sm,
-  },
-  tabBtnActive: {
-    backgroundColor: '#7A57E8',
-  },
-  tabBtnText: {
+  headerSubtitle: {
+    ...typography.body,
     color: colors.textSecondary,
-    fontWeight: '600',
   },
-  tabBtnTextActive: {
-    color: colors.textPrimary,
+  cartIconContainer: {
+    position: 'absolute',
+    right: spacing.lg,
+    top: spacing.lg,
+    padding: spacing.sm,
   },
-  cartBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  cartIcon: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    ...typography.caption,
+    color: colors.textInverse,
+    fontWeight: 'bold',
+    fontSize: 10,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.bgCard,
+    margin: spacing.lg,
+    borderRadius: radii.md,
+    padding: spacing.xs,
+    ...shadows.sm,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
     borderRadius: radii.sm,
-    marginLeft: 'auto',
+    gap: spacing.xs,
   },
-  cartBtnText: {
-    color: '#4B2A00',
-    fontWeight: '700',
-    fontSize: 12,
+  activeTab: {
+    backgroundColor: colors.primary,
+  },
+  tabIcon: {
+    fontSize: 16,
+  },
+  tabLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  activeTabLabel: {
+    color: colors.textInverse,
   },
   content: {
     flex: 1,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  summaryRow: {
+  statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.panel,
-    borderRadius: radii.sm,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
     padding: spacing.sm,
     alignItems: 'center',
-    marginHorizontal: 2,
+    ...shadows.sm,
   },
   statValue: {
-    color: colors.accent,
-    fontSize: 20,
-    fontWeight: '800',
+    ...typography.heading,
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   statLabel: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 10,
+    marginTop: 2,
   },
-  filterRow: {
+  filterSection: {
     marginBottom: spacing.md,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.sm,
+  },
   searchInput: {
-    backgroundColor: colors.panelSoft,
-    borderRadius: radii.sm,
-    padding: spacing.sm,
+    flex: 1,
+    paddingVertical: spacing.md,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    fontSize: typeScale.body,
   },
-  categoryBtn: {
-    backgroundColor: colors.panelSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  categoriesScroll: {
+    marginTop: spacing.sm,
+  },
+  categoryChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radii.pill,
-    marginRight: spacing.xs,
+    backgroundColor: colors.bgCard,
+    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    ...shadows.sm,
   },
-  categoryBtnActive: {
-    backgroundColor: '#7A57E8',
+  categoryChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  categoryBtnText: {
+  categoryChipText: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 12,
   },
-  categoryBtnTextActive: {
-    color: colors.textPrimary,
+  categoryChipTextActive: {
+    color: colors.textInverse,
   },
   productRow: {
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
   productCard: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
     flex: 1,
-    marginHorizontal: 2,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
-  productImage: {
+  productImageContainer: {
+    position: 'relative',
     alignItems: 'center',
-    padding: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  productEmoji: {
-    fontSize: 32,
+  productBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: colors.primary,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  productBadgeText: {
+    ...typography.caption,
+    color: colors.textInverse,
+    fontWeight: 'bold',
   },
   productInfo: {
-    flex: 1,
+    marginBottom: spacing.sm,
   },
   productName: {
+    ...typography.subheading,
     color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 14,
   },
   productCategory: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontSize: 10,
     marginTop: 2,
   },
   productPrice: {
-    color: colors.accent,
-    fontWeight: '800',
-    fontSize: 16,
-    marginTop: 4,
+    ...typography.heading,
+    color: colors.primary,
+    marginTop: spacing.xs,
   },
-  productActions: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  qtyBtn: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  qtyText: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-    minWidth: 20,
-    textAlign: 'center',
-  },
-  addBtn: {
-    backgroundColor: '#7A57E8',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
-  },
-  addBtnText: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-  },
-  orderCard: {
-    backgroundColor: colors.panel,
+  addButton: {
+    backgroundColor: colors.primary,
     borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  inCartButton: {
+    backgroundColor: colors.success,
+  },
+  addButtonText: {
+    ...typography.caption,
+    color: colors.textInverse,
+    fontWeight: 'bold',
+  },
+  cartContainer: {
+    flex: 1,
+  },
+  cartItem: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
+    ...shadows.sm,
   },
-  orderRow: {
+  cartItemInfo: {
+    marginBottom: spacing.sm,
+  },
+  cartItemName: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+  },
+  cartItemPrice: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  cartItemControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cartQtyButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  cartQtyButtonText: {
+    fontSize: 18,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  cartQtyText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  cartRemoveButton: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  cartRemoveText: {
+    ...typography.caption,
+    color: colors.error,
+  },
+  cartFooter: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+    ...shadows.md,
+  },
+  cartTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  cartTotalLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  cartTotalValue: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+  },
+  cartTotalPrice: {
+    ...typography.heading,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  checkoutButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  checkoutButtonText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  orderCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   orderId: {
+    ...typography.subheading,
     color: colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 15,
   },
-  statusPill: {
-    backgroundColor: '#5A2ECB',
-    borderRadius: radii.pill,
-    paddingHorizontal: 10,
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
     paddingVertical: 4,
+    borderRadius: radii.pill,
+    gap: 4,
   },
   statusText: {
-    color: colors.textSecondary,
-    fontWeight: '700',
-    fontSize: 12,
+    ...typography.caption,
+    fontWeight: 'bold',
   },
   orderTotal: {
-    color: colors.accent,
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: spacing.sm,
+    ...typography.heading,
+    color: colors.primary,
+    marginBottom: spacing.xs,
   },
   orderDate: {
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  cancelBtn: {
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
-  },
-  cancelBtnText: {
-    color: '#ef4444',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  empty: {
+    ...typography.caption,
     color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  cancelOrderButton: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  cancelOrderText: {
+    ...typography.caption,
+    color: colors.error,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  emptyCartContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyCartTitle: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  emptyCartText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  shopNowButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  shopNowButtonText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.bgCard,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  modalTitle: {
+    ...typography.heading,
+    color: colors.textPrimary,
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCloseText: {
+    fontSize: 18,
+    color: colors.textSecondary,
+  },
+  modalCartList: {
+    padding: spacing.md,
+  },
+  modalFooter: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  modalTotal: {
+    ...typography.heading,
+    color: colors.textPrimary,
     textAlign: 'center',
-    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  modalCheckout: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  modalCheckoutText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  emptyCartModal: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
   },
 })
