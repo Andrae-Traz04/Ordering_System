@@ -28,6 +28,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
+    role = serializers.CharField(source='profile.role', read_only=True)
     profile_image = serializers.ImageField(required=False, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     age = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -36,7 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'first_name', 'last_name', 'email',
+            'id', 'username', 'first_name', 'last_name', 'email', 'role',
             'profile', 'profile_image', 'address', 'age', 'birthday',
         ]
         read_only_fields = ['id', 'username']
@@ -83,7 +84,7 @@ class DjoserUserCreateSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150)
     password = serializers.CharField(min_length=6, write_only=True)
     re_password = serializers.CharField(min_length=6, write_only=True)
-    role = serializers.ChoiceField(choices=['user', 'admin'])
+    role = serializers.ChoiceField(choices=['user', 'owner', 'admin'])
     profile_image = serializers.ImageField(required=False, allow_null=True)
 
     def validate_username(self, value):
