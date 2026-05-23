@@ -1,6 +1,41 @@
 import axios from 'axios'
 
 const API = axios.create({ baseURL: '/api/v1' })
+const REFRESH_API = axios.create({ baseURL: '/' })
+
+let refreshPromise = null
+
+const clearAuthState = () => {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('user')
+}
+
+const refreshAccessToken = async () => {
+  const refresh = localStorage.getItem('refresh_token')
+  if (!refresh) {
+    throw new Error('Missing refresh token')
+  }
+
+  const res = await REFRESH_API.post('/api/token/refresh/', { refresh })
+  const access = res.data?.access
+  if (!access) {
+    throw new Error('Missing refreshed access token')
+  }
+
+  localStorage.setItem('access_token', access)
+  return access
+}
+
+const queueTokenRefresh = () => {
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null
+    })
+  }
+
+  return refreshPromise
+}
 
 
 API.interceptors.request.use((config) => {
@@ -11,13 +46,34 @@ API.interceptors.request.use((config) => {
 
 API.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('user')
+  async (err) => {
+    const originalRequest = err.config
+    const status = err.response?.status
+
+    const isAuthEndpoint = originalRequest?.url?.includes('/auth/login/')
+      || originalRequest?.url?.includes('/auth/register/')
+      || originalRequest?.url?.includes('/api/token/refresh/')
+
+    if (status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
+      originalRequest._retry = true
+
+      try {
+        const access = await queueTokenRefresh()
+        originalRequest.headers = originalRequest.headers || {}
+        originalRequest.headers.Authorization = `Bearer ${access}`
+        return API(originalRequest)
+      } catch (refreshError) {
+        clearAuthState()
+        window.location.href = '/login'
+        return Promise.reject(refreshError)
+      }
+    }
+
+    if (status === 401) {
+      clearAuthState()
       window.location.href = '/login'
     }
+
     return Promise.reject(err)
   }
 )

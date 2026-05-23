@@ -426,6 +426,7 @@ class LoginView(APIView):
          try:
              user_obj = User.objects.get(email__iexact=email)
          except User.DoesNotExist:
+             print(f"DEBUG: Login failed. No user found with email '{email}'")
              return Response(
                  {'error': 'Invalid email or password.'},
                  status=status.HTTP_401_UNAUTHORIZED
@@ -433,6 +434,7 @@ class LoginView(APIView):
 
          # Check if account is activated
          if not user_obj.is_active:
+             print(f"DEBUG: Login failed. User '{email}' exists but is not active.")
              return Response(
                  {'error': 'Account not activated. Check your email for the activation link, or contact support.'},
                  status=status.HTTP_403_FORBIDDEN
@@ -440,6 +442,7 @@ class LoginView(APIView):
 
          user = authenticate(username=user_obj.username, password=password)
          if not user:
+             print(f"DEBUG: Login failed. Incorrect password for email '{email}' (username: '{user_obj.username}')")
              return Response(
                  {'error': 'Invalid email or password.'},
                  status=status.HTTP_401_UNAUTHORIZED

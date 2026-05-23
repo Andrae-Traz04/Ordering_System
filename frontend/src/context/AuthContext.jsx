@@ -1,7 +1,17 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { login as loginApi, logout as logoutApi, register as registerApi, updateProfile, fetchMe } from '@/api/ordersApi'
 
 const AuthContext = createContext(null)
+
+function normalizeUserPayload(payload) {
+  const raw = payload?.user ? payload.user : payload
+  const role = raw?.profile?.role || raw?.role || 'user'
+  return {
+    ...raw,
+    role,
+    profile: raw?.profile || null,
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -14,8 +24,7 @@ export function AuthProvider({ children }) {
   // Validate token on mount
   useEffect(() => {
     const token = localStorage.getItem('access_token')
-    if (token && user) {
-      // Try to validate token by calling /me endpoint
+    if (token) {
       refreshUser().finally(() => setAuthChecked(true))
     } else {
       if (!token && user) {
@@ -27,20 +36,7 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  // Normalize user shapes across different API responses so `user.role` is always available
-  function normalizeUserPayload(payload) {
-    // payload may be: { user: {...}, access, refresh } or a direct user object
-    const raw = payload?.user ? payload.user : payload
-    const role = raw?.profile?.role || raw?.role || 'user'
-    return {
-      ...raw,
-      role,
-      // keep profile object available too
-      profile: raw?.profile || null,
-    }
-  }
-
-const login = async (email, password) => {
+  const login = async (email, password) => {
      const res = await loginApi({ email, password })
      // Handle 403 — account not activated
      if (res.data?.detail?.includes?.('not activated')) {
@@ -86,7 +82,7 @@ const login = async (email, password) => {
     return userData
   }
 
-   const refreshUser = async () => {
+   const refreshUser = useCallback(async () => {
      try {
        const token = localStorage.getItem('access_token')
        if (!token) {
@@ -107,7 +103,7 @@ const login = async (email, password) => {
        setUser(null)
        return null
      }
-   }
+   }, [])
 
   return (
     <AuthContext.Provider value={{ user, authChecked, login, register, logout, updateUser, refreshUser }}>

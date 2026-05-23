@@ -6,8 +6,8 @@ django-cors-headers==4.9.0
 djangorestframework==3.16.1
 djangorestframework-simplejwt==5.5.1
 djoser==2.3.3
-Pillow==11.1.0
-requests==2.32.3
+Pillow==12.2.0
+requests==2.34.2
 sqlparse==0.5.5
 tzdata==2025.3
 pypdf==5.3.1

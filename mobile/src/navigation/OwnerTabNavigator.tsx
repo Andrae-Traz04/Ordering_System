@@ -1,61 +1,107 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, View, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import OwnerOrdersScreen from '../screens/OwnerOrdersScreen';
 import OwnerProductsScreen from '../screens/OwnerProductsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
 
-import { colors } from '../theme/design';
-
-const OrdersScreen = OwnerOrdersScreen;
-const ProductsScreen = OwnerProductsScreen;
-const OwnerProfileScreen = ProfileScreen;
-
+import { colors, shadows } from '../theme/design';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
-export default function OwnerTabNavigator() {
+// Custom Tab Bar Icon Component
+const TabIcon = ({ focused, icon, label }: { focused: boolean; icon: string; label: string }) => {
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{
+        fontSize: focused ? 22 : 20,
+        opacity: focused ? 1 : 0.6,
+        marginBottom: 2,
+      }}>
+        {icon}
+      </Text>
+      <Text style={{
+        fontSize: 10,
+        fontWeight: focused ? '700' : '500',
+        color: focused ? colors.primary : colors.textSecondary,
+        marginTop: 2,
+      }}>
+        {label}
+      </Text>
+    </View>
+  );
+};
+
+// Owner Tabs Navigator
+function OwnerTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={{
         tabBarStyle: {
-          backgroundColor: colors.panel,
-          borderTopColor: '#F0EBFF',
-          height: 60,
-          paddingBottom: 8,
+          backgroundColor: colors.bgCard,
+          borderTopWidth: 0,
+          height: Platform.OS === 'ios' ? 85 : 70,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          paddingTop: 8,
+          ...shadows.md,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         headerShown: false,
-        tabBarIcon: ({ focused }) => {
-          const color = focused ? colors.primary : colors.textMuted;
-          // Use simple arrow-like glyphs for a more “UI icon” look without emoji dependency.
-          let icon = '•';
-          if (route.name === 'Dashboard') icon = '⌂';
-          else if (route.name === 'Orders') icon = '↻';
-          else if (route.name === 'Products') icon = '▦';
-          else if (route.name === 'Profile') icon = '☻';
-
-          return (
-            <Text style={{ fontSize: 18, opacity: focused ? 1 : 0.6, color, fontWeight: '700' }}>
-              {icon}
-            </Text>
-          );
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '700',
-          marginBottom: 4,
-        },
-      })}
+        tabBarShowLabel: false,
+      }}
     >
-      <Tab.Screen name="Dashboard" component={OwnerDashboardScreen} />
-      <Tab.Screen name="Orders" component={OrdersScreen} />
-      <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="Profile" component={OwnerProfileScreen} />
+      <Tab.Screen 
+        name="Dashboard" 
+        component={OwnerDashboardScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="📊" label="Dashboard" />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Orders" 
+        component={OwnerOrdersScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="📋" label="Orders" />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Products" 
+        component={OwnerProductsScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="🛍️" label="Products" />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon="👤" label="Profile" />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
+// Main Owner Navigator
+export default function OwnerTabNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="OwnerTabs" component={OwnerTabs} />
+      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+    </Stack.Navigator>
+  );
+}
