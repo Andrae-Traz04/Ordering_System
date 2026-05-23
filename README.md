@@ -2,6 +2,7 @@
 
 A full-stack web application that manages orders through a strict workflow state machine.
 Built with Django REST Framework (backend) and React + Vite (frontend).
+Built with Django REST Framework (backend), React + Vite (frontend), and React Native + Expo (mobile).
 
 ---
 
@@ -10,9 +11,12 @@ Built with Django REST Framework (backend) and React + Vite (frontend).
 ### Backend
 - Python 3.10+
 - Django 6
+- Python 3.11+
+- Django 5.x / 6.x
 - Django REST Framework
 - SQLite (database)
 - Token Authentication
+- SimpleJWT Authentication (JSON Web Tokens)
 
 ### Frontend
 - React 18
@@ -20,6 +24,13 @@ Built with Django REST Framework (backend) and React + Vite (frontend).
 - React Router DOM
 - Axios
 - Plain CSS (no UI library)
+
+### Mobile
+- React Native (Expo SDK)
+- React Navigation (Tabs & Stack)
+- Axios (API Client)
+- Context API (Auth State)
+- Design System (Custom theme-based styles)
 
 ---
 
@@ -36,6 +47,8 @@ ordering system/
 │   ├── templates/
 │   │   └── api/
 │   │       └── docs.html          # Custom HTML admin panel
+│   ├── chatbot.py                 # AI Chatbot logic (OpenAI/Azure)
+│   ├── email_utils.py             # Activation & Reset email helpers
 │   ├── admin.py
 │   ├── models.py                  # Database models
 │   ├── serializers.py             # DRF serializers
@@ -163,6 +176,14 @@ Frontend runs at → `http://localhost:5173`
 
 ---
 
+### Step 8 — Start the Mobile development server
+
+Open a **third terminal**:
+```bash
+cd mobile
+npx expo start
+```
+
 ### Email activation setup
 The activation email is sent through Django's email backend. By default the project uses the console backend for local development, so no real email is delivered until SMTP is configured.
 
@@ -202,6 +223,9 @@ Use a Google App Password, not your normal Gmail password.
 | **Customer** | Browse products, add to cart, place orders, view own orders, leave reviews on completed orders |
 | **Owner** | Add/edit/delete products, view all orders, advance order status |
 | **Admin** | Full access — view analytics, manage users and their roles, view all orders, delete orders, view all customers |
+| **Customer** | Browse products, add to cart, place orders, view own orders, leave reviews, apply for Owner status |
+| **Owner** | Add/edit/delete products, manage business orders, advance order status |
+| **Admin** | System-wide control — manage users, review owner applications, view analytics, delete any order |
 
 > **Note:** Admin cannot create orders. Admin manages the system.
 
