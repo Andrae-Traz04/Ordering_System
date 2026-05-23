@@ -1,53 +1,49 @@
 export interface User {
-  id: number
-  email: string
-  first_name: string
-  last_name: string
-  role: 'customer' | 'owner' | 'admin'
-  profile_image?: string
-  phone?: string
-  address?: string
+  id: number;
+  username: string;
+  email: string;
+  role: 'user' | 'owner' | 'admin';
+  first_name?: string;
+  last_name?: string;
 }
 
 export interface Product {
-  id: number
-  name: string
-  description: string
-  price: number
-  category: string
-  stock: number
-  image?: string
-  quantity?: number
-  emoji?: string
+  id: number;
+  name: string;
+  description: string;
+  price: string | number;
+  category: string;
+  emoji?: string;
+  badge?: string;
+  is_active: boolean;
+  quantity?: number; // Optional for cart management
+}
+
+export interface OrderSummary {
+  total_orders: number;
+  total_revenue: string | number;
+  completed_revenue: string | number;
+  by_status: {
+    pending: number;
+    processing: number;
+    shipped: number;
+    completed: number;
+  };
 }
 
 export interface Order {
-  id: number
-  customer_name: string
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'completed'
-  total: number
-  created_at: string
-  items: OrderItem[]
-  notes?: string
-}
-
-export interface OrderItem {
-  id: number
-  product: Product
-  quantity: number
-  price: number
+  id: number;
+  order_number: string;
+  status: string;
+  customer_name: string;
+  customer_email: string;
+  total: string | number;
+  total_amount?: string | number;
+  created_at: string;
 }
 
 export interface Notification {
-  id: number
-  message: string
-  read: boolean
-  created_at: string
-}
-
-export interface Summary {
-  total_orders: number
-  total_revenue: number
-  pending_orders: number
-  completed_orders: number
+  id: string;
+  message: string;
+  created_at: string;
 }
