@@ -811,7 +811,7 @@ class UserRoleUpdateView(APIView):
             return Response({'detail': 'You cannot change your own role.'}, status=status.HTTP_400_BAD_REQUEST)
 
         new_role = request.data.get('role')
-        if new_role not in ['customer', 'admin']:
+        if new_role not in ['customer', 'owner', 'admin']:
             return Response({'detail': 'Invalid role. Must be customer, owner, or admin.'}, status=status.HTTP_400_BAD_REQUEST)
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -965,8 +965,10 @@ class OwnerApplicationReviewView(APIView):
             # If approved, update user role
             if application.status == 'approved':
                 try:
-                    profile = application.user.profile
-                    profile.role = 'owner'
+                    profile, _ = UserProfile.objects.get_or_create(user=application.user)
+                    # Don't downgrade admins to owners
+                    if profile.role != 'admin':
+                        profile.role = 'owner'
                     profile.save()
                 except UserProfile.DoesNotExist:
                     # Create profile if it doesn't exist

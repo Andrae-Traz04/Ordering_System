@@ -12,6 +12,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('orders.urls')),
     path('api/v1/', include('chatbot.urls')),
+
+    # Auth + app endpoints for mobile under /api/v1/*
+    path('api/v1/', include('orders.urls')),
+
+
+
 ]
 
 try:

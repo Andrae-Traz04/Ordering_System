@@ -33,10 +33,12 @@ urlpatterns = [
     path('panel/', views.admin_panel, name='admin-panel'),
 
     # Auth
+    # Note: some clients expect these under /api/v1/auth/* (mobile), which is provided by config/urls.py.
     path('auth/register/',                                    views.RegisterView.as_view(),              name='register'),
     path('auth/login/',                                       views.LoginView.as_view(),                 name='login'),
     path('auth/logout/',                                      views.LogoutView.as_view(),                name='logout'),
     path('auth/me/',                                          views.MeView.as_view(),                    name='me'),
+
     
     # Email Activation (legacy)
     path('auth/activate/<int:user_id>/<str:token>/',          views.ActivateEmailView.as_view(),         name='activate-email'),
