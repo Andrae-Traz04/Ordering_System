@@ -229,7 +229,9 @@ export default function Dashboard() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, animation: 'dashFadeUp 0.4s ease both' }}>
         <div>
           <p style={{ fontSize: 11, fontWeight: 700, color: '#C4B8E8', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 4 }}>
-            {user?.role === 'admin' ? 'Admin Dashboard' : 'Owner Dashboard'}
+            {user?.role === 'admin' ? 'Admin Dashboard' : 
+             user?.role === 'owner' ? 'Owner Dashboard' : 
+             'User Dashboard'}
           </p>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: '#2D1F6E' }}>
             Welcome back, {user?.username}! 👋
