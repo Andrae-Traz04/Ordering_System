@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { fetchProducts, createOrder, fetchOrders, cancelOrder } from '../api/client';
 import { Product, Order } from '../types';
-import { colors, radii, spacing, typeScale } from '../theme/design';
+import { colors, radii, spacing, typography, shadows } from '../theme/design';
 
 type CartLine = Product & { quantity: number };
 
@@ -21,9 +21,6 @@ export default function CartScreen() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-
-  // Cart is still client-side in this UI, but will be reflected server-side by creating an Order.
-  // Backend cart endpoints are not present; this screen is the dedicated checkout experience.
   const [cart, setCart] = useState<CartLine[]>([]);
   const [placing, setPlacing] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
@@ -56,6 +53,7 @@ export default function CartScreen() {
       }
       return [...prev, { ...(product as any), quantity: 1 }];
     });
+    Alert.alert('Added', `${product.name} added to cart`);
   };
 
   const updateQty = (id: number, qty: number) => {
@@ -67,7 +65,7 @@ export default function CartScreen() {
 
   const placeOrder = async () => {
     if (!cart.length) {
-      Alert.alert('Cart is empty', 'Add products before placing an order.');
+      Alert.alert('Cart Empty', 'Add products before placing an order.');
       return;
     }
     setPlacing(true);
@@ -96,211 +94,408 @@ export default function CartScreen() {
   };
 
   const handleCancelOrder = async (orderId: number) => {
-    setCancellingId(orderId);
-    try {
-      await cancelOrder(orderId);
-      Alert.alert('Cancelled', 'Order cancelled successfully.');
-      await loadData();
-    } catch (e) {
-      Alert.alert('Error', 'Failed to cancel order');
-    } finally {
-      setCancellingId(null);
-    }
+    Alert.alert('Cancel Order', 'Are you sure?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes',
+        style: 'destructive',
+        onPress: async () => {
+          setCancellingId(orderId);
+          try {
+            await cancelOrder(orderId);
+            Alert.alert('Cancelled', 'Order cancelled successfully.');
+            await loadData();
+          } catch {
+            Alert.alert('Error', 'Failed to cancel order');
+          } finally {
+            setCancellingId(null);
+          }
+        }
+      }
+    ]);
   };
 
-  const recentOrders = useMemo(() => {
-    // show last few orders for quick access
-    return orders.slice(0, 6);
-  }, [orders]);
+  const recentOrders = useMemo(() => orders.slice(0, 6), [orders]);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Cart</Text>
-      </View>
-
-      <View style={styles.cartSummary}>
-        <Text style={styles.cartSummaryText}>Items: {cartCount}</Text>
-        <Text style={styles.cartTotalText}>Total: ₱{cartTotal.toFixed(2)}</Text>
-        <TouchableOpacity style={[styles.placeBtn, placing && styles.placeBtnDisabled]} onPress={placeOrder} disabled={placing}>
-          <Text style={styles.placeBtnText}>{placing ? 'Placing...' : 'Place Order'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.sectionTitleRow}>
-        <Text style={styles.sectionTitle}>Your Cart Lines</Text>
-      </View>
-
-      {cart.length === 0 ? (
-        <Text style={styles.empty}>Cart is empty. Add items from the Shop below.</Text>
-      ) : (
-        <FlatList
-          data={cart}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => {
-            const lineTotal = Number(item.price) * item.quantity;
-            return (
-              <View style={styles.lineCard}>
-                <View style={styles.lineRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.lineName}>{item.name}</Text>
-                    <Text style={styles.lineMeta}>₱{Number(item.price).toFixed(2)} each</Text>
-                  </View>
-                  <Text style={styles.lineTotal}>₱{lineTotal.toFixed(2)}</Text>
-                </View>
-
-                <View style={styles.qtyRow}>
-                  <TouchableOpacity onPress={() => updateQty(item.id, item.quantity - 1)} style={styles.qtyBtn}>
-                    <Text style={styles.qtyBtnText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.qtyText}>{item.quantity}</Text>
-                  <TouchableOpacity onPress={() => updateQty(item.id, item.quantity + 1)} style={styles.qtyBtn}>
-                    <Text style={styles.qtyBtnText}>+</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => updateQty(item.id, 0)} style={styles.removeBtn}>
-                    <Text style={styles.removeBtnText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          }}
-        />
-      )}
-
-      <View style={styles.sectionTitleRow}>
-        <Text style={styles.sectionTitle}>Shop (quick add)</Text>
-      </View>
       <FlatList
-        data={products.slice(0, 10)}
-        keyExtractor={(item) => item.id.toString()}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.quickProductCard} onPress={() => addToCart(item)}>
-            <Text style={styles.quickEmoji}>🛍️</Text>
-            <Text style={styles.quickName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.quickPrice}>₱{Number(item.price).toFixed(2)}</Text>
-            <Text style={styles.quickAdd}>Add</Text>
-          </TouchableOpacity>
-        )}
-      />
-
-      <View style={styles.sectionTitleRow}>
-        <Text style={styles.sectionTitle}>Recent Orders</Text>
-      </View>
-      {recentOrders.length === 0 ? (
-        <Text style={styles.muted}>No orders yet.</Text>
-      ) : (
-        <FlatList
-          data={recentOrders}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.orderCard}>
-              <Text style={styles.orderTop}>Order #{item.id} • {item.status}</Text>
-              <Text style={styles.orderTotal}>₱{Number(item.total).toFixed(2)}</Text>
-              {item.status === 'pending' && (
-                <TouchableOpacity
-                  style={[styles.cancelBtn, cancellingId === item.id && styles.cancelBtnDisabled]}
-                  onPress={() => handleCancelOrder(item.id)}
-                  disabled={cancellingId === item.id}
-                >
-                  <Text style={styles.cancelBtnText}>{cancellingId === item.id ? 'Cancelling...' : 'Cancel'}</Text>
-                </TouchableOpacity>
-              )}
+        data={[]}
+        renderItem={null}
+        ListHeaderComponent={
+          <>
+            <View style={styles.header}>
+              <Text style={styles.storeName}>MY STORE</Text>
+              <Text style={styles.greeting}>{getGreeting()}, {user?.first_name || 'Customer'}</Text>
+              <Text style={styles.headerSubtitle}>Manage your cart and track orders</Text>
             </View>
-          )}
-        />
-      )}
+
+            <View style={styles.cartSummary}>
+              <Text style={styles.cartSummaryTitle}>Cart Summary</Text>
+              <View style={styles.cartSummaryRow}>
+                <Text style={styles.cartSummaryLabel}>Items:</Text>
+                <Text style={styles.cartSummaryValue}>{cartCount}</Text>
+              </View>
+              <View style={styles.cartSummaryRow}>
+                <Text style={styles.cartSummaryLabel}>Total:</Text>
+                <Text style={styles.cartSummaryPrice}>₱{cartTotal.toFixed(2)}</Text>
+              </View>
+              <TouchableOpacity style={[styles.placeBtn, placing && styles.buttonDisabled]} onPress={placeOrder} disabled={placing}>
+                <Text style={styles.placeBtnText}>{placing ? 'Placing...' : 'Place Order'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionTitle}>Your Cart</Text>
+          </>
+        }
+        ListFooterComponent={
+          <>
+            {cart.length === 0 ? (
+              <View style={styles.emptyCart}>
+                <Text style={styles.emptyCartText}>Your cart is empty</Text>
+                <Text style={styles.emptyCartHint}>Add items from the shop below</Text>
+              </View>
+            ) : (
+              cart.map((item) => {
+                const lineTotal = Number(item.price) * item.quantity;
+                return (
+                  <View key={item.id} style={styles.cartItem}>
+                    <View style={styles.cartItemHeader}>
+                      <Text style={styles.cartItemName}>{item.name}</Text>
+                      <Text style={styles.cartItemTotal}>₱{lineTotal.toFixed(2)}</Text>
+                    </View>
+                    <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} each</Text>
+                    <View style={styles.cartItemControls}>
+                      <TouchableOpacity onPress={() => updateQty(item.id, item.quantity - 1)} style={styles.qtyBtn}>
+                        <Text style={styles.qtyBtnText}>−</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.qtyText}>{item.quantity}</Text>
+                      <TouchableOpacity onPress={() => updateQty(item.id, item.quantity + 1)} style={styles.qtyBtn}>
+                        <Text style={styles.qtyBtnText}>+</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => updateQty(item.id, 0)} style={styles.removeBtn}>
+                        <Text style={styles.removeBtnText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+
+            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Quick Add from Shop</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shopScroll}>
+              {products.slice(0, 10).map((product) => (
+                <TouchableOpacity key={product.id} style={styles.quickProduct} onPress={() => addToCart(product)}>
+                  <Text style={styles.quickName} numberOfLines={1}>{product.name}</Text>
+                  <Text style={styles.quickPrice}>₱{Number(product.price).toFixed(2)}</Text>
+                  <Text style={styles.quickAdd}>Add</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Recent Orders</Text>
+            {recentOrders.length === 0 ? (
+              <Text style={styles.muted}>No orders yet.</Text>
+            ) : (
+              recentOrders.map((order) => (
+                <View key={order.id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <Text style={styles.orderNumber}>Order #{order.id}</Text>
+                    <View style={[styles.orderStatus, { backgroundColor: colors.statusPending + '15' }]}>
+                      <Text style={[styles.orderStatusText, { color: colors.statusPending }]}>{order.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.orderTotal}>₱{Number(order.total).toFixed(2)}</Text>
+                  {order.status === 'pending' && (
+                    <TouchableOpacity
+                      style={[styles.cancelBtn, cancellingId === order.id && styles.buttonDisabled]}
+                      onPress={() => handleCancelOrder(order.id)}
+                      disabled={cancellingId === order.id}
+                    >
+                      <Text style={styles.cancelBtnText}>{cancellingId === order.id ? 'Cancelling...' : 'Cancel'}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
+          </>
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgBottom, padding: spacing.md },
-  loadingScreen: { flex: 1, backgroundColor: colors.bgBottom, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  title: { color: colors.textPrimary, fontSize: 22, fontWeight: '900' },
+const ScrollView = ({ horizontal, showsHorizontalScrollIndicator, children, style }: any) => {
+  const { ScrollView: RNScrollView } = require('react-native');
+  return (
+    <RNScrollView horizontal={horizontal} showsHorizontalScrollIndicator={showsHorizontalScrollIndicator} style={style}>
+      {children}
+    </RNScrollView>
+  );
+};
 
-  cartSummary: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    marginBottom: spacing.md,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
-  cartSummaryText: { color: colors.textSecondary, fontWeight: '800' },
-  cartTotalText: { color: colors.accent, fontWeight: '900', fontSize: 18, marginTop: 4 },
-  placeBtn: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: 12,
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  placeBtnDisabled: { opacity: 0.6 },
-  placeBtnText: { color: '#4B2A00', fontWeight: '900' },
-
-  sectionTitleRow: { marginTop: spacing.md, marginBottom: spacing.xs },
-  sectionTitle: { color: colors.textPrimary, fontWeight: '900', fontSize: 16 },
-  empty: { color: colors.textMuted, fontWeight: '700', marginTop: spacing.md },
-  muted: { color: colors.textMuted, fontWeight: '700' },
-
-  lineCard: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#F0EBFF',
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
   },
-  lineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  lineName: { color: colors.textPrimary, fontWeight: '900' },
-  lineMeta: { color: colors.textMuted, fontWeight: '700', marginTop: 2 },
-  lineTotal: { color: colors.accent, fontWeight: '900' },
-
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
-  qtyBtn: { backgroundColor: colors.panelSoft, borderRadius: radii.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  qtyBtnText: { color: colors.textPrimary, fontWeight: '900' },
-  qtyText: { color: colors.textPrimary, fontWeight: '900', minWidth: 26, textAlign: 'center' },
-  removeBtn: { backgroundColor: '#fef2f2', borderRadius: radii.sm, paddingHorizontal: 10, paddingVertical: 6 },
-  removeBtnText: { color: '#ef4444', fontWeight: '800', fontSize: 12 },
-
-  quickProductCard: {
-    width: 150,
-    backgroundColor: colors.panel,
+  scrollContent: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  header: {
+    backgroundColor: colors.bgCard,
     borderRadius: radii.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#F0EBFF',
-    marginRight: spacing.sm,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
-  quickEmoji: { fontSize: 22 },
-  quickName: { color: colors.textPrimary, fontWeight: '900', marginTop: 6 },
-  quickPrice: { color: colors.accent, fontWeight: '900', marginTop: 4 },
-  quickAdd: { color: colors.primary, fontWeight: '900', marginTop: 6 },
-
-  orderCard: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#F0EBFF',
-    padding: spacing.md,
+  storeName: {
+    ...typography.caption,
+    color: colors.primary,
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
+  },
+  greeting: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  headerSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  cartSummary: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.md,
+  },
+  cartSummaryTitle: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  cartSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  orderTop: { color: colors.textPrimary, fontWeight: '900' },
-  orderTotal: { color: colors.accent, fontWeight: '900', fontSize: 16, marginTop: 6 },
-  cancelBtn: { marginTop: spacing.sm, backgroundColor: '#fef2f2', borderRadius: radii.sm, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: '#fecaca' },
-  cancelBtnDisabled: { opacity: 0.6 },
-  cancelBtnText: { color: '#ef4444', fontWeight: '900' },
+  cartSummaryLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  cartSummaryValue: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+  },
+  cartSummaryPrice: {
+    ...typography.heading,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  placeBtn: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  placeBtnText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  sectionTitle: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  emptyCart: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyCartText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  emptyCartHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  cartItem: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...shadows.sm,
+  },
+  cartItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  cartItemName: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+  },
+  cartItemTotal: {
+    ...typography.bodyBold,
+    color: colors.primary,
+  },
+  cartItemPrice: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  cartItemControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  qtyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bgPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  qtyBtnText: {
+    fontSize: 18,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  qtyText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  removeBtn: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  removeBtnText: {
+    ...typography.caption,
+    color: colors.error,
+  },
+  shopScroll: {
+    marginBottom: spacing.md,
+  },
+  quickProduct: {
+    width: 120,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    marginRight: spacing.sm,
+    alignItems: 'center',
+    ...shadows.sm,
+  },
+  quickName: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  quickPrice: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  quickAdd: {
+    ...typography.caption,
+    color: colors.textInverse,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    marginTop: spacing.xs,
+  },
+  muted: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  orderCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...shadows.sm,
+  },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  orderNumber: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+  },
+  orderStatus: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  orderStatusText: {
+    ...typography.caption,
+    fontWeight: 'bold',
+  },
+  orderTotal: {
+    ...typography.heading,
+    color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  cancelBtn: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.sm,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  cancelBtnText: {
+    ...typography.caption,
+    color: colors.error,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
 });
