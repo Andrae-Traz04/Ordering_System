@@ -1,12 +1,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../api/client';
-import { colors, radii, spacing } from '../theme/design';
+import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design';
+import { useNavigation } from '@react-navigation/native';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
 
   const [firstName, setFirstName] = useState(user?.first_name ?? '');
@@ -14,10 +25,14 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState(user?.email ?? '');
   const [address, setAddress] = useState((user as any)?.address ?? '');
 
+  const userRole = user?.role || (user as any)?.profile?.role || 'customer';
+  const isCustomer = userRole === 'customer';
+
   useEffect(() => {
     setFirstName(user?.first_name ?? '');
     setLastName(user?.last_name ?? '');
     setEmail(user?.email ?? '');
+    setAddress((user as any)?.address ?? '');
   }, [user]);
 
   const handleSave = useCallback(async () => {
@@ -29,7 +44,7 @@ export default function ProfileScreen() {
         email,
         address,
       });
-      Alert.alert('Saved', 'Profile updated successfully.');
+      Alert.alert('Success', 'Profile updated successfully.');
     } catch (e: any) {
       const msg = e?.response?.data ? Object.values(e.response.data).flat().join(', ') : 'Failed to update profile';
       Alert.alert('Error', msg);
@@ -38,76 +53,240 @@ export default function ProfileScreen() {
     }
   }, [firstName, lastName, email, address]);
 
-  const maybePickAvatar = async () => {
-    // File upload is not currently wired in mobile.
-    // Keeping the button so Profile UI exists; backend upload can be added later.
-    Alert.alert('Not wired', 'Profile image upload is not wired end-to-end yet.');
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: logout }
+      ]
+    );
+  };
+
+  const handleApplyForOwner = () => {
+    navigation.navigate('ApplyForOwner');
+  };
+
+  const getInitials = () => {
+    if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
+    if (firstName) return firstName[0].toUpperCase();
+    if (user?.username) return user.username[0].toUpperCase();
+    return 'U';
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials()}</Text>
+            </View>
+          </View>
+          <Text style={styles.userName}>{user?.first_name || user?.username || 'Customer'}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{userRole.toUpperCase()}</Text>
+          </View>
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <View style={styles.formContainer}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
 
-        <Text style={styles.label}>First name</Text>
-        <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <TextInput 
+              style={styles.input} 
+              value={email} 
+              onChangeText={setEmail} 
+              keyboardType="email-address" 
+              autoCapitalize="none"
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
 
-        <Text style={styles.label}>Last name</Text>
-        <TextInput style={styles.input} value={lastName} onChangeText={setLastName} autoCapitalize="words" />
+          <View style={styles.row}>
+            <View style={styles.half}>
+              <Text style={styles.inputLabel}>First Name</Text>
+              <TextInput 
+                style={styles.input} 
+                value={firstName} 
+                onChangeText={setFirstName}
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+            <View style={styles.half}>
+              <Text style={styles.inputLabel}>Last Name</Text>
+              <TextInput 
+                style={styles.input} 
+                value={lastName} 
+                onChangeText={setLastName}
+                placeholderTextColor={colors.textMuted}
+              />
+            </View>
+          </View>
 
-        <Text style={styles.label}>Address</Text>
-        <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Enter your address" />
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Address</Text>
+            <TextInput 
+              style={[styles.input, styles.textArea]} 
+              value={address} 
+              onChangeText={setAddress}
+              multiline
+              numberOfLines={3}
+              placeholderTextColor={colors.textMuted}
+              placeholder="Enter your address"
+            />
+          </View>
 
-        <TouchableOpacity style={[styles.saveBtn, loading && styles.saveBtnDisabled]} disabled={loading} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.saveButton, loading && styles.buttonDisabled]} 
+            disabled={loading} 
+            onPress={handleSave}
+          >
+            <Text style={styles.saveButtonText}>
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.avatarBtn} onPress={maybePickAvatar}>
-          <Text style={styles.avatarBtnText}>Change Profile Image</Text>
-        </TouchableOpacity>
-      </View>
+          {isCustomer && (
+            <TouchableOpacity style={styles.applyButton} onPress={handleApplyForOwner}>
+              <Text style={styles.applyButtonText}>Apply for Owner Account</Text>
+            </TouchableOpacity>
+          )}
 
-      <Text style={styles.muted}>Role: {(user?.role || 'user').toUpperCase()}</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgBottom, padding: spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  title: { color: colors.textPrimary, fontSize: 22, fontWeight: '900' },
-
-  logoutBtn: { backgroundColor: colors.panelDark, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.sm },
-  logoutText: { color: colors.textSecondary, fontWeight: '800', fontSize: 12 },
-
-  card: { backgroundColor: colors.panel, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: '#F0EBFF' },
-  label: { color: colors.textSecondary, fontWeight: '800', marginTop: spacing.sm, marginBottom: 6 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    backgroundColor: colors.bgCard,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    ...shadows.sm,
+  },
+  avatarContainer: {
+    marginBottom: spacing.md,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 40,
+    color: colors.textInverse,
+    fontWeight: 'bold',
+  },
+  userName: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  roleBadge: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+  },
+  roleText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  formContainer: {
+    padding: spacing.lg,
+  },
+  sectionTitle: {
+    ...typography.heading,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  half: {
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: spacing.md,
+  },
+  inputLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
-    backgroundColor: colors.panelSoft,
+    backgroundColor: colors.bgCard,
     borderRadius: radii.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
+    paddingVertical: spacing.md,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    fontSize: typeScale.body,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
   },
-
-  saveBtn: { marginTop: spacing.md, backgroundColor: colors.accent, borderRadius: radii.md, paddingVertical: 12, alignItems: 'center' },
-  saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: '#4B2A00', fontWeight: '900' },
-
-  avatarBtn: { marginTop: spacing.sm, backgroundColor: colors.panelSoft, borderRadius: radii.md, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#A98DF6' },
-  avatarBtnText: { color: colors.textPrimary, fontWeight: '900' },
-
-  muted: { color: colors.textMuted, fontWeight: '800', marginTop: spacing.md, textAlign: 'center' },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    ...shadows.sm,
+  },
+  saveButtonText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  applyButton: {
+    backgroundColor: colors.success + '15',
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.success + '30',
+  },
+  applyButtonText: {
+    ...typography.bodyBold,
+    color: colors.success,
+  },
+  logoutButton: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  logoutButtonText: {
+    ...typography.bodyBold,
+    color: colors.error,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
 });
-
