@@ -15,18 +15,12 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
-
 import { useNavigation } from '@react-navigation/native'
-
 import { register } from '../api/client'
-
-import { colors, radii, spacing, typeScale } from '../theme/design'
-import RedErrorPill from '../components/RedErrorPill'
-
+import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design'
 
 export default function RegisterScreen() {
   const navigation = useNavigation<any>()
-
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -34,6 +28,8 @@ export default function RegisterScreen() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [profileUri, setProfileUri] = useState<string | null>(null)
   const [picking, setPicking] = useState(false)
@@ -83,6 +79,11 @@ export default function RegisterScreen() {
       return
     }
 
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters.')
+      return
+    }
+
     setLoading(true)
     try {
       const form = new FormData()
@@ -94,7 +95,6 @@ export default function RegisterScreen() {
       form.append('role', 'customer')
 
       if (profileUri) {
-        // expo-image-picker returns file:// URI
         const filename = profileUri.split('/').pop() || 'profile.jpg'
         const match = /(\.[a-zA-Z0-9]+)$/.exec(filename)
         const ext = (match?.[1] || '.jpg').replace('.', '')
@@ -106,18 +106,10 @@ export default function RegisterScreen() {
         } as any)
       }
 
-      // Backend returns activation pending redirect data; mobile currently doesn't implement activation routes.
-      // We'll rely on a generic navigation to ActivationPending if present.
-      const res = await register(form)
-
-      // Some backends return {detail} only. We'll handle both.
-      const pendingData: any = res.data
-      const uid = pendingData?.uid || pendingData?.uidb64 || pendingData?.user_id
-      const token = pendingData?.token
-
-      if (navigation?.navigate) {
-        navigation.navigate('ActivationPending', { uid, token } as never)
-      }
+      await register(form)
+      Alert.alert('Success', 'Registration successful! Please login.', [
+        { text: 'OK', onPress: () => navigation.navigate('Login') }
+      ])
     } catch (e: any) {
       const msg = e?.response?.data
         ? Object.values(e.response.data).flat().join(', ')
@@ -134,68 +126,142 @@ export default function RegisterScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.heroCard}>
-            <Text style={styles.badge}>SMART ORDERING</Text>
-            <Text style={styles.title}>Create your account</Text>
-            <Text style={styles.subtitle}>Set up your customer profile in seconds.</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.headerSection}>
+            <Text style={styles.appName}>MY STORE</Text>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join Smart Ordering today</Text>
           </View>
 
-          <RedErrorPill message={errorMsg} />
+          {errorMsg ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
+          ) : null}
 
-          <View style={styles.formCard}>
+          <View style={styles.formContainer}>
+            <View style={styles.avatarSection}>
+              <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+                {profileUri ? (
+                  <Image source={{ uri: profileUri }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Text style={styles.avatarLetter}>{avatarLetter}</Text>
+                  </View>
+                )}
+                <View style={styles.cameraIcon}>
+                  <Text style={styles.cameraIconText}>+</Text>
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.avatarHint}>Tap to add profile photo</Text>
+            </View>
+
             <View style={styles.row}>
               <View style={styles.half}>
-                <Text style={styles.label}>First Name *</Text>
-                <TextInput style={styles.input} value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
+                <Text style={styles.inputLabel}>First Name *</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={firstName} 
+                  onChangeText={setFirstName} 
+                  placeholderTextColor={colors.textMuted}
+                  placeholder="First name"
+                />
               </View>
               <View style={styles.half}>
-                <Text style={styles.label}>Last Name *</Text>
-                <TextInput style={styles.input} value={lastName} onChangeText={setLastName} autoCapitalize="words" />
+                <Text style={styles.inputLabel}>Last Name *</Text>
+                <TextInput 
+                  style={styles.input} 
+                  value={lastName} 
+                  onChangeText={setLastName} 
+                  placeholderTextColor={colors.textMuted}
+                  placeholder="Last name"
+                />
               </View>
             </View>
 
-            <Text style={styles.label}>Email *</Text>
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-
-            <Text style={styles.label}>Username *</Text>
-            <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" />
-
-            <Text style={styles.label}>Password *</Text>
-            <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry />
-
-            <Text style={styles.label}>Confirm Password *</Text>
-            <TextInput style={styles.input} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-
-            <View style={styles.divider} />
-
-            <Text style={styles.label}>Profile Picture (optional)</Text>
-
-            <TouchableOpacity style={styles.uploadBtn} onPress={pickImage} disabled={picking}>
-              <Text style={styles.uploadBtnText}>{picking ? 'Picking...' : 'Choose Image'}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.avatarPreviewWrap}>
-              {profileUri ? (
-                <Image source={{ uri: profileUri }} style={styles.avatarPreview} />
-              ) : (
-                <View style={[styles.avatarPreview, styles.avatarFallback]}>
-                  <Text style={styles.avatarFallbackText}>{avatarLetter}</Text>
-                </View>
-              )}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Email *</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor={colors.textMuted}
+                placeholder="you@example.com"
+              />
             </View>
 
-            <Pressable style={[styles.primaryButton, loading && { opacity: 0.7 }]} onPress={handleRegister} disabled={loading}>
-              {loading ? <ActivityIndicator color={colors.textSecondary} /> : <Text style={styles.primaryButtonText}>Register</Text>}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Username *</Text>
+              <TextInput 
+                style={styles.input} 
+                value={username} 
+                onChangeText={setUsername} 
+                autoCapitalize="none"
+                placeholderTextColor={colors.textMuted}
+                placeholder="username"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Password *</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  placeholderTextColor={colors.textMuted}
+                  placeholder="Create a password"
+                />
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(!showPassword)} 
+                  style={styles.eyeIcon}
+                >
+                  <Text>{showPassword ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirm Password *</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  placeholderTextColor={colors.textMuted}
+                  placeholder="Confirm your password"
+                />
+                <TouchableOpacity 
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
+                  style={styles.eyeIcon}
+                >
+                  <Text>{showConfirmPassword ? 'Hide' : 'Show'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Pressable 
+              style={[styles.registerButton, loading && styles.buttonDisabled]} 
+              onPress={handleRegister} 
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.textInverse} />
+              ) : (
+                <Text style={styles.registerButtonText}>Create Account</Text>
+              )}
             </Pressable>
 
-            <Text style={styles.roleHint}>Role is set to CUSTOMER (no self-registration as admin/owner).</Text>
+            <View style={styles.loginContainer}>
+              <Text style={styles.loginText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text style={styles.loginLink}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -204,61 +270,160 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgBottom },
-  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
-  heroCard: {
-    padding: spacing.lg,
-    backgroundColor: colors.panelDark,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: '#8F6AEE',
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
   },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent,
-    color: '#5B3900',
-    fontWeight: '700',
-    fontSize: typeScale.caption,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
   },
-  title: { marginTop: spacing.md, fontSize: typeScale.hero, fontWeight: '800', color: colors.textPrimary },
-  subtitle: { marginTop: spacing.sm, color: colors.textSecondary, fontSize: typeScale.body, lineHeight: 22 },
-
-  formCard: {
-    backgroundColor: colors.panelSoft,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: '#9D82F2',
+  headerSection: {
+    marginBottom: spacing.xl,
+    alignItems: 'center',
   },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  half: { flex: 1 },
-  label: { color: colors.textPrimary, fontWeight: '800', marginBottom: spacing.xs, fontSize: 12 },
-  input: {
-    minHeight: 50,
+  appName: {
+    ...typography.caption,
+    color: colors.primary,
+    letterSpacing: 2,
+    marginBottom: spacing.xs,
+  },
+  title: {
+    ...typography.hero,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  errorContainer: {
+    backgroundColor: colors.error + '10',
     borderRadius: radii.md,
-    backgroundColor: '#7A57E8',
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    color: colors.white,
-    paddingHorizontal: spacing.md,
+    padding: spacing.md,
     marginBottom: spacing.md,
-    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
   },
-  divider: { height: 1, backgroundColor: '#9D82F2', opacity: 0.6, marginVertical: spacing.md },
-
-  uploadBtn: { backgroundColor: colors.panel, borderWidth: 1, borderColor: '#A98DF6', borderRadius: radii.md, paddingVertical: 12, alignItems: 'center' },
-  uploadBtnText: { color: colors.textPrimary, fontWeight: '900' },
-
-  avatarPreviewWrap: { alignItems: 'center', marginTop: spacing.md },
-  avatarPreview: { width: 92, height: 92, borderRadius: 46, borderWidth: 2, borderColor: '#A98DF6' },
-  avatarFallback: { backgroundColor: colors.panelSoft, justifyContent: 'center', alignItems: 'center' },
-  avatarFallbackText: { color: colors.textPrimary, fontWeight: '900', fontSize: 30 },
-
-  primaryButton: { marginTop: spacing.md, backgroundColor: colors.accent, borderRadius: radii.md, paddingVertical: 14, alignItems: 'center' },
-  primaryButtonText: { color: '#4B2A00', fontWeight: '900', fontSize: 16 },
-  roleHint: { marginTop: spacing.md, color: colors.textMuted, fontWeight: '700', fontSize: 12, textAlign: 'center' },
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+  },
+  formContainer: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    ...shadows.lg,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  avatarContainer: {
+    position: 'relative',
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    fontSize: 40,
+    color: colors.textInverse,
+    fontWeight: 'bold',
+  },
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: colors.bgCard,
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    ...shadows.sm,
+  },
+  cameraIconText: {
+    fontSize: 16,
+  },
+  avatarHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  half: {
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: spacing.md,
+  },
+  inputLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  input: {
+    backgroundColor: colors.bgPrimary,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    color: colors.textPrimary,
+    fontSize: typeScale.body,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  passwordContainer: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: spacing.xl,
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.md,
+  },
+  registerButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    ...shadows.sm,
+  },
+  registerButtonText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+  },
+  loginText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  loginLink: {
+    ...typography.bodyBold,
+    color: colors.primary,
+  },
 })
-
