@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import { fetchSummary, fetchOrders, updateStatus } from '../api/client'
-import { Summary, Order } from '../types'
+
+import { OrderSummary as Summary, Order } from '../types'
 import { colors, radii, spacing, typeScale } from '../theme/design'
 
 const WORKFLOW = ['pending', 'processing', 'shipped', 'completed']
@@ -14,7 +16,7 @@ const NEXT_STATUS: Record<string, string | null> = {
 }
 
 export default function OwnerDashboardScreen() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [summary, setSummary] = useState<Summary | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -105,10 +107,8 @@ export default function OwnerDashboardScreen() {
           <Text style={styles.welcome}>Hi {user?.first_name || 'there'},</Text>
           <Text style={styles.headline}>Owner Dashboard</Text>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
       </View>
+
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -121,7 +121,7 @@ export default function OwnerDashboardScreen() {
               <Text style={styles.metricLabel}>Total Orders</Text>
             </View>
             <View style={styles.metricTile}>
-              <Text style={styles.metricValue}>{summary.pending_orders}</Text>
+              <Text style={styles.metricValue}>{summary.by_status.pending}</Text>
               <Text style={styles.metricLabel}>Pending</Text>
             </View>
             <View style={styles.metricTileWide}>
@@ -167,7 +167,7 @@ export default function OwnerDashboardScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <FlatList
         data={displayedOrders}
         keyExtractor={(item) => item.id.toString()}
@@ -179,7 +179,7 @@ export default function OwnerDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
-    </View>
+    </SafeAreaView>
   )
 }
 
@@ -214,21 +214,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 2,
   },
-  logoutButton: {
-    backgroundColor: '#7A57E8',
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    borderRadius: radii.pill,
-    paddingHorizontal: 14,
-    minHeight: 36,
-    justifyContent: 'center',
-  },
-  logoutText: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.2,
-  },
+
   errorText: {
     color: '#ff6b6b',
     marginBottom: spacing.sm,
