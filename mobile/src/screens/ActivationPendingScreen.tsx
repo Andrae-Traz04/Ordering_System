@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { colors, radii, spacing, typeScale } from '../theme/design'
+import { colors, radii, spacing, typography, shadows } from '../theme/design'
 
 export default function ActivationPendingScreen({ route, navigation }: any) {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
     const _uid = route?.params?.uid
-    // Token is present only if backend returns it; otherwise just show pending message.
     setMessage(_uid ? 'Check your email to activate your account.' : 'Account activation is pending. Please check your email.')
   }, [route?.params])
 
@@ -16,10 +15,11 @@ export default function ActivationPendingScreen({ route, navigation }: any) {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
+          <Text style={styles.appName}>MY STORE</Text>
           <Text style={styles.title}>Activation Pending</Text>
-          <Text style={styles.subtitle}>{message || 'Account activation is pending.'}</Text>
+          <Text style={styles.subtitle}>{message}</Text>
 
-          <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: spacing.lg }} />
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: spacing.lg }} />
 
           <Pressable
             style={styles.btn}
@@ -34,26 +34,51 @@ export default function ActivationPendingScreen({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bgBottom },
-  content: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
-  card: {
-    backgroundColor: colors.panelSoft,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: '#9D82F2',
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgPrimary,
+  },
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
     padding: spacing.lg,
   },
-  title: { color: colors.textPrimary, fontWeight: '900', fontSize: 26 },
-  subtitle: { color: colors.textSecondary, fontWeight: '800', marginTop: spacing.sm, lineHeight: 22 },
+  card: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    alignItems: 'center',
+    ...shadows.lg,
+  },
+  appName: {
+    ...typography.caption,
+    color: colors.primary,
+    letterSpacing: 2,
+    marginBottom: spacing.sm,
+  },
+  title: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
   btn: {
     marginTop: spacing.lg,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
     borderRadius: radii.md,
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#5B3900',
+    ...shadows.sm,
   },
-  btnText: { color: '#4B2A00', fontWeight: '900', fontSize: 16 },
+  btnText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
 })
-
