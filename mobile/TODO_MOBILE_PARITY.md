@@ -1,0 +1,41 @@
+# Mobile parity TODO
+
+- [ ] Add missing mobile screens: RegisterScreen, ResetPasswordScreen, ApplyForOwnerScreen.
+- [ ] Add ActivationPending screen if needed (or wire redirect to existing screen if present).
+- [ ] Update AppNavigator to include navigation routes for Register, ResetPassword, ApplyForOwner, ActivationPending.
+- [ ] Implement Register flow:
+  - [ ] Form fields + validation
+  - [ ] role hardcoded to customer
+  - [ ] optional profile image with preview
+  - [ ] FormData submit to backend
+  - [ ] redirect to activation pending
+  - [ ] styled red error pill
+- [ ] Implement ResetPassword flow:
+  - [ ] parse userId/token from route params
+  - [ ] password strength meter + checklist
+  - [ ] submit to backend
+  - [ ] success confirmation + redirect after 3s
+  - [ ] failure error screen + Try Again
+- [ ] Implement Profile flow updates:
+  - [ ] refreshUser() equivalent on mount (fetchMe)
+  - [ ] inline read-only/edit mode
+  - [ ] Save changes confirmation prompt
+  - [ ] cancel discards changes
+  - [ ] avatar preview before saving
+  - [ ] if role===user show Apply for Owner button
+- [ ] Implement ApplyForOwner flow:
+  - [ ] 3-step stepper
+  - [ ] validations per spec
+  - [ ] navigation between steps with prev disabled on step 1
+  - [ ] submit via createOwnerApplication + redirect
+  - [ ] redirect away if unauthenticated or admin/owner
+- [ ] Update OwnerDashboardScreen to match pipeline UI spec:
+  - [ ] time-appropriate greeting
+  - [ ] stats cards including Orders In Progress
+  - [ ] horizontal pipeline workflow stages with counts
+  - [ ] filter table by stage + Clear × button
+  - [ ] action buttons next stage; completed label only
+  - [ ] footer displayed-vs-total + View Full Details link
+- [ ] Add image picker dependency for profile picture selection.
+- [ ] Run mobile typecheck/build and smoke test flows.
+

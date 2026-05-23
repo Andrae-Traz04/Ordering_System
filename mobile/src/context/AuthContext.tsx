@@ -1,113 +1,137 @@
-import * as SecureStore from 'expo-secure-store'
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { User } from '../types'
-import { fetchMe, logout as apiLogout, normalizeUser } from '../api/client'
-import { Platform } from 'react-native'
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+import { fetchMe, normalizeUser, setAuthToken } from '../api/client';
+import { User } from '../types';
 
 interface AuthContextType {
-  user: User | null
-  loading: boolean
-  login: (token: string, refreshToken: string, userData: User) => Promise<void>
-  logout: () => Promise<void>
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  login: (accessToken: string, refreshToken: string, userData: User) => Promise<void>;
+  logout: () => Promise<void>;
 }
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-const normalizeUserPayload = (payload: any) => {
-  const raw = payload?.user ? payload.user : payload
-  const role = raw?.profile?.role || raw?.role || 'user'
-  return { ...raw, role, profile: raw?.profile || null }
-}
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-   useEffect(() => {
-     const loadUser = async () => {
-       try {
-         let token
-         if (Platform.OS === 'web') {
-           // For web, use localStorage as fallback
-           token = localStorage.getItem('access_token')
-         } else {
-           // For native, use SecureStore
-           token = await SecureStore.getItemAsync('access_token')
-         }
-         if (token) {
-           const res = await fetchMe()
-           setUser(normalizeUserPayload(res.data))
-         }
-       } catch (error) {
-         // Clear tokens on error
-         if (Platform.OS === 'web') {
-           localStorage.removeItem('access_token')
-           localStorage.removeItem('refresh_token')
-           localStorage.removeItem('user')
-         } else {
-           await SecureStore.deleteItemAsync('access_token')
-           await SecureStore.deleteItemAsync('refresh_token')
-           await SecureStore.deleteItemAsync('user')
-         }
-       } finally {
-         setLoading(false)
-       }
-     }
-     loadUser()
-   }, [])
+  const saveToStorage = async (key: string, value: string) => {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+    } else {
+      await SecureStore.setItemAsync(key, value);
+    }
+  };
 
-   const login = async (token: string, refreshToken: string, userData: User) => {
-     const normalizedUser = normalizeUserPayload(userData)
-     if (Platform.OS === 'web') {
-       // For web, use localStorage
-       localStorage.setItem('access_token', token)
-       localStorage.setItem('refresh_token', refreshToken)
-       localStorage.setItem('user', JSON.stringify(normalizedUser))
-     } else {
-       // For native, use SecureStore
-       await SecureStore.setItemAsync('access_token', token)
-       await SecureStore.setItemAsync('refresh_token', refreshToken)
-       await SecureStore.setItemAsync('user', JSON.stringify(normalizedUser))
-     }
-     setUser(normalizedUser)
-   }
+  const getFromStorage = async (key: string) => {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    } else {
+      return await SecureStore.getItemAsync(key);
+    }
+  };
 
-   const logout = async () => {
-     try {
-       let refreshToken
-       if (Platform.OS === 'web') {
-         // For web, get from localStorage
-         refreshToken = localStorage.getItem('refresh_token')
-       } else {
-         // For native, get from SecureStore
-         refreshToken = await SecureStore.getItemAsync('refresh_token')
-       }
-       if (refreshToken) {
-         await apiLogout(refreshToken)
-       }
-     } catch (e) {}
-     // Clear tokens
-     if (Platform.OS === 'web') {
-       localStorage.removeItem('access_token')
-       localStorage.removeItem('refresh_token')
-       localStorage.removeItem('user')
-     } else {
-       await SecureStore.deleteItemAsync('access_token')
-       await SecureStore.deleteItemAsync('refresh_token')
-       await SecureStore.deleteItemAsync('user')
-     }
-     setUser(null)
-   }
+  const removeFromStorage = async (key: string) => {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  };
+
+  useEffect(() => {
+    const loadAuthData = async () => {
+      try {
+        const accessToken = await getFromStorage('access_token');
+        const userDataString = await getFromStorage('user');
+
+        if (!accessToken) {
+          setUser(null);
+          setIsAuthenticated(false);
+          return;
+        }
+
+        // Optimistically set token, then validate via /auth/me/
+        setAuthToken(accessToken);
+
+        if (userDataString && userDataString !== 'undefined') {
+          const userData: User = JSON.parse(userDataString);
+          setUser(userData);
+        }
+
+        try {
+          const res = await fetchMe();
+          const me = res.data as any;
+          const normalizedMe = normalizeUser(me);
+          await saveToStorage('user', JSON.stringify(normalizedMe));
+          setUser(normalizedMe);
+          setIsAuthenticated(true);
+        } catch (_e: any) {
+          // Token invalid (ex: wrong token type / stale token). Clear storage.
+          await removeFromStorage('access_token');
+          await removeFromStorage('refresh_token');
+          await removeFromStorage('user');
+          setAuthToken(null);
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (_error) {
+        // Fallback: if anything goes wrong, clear auth.
+        await removeFromStorage('access_token');
+        await removeFromStorage('refresh_token');
+        await removeFromStorage('user');
+        setAuthToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAuthData();
+  }, []);
+
+  const login = async (accessToken: string, refreshToken: string, userData: User) => {
+    try {
+      await saveToStorage('access_token', accessToken);
+      await saveToStorage('refresh_token', refreshToken);
+      await saveToStorage('user', JSON.stringify(userData));
+      setAuthToken(accessToken);
+      setUser(userData);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Failed to save auth state:', error);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await removeFromStorage('access_token');
+      await removeFromStorage('refresh_token');
+      await removeFromStorage('user');
+      setAuthToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Failed to clear auth state:', error);
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
-  )
-}
+  );
+};
 
 export const useAuth = () => {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth must be used within AuthProvider')
-  return context
-}
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
