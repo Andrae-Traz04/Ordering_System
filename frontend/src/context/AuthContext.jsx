@@ -117,5 +117,18 @@ const login = async (email, password) => {
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  const ctx = useContext(AuthContext)
+  // During HMR or if provider is missing, return a safe shape.
+  if (!ctx) {
+    return {
+      user: null,
+      authChecked: false,
+      login: async () => {},
+      register: async () => {},
+      logout: async () => {},
+      updateUser: async () => {},
+      refreshUser: async () => null,
+    }
+  }
+  return ctx
 }
