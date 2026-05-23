@@ -10,10 +10,7 @@ import {
   TextInput,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NativeStackScreenProps } from '@react-navigation/native-stack'
-
 import { useRoute, useNavigation } from '@react-navigation/native'
-
 import { useAuth } from '../context/AuthContext'
 import {
   fetchOrder,
@@ -23,37 +20,22 @@ import {
   submitReview,
 } from '../api/client'
 import { Order } from '../types'
-import { colors, radii, spacing, typeScale } from '../theme/design'
-
-type RouteParams = {
-  orderId: number
-}
+import { colors, radii, spacing, typography, shadows } from '../theme/design'
 
 const NEXT_STATUS: Record<string, string | null> = {
   pending: 'processing',
   processing: 'shipped',
   shipped: 'completed',
   completed: null,
+  cancelled: null,
 }
 
-const NEXT_LABEL: Record<string, string> = {
-  processing: 'Start Processing',
-  shipped: 'Mark as Shipped',
-  completed: 'Mark as Completed',
-}
-
-function StarRating({ value }: { value: number }) {
-  // Simple star renderer (no touch/hover). Mobile parity target: display + submit review.
-  const stars = [1, 2, 3, 4, 5]
-  return (
-    <View style={styles.starsRow}>
-      {stars.map((s) => (
-        <Text key={s} style={[styles.star, value >= s ? styles.starOn : styles.starOff]}>
-          ★
-        </Text>
-      ))}
-    </View>
-  )
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Pending', color: colors.statusPending },
+  processing: { label: 'Processing', color: colors.statusProcessing },
+  shipped: { label: 'Shipped', color: colors.statusShipped },
+  completed: { label: 'Completed', color: colors.statusCompleted },
+  cancelled: { label: 'Cancelled', color: colors.statusCancelled },
 }
 
 export default function OrderDetailScreen() {
@@ -66,17 +48,13 @@ export default function OrderDetailScreen() {
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
   const [updating, setUpdating] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Review state (subset parity with frontend)
   const [reviewRating, setReviewRating] = useState<number>(5)
   const [reviewComment, setReviewComment] = useState<string>('')
   const [reviewLoading, setReviewLoading] = useState(false)
-  const [reviewError, setReviewError] = useState('')
-  const [reviewSuccess, setReviewSuccess] = useState('')
 
   const userRole = user?.role || (user as any)?.profile?.role
   const isAdmin = userRole === 'admin'
@@ -90,35 +68,35 @@ export default function OrderDetailScreen() {
     return NEXT_STATUS[st] ?? null
   }, [order?.status])
 
+  const currentStatusConfig = STATUS_CONFIG[order?.status?.toLowerCase() || 'pending'] || STATUS_CONFIG.pending
+
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const res = await fetchOrder(orderId)
-      const data = res.data
-      setOrder(data)
+      setOrder(res.data)
     } catch {
       setError('Order not found.')
-      setOrder(null)
     } finally {
       setLoading(false)
     }
   }, [orderId])
 
   useEffect(() => {
-    if (!orderId && orderId !== 0) return
+    if (!orderId) return
     load()
   }, [load, orderId])
 
-  const advance = async () => {
+  const handleAdvance = async () => {
     if (!order || !nextStatus) return
     setUpdating(true)
-    setError('')
     try {
-      await updateStatus(order.id, nextStatus, `Manually advanced to ${nextStatus}`)
+      await updateStatus(order.id, nextStatus, `Order advanced to ${nextStatus}`)
       await load()
+      Alert.alert('Success', `Order status updated to ${nextStatus}`)
     } catch (e: any) {
-      setError(e?.response?.data?.detail || 'Failed to update status.')
+      Alert.alert('Error', e?.response?.data?.detail || 'Failed to update status')
     } finally {
       setUpdating(false)
     }
@@ -126,21 +104,34 @@ export default function OrderDetailScreen() {
 
   const handleCancel = async () => {
     if (!order) return
-    setCancelling(true)
-    try {
-      await cancelOrder(order.id)
-      await load()
-      Alert.alert('Success', 'Order cancelled successfully.')
-    } catch {
-      Alert.alert('Error', 'Failed to cancel order')
-    } finally {
-      setCancelling(false)
-    }
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelling(true)
+            try {
+              await cancelOrder(order.id)
+              await load()
+              Alert.alert('Success', 'Order cancelled successfully')
+            } catch {
+              Alert.alert('Error', 'Failed to cancel order')
+            } finally {
+              setCancelling(false)
+            }
+          }
+        }
+      ]
+    )
   }
 
   const handleDelete = async () => {
     if (!order) return
-    Alert.alert('Delete order?', 'This cannot be undone.', [
+    Alert.alert('Delete Order', 'This action cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -163,16 +154,13 @@ export default function OrderDetailScreen() {
   const submitReviewAction = async () => {
     if (!order) return
     setReviewLoading(true)
-    setReviewError('')
-    setReviewSuccess('')
     try {
       await submitReview(order.id, { rating: reviewRating, comment: reviewComment })
-      setReviewSuccess('Review submitted!')
+      Alert.alert('Success', 'Thank you for your review!')
       setReviewComment('')
       await load()
-      setTimeout(() => setReviewSuccess(''), 3000)
     } catch (e: any) {
-      setReviewError(e?.response?.data?.detail || 'Failed to submit review.')
+      Alert.alert('Error', e?.response?.data?.detail || 'Failed to submit review')
     } finally {
       setReviewLoading(false)
     }
@@ -181,8 +169,9 @@ export default function OrderDetailScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingScreen}>
-          <ActivityIndicator size="large" color={colors.accent} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading order details...</Text>
         </View>
       </SafeAreaView>
     )
@@ -191,8 +180,11 @@ export default function OrderDetailScreen() {
   if (!order) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>{error || 'Order not found.'}</Text>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>{error || 'Order not found'}</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     )
@@ -204,177 +196,170 @@ export default function OrderDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>← Back</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
-          <View style={styles.headerRight}>
-            <Text style={styles.orderNumber}>Order #{order.order_number || order.id}</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>{order.status}</Text>
+          <Text style={styles.orderNumber}>Order #{order.order_number || order.id}</Text>
+        </View>
+
+        {/* Status Card */}
+        <View style={[styles.statusCard, { borderLeftColor: currentStatusConfig.color }]}>
+          <View style={styles.statusHeader}>
+            <View>
+              <Text style={styles.statusLabel}>Current Status</Text>
+              <Text style={[styles.statusValue, { color: currentStatusConfig.color }]}>
+                {currentStatusConfig.label}
+              </Text>
             </View>
+          </View>
+          
+          {isAdmin && nextStatus && (
+            <TouchableOpacity
+              style={[styles.actionButton, updating && styles.buttonDisabled]}
+              onPress={handleAdvance}
+              disabled={updating}
+            >
+              <Text style={styles.actionButtonText}>
+                {updating ? 'Processing...' : `Mark as ${nextStatus?.toUpperCase()}`}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {isUser && order.status === 'pending' && isMyOrder && (
+            <TouchableOpacity
+              style={[styles.cancelButton, cancelling && styles.buttonDisabled]}
+              onPress={handleCancel}
+              disabled={cancelling}
+            >
+              <Text style={styles.cancelButtonText}>
+                {cancelling ? 'Cancelling...' : 'Cancel Order'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.deleteButton, deleting && styles.buttonDisabled]}
+              onPress={handleDelete}
+              disabled={deleting}
+            >
+              <Text style={styles.deleteButtonText}>
+                {deleting ? 'Deleting...' : 'Delete Order'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Customer Info */}
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>Customer Information</Text>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Name:</Text>
+            <Text style={styles.infoValue}>{(order as any).customer_name || '—'}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoValue}>{(order as any).customer_email || '—'}</Text>
           </View>
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        {/* Workflow */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Order Workflow</Text>
-
-          {isAdmin && nextStatus ? (
-            <TouchableOpacity
-              style={[styles.primaryBtn, updating && styles.primaryBtnDisabled]}
-              disabled={updating}
-              onPress={advance}
-            >
-              <Text style={styles.primaryBtnText}>{updating ? 'Updating...' : `→ ${NEXT_LABEL[nextStatus] || nextStatus}`}</Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {isUser && nextStatus && order.status !== 'cancelled' ? (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>⏳ Your order is being processed. We will update you soon!</Text>
-            </View>
-          ) : null}
-
-          {!nextStatus && order.status !== 'cancelled' ? (
-            <View style={styles.successBox}>
-              <Text style={styles.successText}>✓ This order has been completed</Text>
-            </View>
-          ) : null}
-
-          {order.status === 'cancelled' ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorBoxText}>✕ This order has been cancelled</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Customer details */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Customer Details</Text>
-          <Text style={styles.fieldLabel}>Name</Text>
-          <Text style={styles.fieldValue}>{(order as any).customer_name || '—'}</Text>
-          <Text style={[styles.fieldLabel, { marginTop: 10 }]}>Email</Text>
-          <Text style={styles.fieldValue}>{(order as any).customer_email || '—'}</Text>
-        </View>
-
-        {/* Items */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Order Items ({(order as any).item_count || orderItems.length})</Text>
-
-          {orderItems.length === 0 ? (
-            <Text style={styles.mutedText}>No items.</Text>
-          ) : (
-            orderItems.map((it: any) => (
-              <View key={it.id} style={styles.itemRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{it.product_name || it.product || 'Product'}</Text>
-                  <Text style={styles.itemSub}>Qty {it.quantity}</Text>
-                </View>
-                <Text style={styles.itemPrice}>₱{Number(it.subtotal || it.unit_price).toFixed(2)}</Text>
+        {/* Order Items */}
+        <View style={styles.itemsCard}>
+          <Text style={styles.cardTitle}>Order Items</Text>
+          {orderItems.map((item: any, index: number) => (
+            <View key={item.id || index} style={styles.itemRow}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.product_name || item.product || 'Product'}</Text>
+                <Text style={styles.itemQuantity}>Quantity: {item.quantity}</Text>
               </View>
-            ))
-          )}
-
+              <Text style={styles.itemPrice}>₱{Number(item.subtotal || item.unit_price * item.quantity).toFixed(2)}</Text>
+            </View>
+          ))}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>₱{Number((order as any).total_amount || 0).toFixed(2)}</Text>
           </View>
         </View>
 
-        {/* Status history */}
-        {statusHistory.length > 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Status History</Text>
-            {statusHistory.map((h: any) => (
-              <View key={h.id} style={styles.historyRow}>
-                <View style={styles.historyDot} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.historyText}>
-                    {h.from_status ? `${h.from_status} → ${h.to_status}` : `Order created as ${h.to_status}`}
-                    {h.note ? ` — ${h.note}` : ''}
+        {/* Status History */}
+        {statusHistory.length > 0 && (
+          <View style={styles.historyCard}>
+            <Text style={styles.cardTitle}>Order Timeline</Text>
+            {statusHistory.map((history: any, index: number) => (
+              <View key={history.id || index} style={styles.timelineItem}>
+                <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
+                {index < statusHistory.length - 1 && <View style={styles.timelineLine} />}
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineStatus}>
+                    {history.from_status ? `${history.from_status} → ${history.to_status}` : `Order ${history.to_status}`}
                   </Text>
-                  <Text style={styles.historyTime}>
-                    {new Date(h.changed_at).toLocaleString()}
-                    {h.changed_by_username ? ` by ${h.changed_by_username}` : ''}
+                  <Text style={styles.timelineDate}>
+                    {new Date(history.changed_at).toLocaleString()}
                   </Text>
+                  {history.note && <Text style={styles.timelineNote}>{history.note}</Text>}
                 </View>
               </View>
             ))}
           </View>
-        ) : null}
+        )}
 
-        {/* Review */}
-        {(canReview || (hasReview && (isMyOrder || isAdmin))) ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{hasReview ? 'Customer Review' : 'Leave a Review'}</Text>
-
+        {/* Review Section */}
+        {(canReview || hasReview) && (
+          <View style={styles.reviewCard}>
+            <Text style={styles.cardTitle}>
+              {hasReview ? 'Your Review' : 'Leave a Review'}
+            </Text>
+            
             {hasReview ? (
               <View>
-                <StarRating value={review?.rating || 0} />
-                <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Comment</Text>
-                <Text style={styles.fieldValue}>{review?.comment || 'No comment left.'}</Text>
+                <View style={styles.starsContainer}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <Text key={star} style={[styles.star, star <= (review?.rating || 0) && styles.starFilled]}>
+                      *
+                    </Text>
+                  ))}
+                </View>
+                {review?.comment && (
+                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                )}
               </View>
             ) : canReview ? (
               <View>
-                {/* Rating picker (tap stars) */}
-                <Text style={[styles.fieldLabel, { marginTop: 8 }]}>Your Rating *</Text>
-                <View style={styles.starsPickerRow}>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <TouchableOpacity key={s} onPress={() => setReviewRating(s)}>
-                      <Text style={[styles.starPick, reviewRating >= s ? styles.starOn : styles.starOff]}>★</Text>
+                <Text style={styles.reviewLabel}>Rating</Text>
+                <View style={styles.starsPicker}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                      <Text style={[styles.starPick, star <= reviewRating && styles.starFilled]}>
+                        *
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-
-                <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Comment (optional)</Text>
+                <Text style={styles.reviewLabel}>Comment (optional)</Text>
                 <TextInput
+                  style={styles.reviewInput}
                   value={reviewComment}
                   onChangeText={setReviewComment}
-                  placeholder="Share your experience with this order..."
+                  placeholder="Share your experience..."
                   placeholderTextColor={colors.textMuted}
-                  style={styles.input}
                   multiline
                 />
-
-                {reviewError ? <Text style={styles.errorText}>{reviewError}</Text> : null}
-                {reviewSuccess ? <Text style={styles.successTextSmall}>{reviewSuccess}</Text> : null}
-
                 <TouchableOpacity
-                  style={[styles.primaryBtn, reviewLoading && styles.primaryBtnDisabled]}
-                  disabled={reviewLoading}
+                  style={[styles.submitReviewButton, reviewLoading && styles.buttonDisabled]}
                   onPress={submitReviewAction}
+                  disabled={reviewLoading}
                 >
-                  <Text style={styles.primaryBtnText}>{reviewLoading ? 'Submitting...' : 'Submit Review'}</Text>
+                  <Text style={styles.submitReviewText}>
+                    {reviewLoading ? 'Submitting...' : 'Submit Review'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : null}
           </View>
-        ) : null}
-
-        {/* Cancel (user only, pending) */}
-        {isUser && isMyOrder && order.status === 'pending' ? (
-          <View style={styles.card}>
-            <TouchableOpacity style={[styles.dangerBtn, cancelling && styles.primaryBtnDisabled]} disabled={cancelling} onPress={handleCancel}>
-              <Text style={styles.dangerBtnText}>{cancelling ? 'Cancelling...' : 'Cancel Order'}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        {/* Delete (admin only) */}
-        {isAdmin ? (
-          <View style={styles.card}>
-            <TouchableOpacity style={[styles.dangerBtn, deleting && styles.primaryBtnDisabled]} disabled={deleting} onPress={handleDelete}>
-              <Text style={styles.dangerBtnText}>{deleting ? 'Deleting...' : 'Delete Order'}</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
-        <View style={{ height: 24 }} />
+        )}
       </ScrollView>
     </SafeAreaView>
   )
@@ -383,283 +368,286 @@ export default function OrderDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgBottom,
+    backgroundColor: colors.bgPrimary,
   },
-  scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  loadingScreen: {
+  centerContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bgBottom,
+    padding: spacing.xl,
   },
-  emptyWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  emptyText: {
+  loadingText: {
+    ...typography.body,
     color: colors.textSecondary,
-    fontWeight: '700',
-  },
-  header: {
     marginTop: spacing.md,
-    marginBottom: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  backBtn: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.sm,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-  },
-  backBtnText: {
-    color: colors.textSecondary,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  headerRight: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    alignItems: 'flex-end',
-  },
-  orderNumber: {
-    color: colors.textPrimary,
-    fontWeight: '900',
-    fontSize: 14,
-    marginBottom: 6,
-    textAlign: 'right',
-  },
-  statusBadge: {
-    backgroundColor: '#5A2ECB',
-    borderRadius: radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#9E84F4',
-  },
-  statusBadgeText: {
-    color: colors.textSecondary,
-    fontWeight: '800',
-    fontSize: 12,
-    textTransform: 'capitalize',
-  },
-  card: {
-    backgroundColor: colors.panel,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  cardTitle: {
-    color: colors.textPrimary,
-    fontWeight: '900',
-    fontSize: 16,
-    marginBottom: spacing.sm,
-  },
-  primaryBtn: {
-    marginTop: spacing.sm,
-    backgroundColor: '#5A2ECB',
-    borderRadius: radii.sm,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-  },
-  primaryBtnDisabled: {
-    opacity: 0.6,
-  },
-  primaryBtnText: {
-    color: colors.textSecondary,
-    fontWeight: '900',
-    fontSize: 13,
-  },
-  dangerBtn: {
-    marginTop: spacing.sm,
-    backgroundColor: '#ef4444',
-    borderRadius: radii.sm,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-  },
-  dangerBtnText: {
-    color: '#fff',
-    fontWeight: '900',
-    fontSize: 13,
   },
   errorText: {
-    color: '#ff6b6b',
-    fontWeight: '700',
-    marginBottom: spacing.sm,
+    ...typography.body,
+    color: colors.error,
+    marginBottom: spacing.lg,
   },
-  successTextSmall: {
-    color: '#10B981',
-    fontWeight: '800',
-    marginBottom: spacing.sm,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
-  infoBox: {
-    marginTop: spacing.sm,
-    backgroundColor: '#EDEAFF',
-    borderRadius: radii.sm,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: '#9E84F4',
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  infoText: {
-    color: colors.textSecondary,
-    fontWeight: '700',
-    fontSize: 12,
+  backButtonText: {
+    ...typography.body,
+    color: colors.primary,
   },
-  successBox: {
-    marginTop: spacing.sm,
-    backgroundColor: '#ECFDF5',
-    borderRadius: radii.sm,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: '#6EE7B7',
-  },
-  successText: {
-    color: '#065F46',
-    fontWeight: '800',
-  },
-  errorBox: {
-    marginTop: spacing.sm,
-    backgroundColor: '#fef2f2',
-    borderRadius: radii.sm,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: '#fecaca',
-  },
-  errorBoxText: {
-    color: '#ef4444',
-    fontWeight: '800',
-  },
-  fieldLabel: {
-    color: colors.textMuted,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  fieldValue: {
+  orderNumber: {
+    ...typography.heading,
     color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 14,
-    marginTop: 6,
   },
-  mutedText: {
-    color: colors.textMuted,
-    fontWeight: '700',
+  statusCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    borderLeftWidth: 4,
+    ...shadows.sm,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  statusLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  statusValue: {
+    ...typography.heading,
+    fontWeight: 'bold',
+  },
+  actionButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  actionButtonText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  cancelButton: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.error + '30',
+  },
+  cancelButtonText: {
+    ...typography.bodyBold,
+    color: colors.error,
+  },
+  deleteButton: {
+    backgroundColor: colors.error + '10',
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  deleteButtonText: {
+    ...typography.bodyBold,
+    color: colors.error,
+  },
+  infoCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  cardTitle: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  infoLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+    width: 80,
+  },
+  infoValue: {
+    ...typography.body,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  itemsCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
   },
   itemRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#EDEAFF',
+    borderBottomColor: colors.borderLight,
+  },
+  itemInfo: {
+    flex: 1,
   },
   itemName: {
+    ...typography.body,
     color: colors.textPrimary,
-    fontWeight: '900',
-    fontSize: 13,
   },
-  itemSub: {
-    color: colors.textMuted,
-    fontWeight: '700',
-    marginTop: 4,
-    fontSize: 12,
+  itemQuantity: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   itemPrice: {
-    color: colors.accent,
-    fontWeight: '900',
-    fontSize: 12,
-    marginLeft: spacing.sm,
+    ...typography.bodyBold,
+    color: colors.primary,
   },
   totalRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#EDEAFF',
+    borderTopColor: colors.borderLight,
   },
   totalLabel: {
-    color: colors.textMuted,
-    fontWeight: '800',
+    ...typography.subheading,
+    color: colors.textSecondary,
   },
   totalValue: {
-    color: colors.accent,
-    fontWeight: '900',
-    fontSize: 18,
+    ...typography.title,
+    color: colors.primary,
+    fontWeight: 'bold',
   },
-  historyRow: {
+  historyCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  timelineItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EDEAFF',
+    marginBottom: spacing.lg,
+    position: 'relative',
   },
-  historyDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#9B6DFF',
-    marginTop: 6,
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: spacing.md,
+    marginTop: 4,
   },
-  historyText: {
+  timelineLine: {
+    position: 'absolute',
+    left: 5,
+    top: 20,
+    bottom: -20,
+    width: 2,
+    backgroundColor: colors.borderLight,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineStatus: {
+    ...typography.bodyBold,
     color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 13,
+    textTransform: 'capitalize',
   },
-  historyTime: {
+  timelineDate: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  timelineNote: {
+    ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '700',
-    fontSize: 11,
-    marginTop: 6,
+    marginTop: 4,
   },
-  starsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  reviewCard: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.sm,
   },
-  starsPickerRow: {
+  starsContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
     marginBottom: spacing.sm,
   },
   star: {
-    fontSize: 18,
-    marginRight: 2,
+    fontSize: 32,
+    color: colors.borderLight,
+    marginRight: 4,
+  },
+  starFilled: {
+    color: colors.warning,
   },
   starPick: {
-    fontSize: 18,
-    marginRight: 2,
+    fontSize: 40,
+    color: colors.borderLight,
+    marginRight: 8,
   },
-  starOn: {
-    color: '#F59E0B',
+  starsPicker: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
   },
-  starOff: {
-    color: '#E0D8FF',
+  reviewLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
-  input: {
-    marginTop: spacing.xs,
-    minHeight: 90,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: '#A98DF6',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.panelSoft,
+  reviewInput: {
+    backgroundColor: colors.bgPrimary,
+    borderRadius: radii.md,
+    padding: spacing.md,
     color: colors.textPrimary,
-    fontWeight: '700',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  reviewComment: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  submitReviewButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  submitReviewText: {
+    ...typography.bodyBold,
+    color: colors.textInverse,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 })
-
