@@ -18,14 +18,14 @@ const resolveApiBaseUrl = () => {
   const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri
   if (hostUri) {
     const host = hostUri.split(':')[0]
-    return `http://${host}:8000/api`
+    return `http://${host}:8000/api/v1`
   }
 
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8000/api'
+    return 'http://10.0.2.2:8000/api/v1'
   }
 
-  return `http://${FALLBACK_LAN_HOST}/api`
+  return `http://${FALLBACK_LAN_HOST}/api/v1`
 }
 
 const API_BASE_URL = resolveApiBaseUrl()
@@ -79,9 +79,20 @@ api.interceptors.response.use(
   }
 )
 
+export const setAuthToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  } else {
+    delete api.defaults.headers.common['Authorization']
+  }
+}
+
 export const register = (data: any) => api.post('/auth/register/', data)
 export const activateAccount = (uid: string, token: string) => api.post(`/auth/activate/${uid}/${token}/`)
+// Auth endpoints in backend are mounted under /api/v1/auth/*
 export const login = (data: any) => api.post('/auth/login/', data)
+
+
 export const logout = (refresh: string) => api.post('/auth/logout/', { refresh })
 export const fetchMe = () => api.get('/auth/me/')
 
