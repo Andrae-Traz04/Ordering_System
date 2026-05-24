@@ -67,8 +67,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const res = await fetchMe();
           const me = res.data as any;
           const normalizedMe = normalizeUser(me);
-          await saveToStorage('user', JSON.stringify(normalizedMe));
-          setUser(normalizedMe);
+          const currentUser = userDataString && userDataString !== 'undefined' ? JSON.parse(userDataString) : null;
+          const merged = { ...(currentUser || {}), ...(normalizedMe || {}) };
+          await saveToStorage('user', JSON.stringify(merged));
+          setUser(merged as User);
           setIsAuthenticated(true);
         } catch (_e: any) {
           // Token invalid (ex: wrong token type / stale token). Clear storage.
@@ -113,10 +115,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetchMe();
       const me = res.data as any;
       const normalizedMe = normalizeUser(me);
-      await saveToStorage('user', JSON.stringify(normalizedMe));
-      setUser(normalizedMe);
+      // Merge server-side user with locally cached user to avoid accidentally
+      // wiping fields that may be omitted from the API response.
+      const current = user || (await (async () => {
+        const s = await getFromStorage('user');
+        return s ? JSON.parse(s) : null;
+      })());
+
+      const merged = { ...(current || {}), ...(normalizedMe || {}) };
+
+      await saveToStorage('user', JSON.stringify(merged));
+      setUser(merged as User);
       setIsAuthenticated(true);
-      return normalizedMe;
+      return merged as User;
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
       return null;

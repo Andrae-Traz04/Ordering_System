@@ -230,18 +230,18 @@ export default function ProfileScreen() {
               }
             }
 
-            const returned = res?.data
-            if (returned) {
-              setFirstName(returned.first_name ?? firstName)
-              setLastName(returned.last_name ?? lastName)
-              setEmail(returned.email ?? email)
-              const profileImage = returned.profile?.profile_image || returned.profile_image || returned.avatar_url || null
-              if (profileImage) setProfileUri(profileImage)
-              const returnedAddress = returned.address ?? (returned.profile && returned.profile.address)
-              if (returnedAddress !== undefined && returnedAddress !== null) setAddress(returnedAddress)
-            }
-
-            await refreshUser()
+            // Refresh user from server (returns merged user). Use the refreshed
+            // user object to update local form state to avoid a race where the
+            // auth context update might clear fields.
+            const refreshed = await refreshUser()
+            const src = refreshed || res?.data || {}
+            setFirstName(src.first_name ?? firstName)
+            setLastName(src.last_name ?? lastName)
+            setEmail(src.email ?? email)
+            const profileImage = (src.profile && src.profile.profile_image) || src.profile_image || src.avatar_url || null
+            if (profileImage) setProfileUri(profileImage)
+            const returnedAddress = src.address ?? (src.profile && src.profile.address)
+            if (returnedAddress !== undefined && returnedAddress !== null) setAddress(returnedAddress)
             Alert.alert('Success', 'Profile updated successfully.')
           } catch (e: any) {
             if (e?.response?.status === 401) {

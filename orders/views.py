@@ -37,6 +37,9 @@ from .serializers import (
     ChatMessageSerializer,
 )
 from .email_utils import send_activation_email, send_password_reset_email
+import requests
+from django.core.files.base import ContentFile
+from urllib.parse import urlparse
 
 
 # ─────────────────────────────────────────────
@@ -705,15 +708,40 @@ class ProductListCreateView(APIView):
         return Response({'products': ProductSerializer(products, many=True, context={'request': request}).data})
 
     def post(self, request):
-        """Create product - admins and owners only."""
+        """Create product - admins and owners only.
+
+        Supports `image` as a remote URL string: if provided, the view will
+        download the image after creating the product and attach it to the
+        product image field. This allows clients to submit image URLs instead
+        of multipart file uploads.
+        """
         if not is_staff(request.user):
             return Response(
                 {'detail': 'Only admins and owners can create products.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        serializer = ProductCreateSerializer(data=request.data)
+        # Make a mutable copy of incoming data so we can strip out image URLs
+        data = request.data.copy()
+        image_url = None
+        if 'image' in data and isinstance(data.get('image'), str) and data.get('image').startswith('http'):
+            image_url = data.pop('image')
+
+        serializer = ProductCreateSerializer(data=data)
         if serializer.is_valid():
             product = serializer.save(created_by=request.user)
+
+            # If an image URL was provided, download and attach it
+            if image_url:
+                try:
+                    resp = requests.get(image_url, timeout=10)
+                    resp.raise_for_status()
+                    parsed = urlparse(image_url)
+                    filename = parsed.path.split('/')[-1] or 'image.jpg'
+                    product.image.save(filename, ContentFile(resp.content))
+                    product.save()
+                except Exception:
+                    # Don't fail the whole request if image download fails — leave product created
+                    print(f"DEBUG: failed to fetch image from {image_url}")
             return Response(ProductSerializer(product, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -750,10 +778,36 @@ class ProductDetailView(APIView):
         p = self.get_product(pk)
         if not p:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = ProductCreateSerializer(p, data=request.data, partial=True)
+        # Support image as remote URL. Copy data and remove URL before validation.
+        data = request.data.copy()
+        image_url = None
+        if 'image' in data and isinstance(data.get('image'), str) and data.get('image').startswith('http'):
+            image_url = data.pop('image')
+
+        serializer = ProductCreateSerializer(p, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
+
+            # If an image URL was provided, download and attach it to the product
+            if image_url:
+                try:
+                    resp = requests.get(image_url, timeout=10)
+                    resp.raise_for_status()
+                    parsed = urlparse(image_url)
+                    filename = parsed.path.split('/')[-1] or 'image.jpg'
+                    p.image.save(filename, ContentFile(resp.content))
+                    p.save()
+                except Exception:
+                    print(f"DEBUG: failed to fetch image from {image_url}")
             return Response(ProductSerializer(p, context={'request': request}).data)
+        # Log validation errors and request payload for debugging
+        try:
+            print("DEBUG: Product update failed for id=", pk)
+            print("DEBUG: serializer.errors:", serializer.errors)
+            print("DEBUG: request.data keys:", list(request.data.keys()))
+            print("DEBUG: request.FILES keys:", list(request.FILES.keys()))
+        except Exception:
+            pass
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):

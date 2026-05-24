@@ -123,9 +123,12 @@ export default function OwnerProductsScreen() {
 
     setSaving(true)
     try {
-      // If an image was selected, send multipart FormData including the image
+      // If an image was selected and it's a local file, send multipart FormData including the image
       let res
-      if (selectedImage) {
+      const isRemoteUrl = (uri: string) => /^https?:\/\//i.test(uri)
+      const isLocalFile = (uri: string | null) => !!uri && !isRemoteUrl(uri)
+
+      if (selectedImage && isLocalFile(selectedImage)) {
         const fd = new FormData()
         fd.append('name', formData.name.trim())
         fd.append('description', formData.description)
@@ -155,6 +158,8 @@ export default function OwnerProductsScreen() {
           is_active: formData.is_active,
         }
 
+        // If selectedImage is a remote URL (existing image), do not include it in payload
+        // Backend will retain existing image when no new file is uploaded
         if (editingProduct) {
           res = await updateProduct(editingProduct.id, payload)
         } else {
