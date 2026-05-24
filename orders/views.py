@@ -702,7 +702,7 @@ class ProductListCreateView(APIView):
         if category:
             products = products.filter(category=category)
 
-        return Response({'products': ProductSerializer(products, many=True).data})
+        return Response({'products': ProductSerializer(products, many=True, context={'request': request}).data})
 
     def post(self, request):
         """Create product - admins and owners only."""
@@ -714,7 +714,7 @@ class ProductListCreateView(APIView):
         serializer = ProductCreateSerializer(data=request.data)
         if serializer.is_valid():
             product = serializer.save(created_by=request.user)
-            return Response(ProductSerializer(product).data, status=status.HTTP_201_CREATED)
+            return Response(ProductSerializer(product, context={'request': request}).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -738,7 +738,7 @@ class ProductDetailView(APIView):
         if not is_staff(request.user) and not p.is_active:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-        return Response(ProductSerializer(p).data)
+        return Response(ProductSerializer(p, context={'request': request}).data)
 
     def patch(self, request, pk):
         """Update product - owners and admins only."""
@@ -753,7 +753,7 @@ class ProductDetailView(APIView):
         serializer = ProductCreateSerializer(p, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(ProductSerializer(p).data)
+            return Response(ProductSerializer(p, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):

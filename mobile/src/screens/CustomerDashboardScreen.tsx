@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigation } from '@react-navigation/native'
 import {
   View,
   Text,
@@ -52,6 +53,8 @@ export default function CustomerDashboardScreen() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  const navigation = useNavigation<any>()
 
   const onRefresh = async () => {
     setRefreshing(true)
@@ -160,13 +163,13 @@ export default function CustomerDashboardScreen() {
   const renderProduct = ({ item }: { item: Product }) => {
     const inCart = cart.find(c => c.id === item.id)
     return (
-      <TouchableOpacity style={styles.productCard} onPress={() => addToCart(item)} activeOpacity={0.8}>
-        <View style={styles.productImageContainer}>
-          {item.image ? (
-            <Image source={{ uri: item.image }} style={styles.productImage} />
-          ) : (
-            <Text style={styles.productEmoji}>{item.emoji || '📦'}</Text>
-          )}
+      <TouchableOpacity style={styles.productCard} onPress={() => navigation.navigate('ProductDetail', { product: item })} activeOpacity={0.9}>
+          <View style={styles.productImageContainer}>
+            {item.image ? (
+              <Image source={{ uri: item.image }} style={styles.productImage} />
+            ) : (
+              <Text style={styles.productEmoji}>{item.emoji || '📦'}</Text>
+            )}
           {item.badge && (
             <View style={styles.productBadge}>
               <Text style={styles.productBadgeText}>{item.badge}</Text>
@@ -178,9 +181,11 @@ export default function CustomerDashboardScreen() {
           <Text style={styles.productCategory}>{item.category}</Text>
           <Text style={styles.productPrice}>₱{Number(item.price).toFixed(2)}</Text>
         </View>
-        <TouchableOpacity 
-          style={[styles.addButton, inCart && styles.inCartButton]} 
+        <TouchableOpacity
+          style={[styles.addButton, inCart && styles.inCartButton]}
           onPress={() => addToCart(item)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.85}
         >
           <Text style={styles.addButtonText}>{inCart ? '✓ Added' : 'Add to Cart'}</Text>
         </TouchableOpacity>
@@ -233,9 +238,18 @@ export default function CustomerDashboardScreen() {
 
   const renderCartItem = ({ item }: { item: Product & { quantity: number } }) => (
     <View style={styles.cartItem}>
-      <View style={styles.cartItemInfo}>
-        <Text style={styles.cartItemName}>{item.name}</Text>
-        <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} each</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <View style={styles.cartItemImageWrap}>
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.cartItemImage} />
+          ) : (
+            <Text style={styles.productEmoji}>{item.emoji || '📦'}</Text>
+          )}
+        </View>
+        <View style={styles.cartItemInfo}>
+          <Text style={styles.cartItemName}>{item.name}</Text>
+          <Text style={styles.cartItemPrice}>₱{Number(item.price).toFixed(2)} each</Text>
+        </View>
       </View>
       <View style={styles.cartItemControls}>
         <TouchableOpacity 
@@ -669,17 +683,20 @@ const styles = StyleSheet.create({
   },
   productCard: {
     flex: 1,
+    flexBasis: '48%',
     backgroundColor: colors.bgCard,
     borderRadius: radii.lg,
-    padding: spacing.md,
+    padding: spacing.md + 2,
     marginBottom: spacing.md,
+    marginHorizontal: spacing.xs,
+    minWidth: 160,
     ...shadows.sm,
   },
   productImageContainer: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 132,
+    height: 190,
     borderRadius: radii.lg,
     backgroundColor: colors.bgPrimary,
     marginBottom: spacing.sm,
@@ -688,9 +705,10 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   productEmoji: {
-    fontSize: 42,
+    fontSize: 68,
   },
   productBadge: {
     position: 'absolute',
@@ -712,6 +730,7 @@ const styles = StyleSheet.create({
   productName: {
     ...typography.subheading,
     color: colors.textPrimary,
+    fontSize: 16,
   },
   productCategory: {
     ...typography.caption,
@@ -722,12 +741,15 @@ const styles = StyleSheet.create({
     ...typography.heading,
     color: colors.primary,
     marginTop: spacing.xs,
+    fontSize: 18,
   },
   addButton: {
     backgroundColor: colors.primary,
     borderRadius: radii.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
   },
   inCartButton: {
     backgroundColor: colors.success,
@@ -736,6 +758,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textInverse,
     fontWeight: 'bold',
+    fontSize: 14,
   },
   cartContainer: {
     flex: 1,
@@ -763,6 +786,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  cartItemImageWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+    backgroundColor: colors.bgCard,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartItemImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   cartQtyButton: {
     width: 36,

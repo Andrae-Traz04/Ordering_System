@@ -192,8 +192,20 @@ export const updateProfile = (data: any) => {
 
 export const fetchProducts = (params = {}) => api.get('/products/', { params })
 export const fetchProduct = (id: number) => api.get(`/products/${id}/`)
-export const createProduct = (data: any) => api.post('/products/', data)
-export const updateProduct = (id: number, data: any) => api.patch(`/products/${id}/`, data)
+export const createProduct = (data: any) => {
+  // If FormData (contains image), send as multipart
+  if (typeof FormData !== 'undefined' && data instanceof FormData) {
+    return api.post('/products/', data, { headers: { 'Content-Type': 'multipart/form-data' } })
+  }
+  return api.post('/products/', data)
+}
+
+export const updateProduct = (id: number, data: any) => {
+  if (typeof FormData !== 'undefined' && data instanceof FormData) {
+    return api.patch(`/products/${id}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+  }
+  return api.patch(`/products/${id}/`, data)
+}
 export const deleteProduct = (id: number) => api.delete(`/products/${id}/`)
 
 export const fetchOrders = (params = {}) => api.get('/orders/', { params })

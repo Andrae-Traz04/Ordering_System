@@ -1,45 +1,45 @@
 // theme/design.ts
 export const colors = {
-  // Primary brand colors - Light Purple/Lavender theme
-  primary: '#8B5CF6',
-  primaryDark: '#7C3AED',
-  primaryLight: '#A78BFA',
-  primarySoft: '#EDE9FE',
-  primaryBg: '#F5F3FF',
-  
-  // Background colors - Light and airy
+  // Primary brand colors - purple theme consistent with web
+  primary: '#7C3AED',
+  primaryDark: '#6C47FF',
+  primaryLight: '#9B6DFF',
+  primarySoft: '#F3EEFF',
+  primaryBg: '#EFF6FF',
+
+  // Background colors - soft, light surfaces
   bgPrimary: '#FAF8FF',
   bgSecondary: '#FFFFFF',
-  bgTertiary: '#F5F3FF',
+  bgTertiary: '#F3EEFF',
   bgCard: '#FFFFFF',
-  
+
   // Text colors
-  textPrimary: '#1F2937',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
+  textPrimary: '#1e293b',
+  textSecondary: '#4B5563',
+  textMuted: '#6B7280',
   textInverse: '#FFFFFF',
-  
+
   // Accent colors
-  accent: '#8B5CF6',
-  accentDark: '#7C3AED',
+  accent: '#7C3AED',
+  accentDark: '#6C47FF',
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
   info: '#3B82F6',
-  
+
   // Border colors
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
-  
+  border: '#F0EBFF',
+  borderLight: '#E0D8FF',
+
   // Status colors
   statusPending: '#F59E0B',
-  statusProcessing: '#8B5CF6',
-  statusShipped: '#3B82F6',
+  statusProcessing: '#6C47FF',
+  statusShipped: '#9B6DFF',
   statusCompleted: '#10B981',
   statusCancelled: '#EF4444',
-  
+
   // UI Elements
-  shadow: '#8B5CF6',
+  shadow: '#2D1F6E',
   overlay: 'rgba(0, 0, 0, 0.5)',
 }
 
@@ -115,14 +115,14 @@ export const shadows = {
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   lg: {
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 7,
   },
 }

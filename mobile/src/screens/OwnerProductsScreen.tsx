@@ -21,6 +21,7 @@ import {
   updateProduct,
   deleteProduct,
 } from '../api/client'
+import * as ImagePicker from 'expo-image-picker'
 import { Product } from '../types'
 import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design'
 
@@ -46,6 +47,7 @@ export default function OwnerProductsScreen() {
     badge: '',
     is_active: true,
   })
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const loadProducts = useCallback(async () => {
@@ -89,6 +91,7 @@ export default function OwnerProductsScreen() {
       badge: '',
       is_active: true,
     })
+    setSelectedImage(null)
     setModalVisible(true)
   }
 
@@ -103,6 +106,7 @@ export default function OwnerProductsScreen() {
       badge: (product as any).badge || '',
       is_active: (product as any).is_active !== false,
     })
+    setSelectedImage((product as any).image || null)
     setModalVisible(true)
   }
 
@@ -119,28 +123,69 @@ export default function OwnerProductsScreen() {
 
     setSaving(true)
     try {
-      const payload = {
-        name: formData.name.trim(),
-        description: formData.description,
-        price: priceNum,
-        category: formData.category,
-        badge: formData.badge,
-        is_active: formData.is_active,
+      // If an image was selected, send multipart FormData including the image
+      let res
+      if (selectedImage) {
+        const fd = new FormData()
+        fd.append('name', formData.name.trim())
+        fd.append('description', formData.description)
+        fd.append('price', String(priceNum))
+        fd.append('category', formData.category)
+        fd.append('badge', formData.badge)
+        fd.append('is_active', formData.is_active ? 'true' : 'false')
+
+        const filename = selectedImage.split('/').pop() || 'photo.jpg'
+        const match = /\.([0-9a-z]+)(?:\?|$)/i.exec(filename)
+        const type = match ? `image/${match[1]}` : 'image/jpeg'
+        // @ts-ignore
+        fd.append('image', { uri: selectedImage, name: filename, type } as any)
+
+        if (editingProduct) {
+          res = await updateProduct(editingProduct.id, fd)
+        } else {
+          res = await createProduct(fd)
+        }
+      } else {
+        const payload = {
+          name: formData.name.trim(),
+          description: formData.description,
+          price: priceNum,
+          category: formData.category,
+          badge: formData.badge,
+          is_active: formData.is_active,
+        }
+
+        if (editingProduct) {
+          res = await updateProduct(editingProduct.id, payload)
+        } else {
+          res = await createProduct(payload)
+        }
       }
 
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, payload)
-        Alert.alert('Success', 'Product updated successfully')
-      } else {
-        await createProduct(payload)
-        Alert.alert('Success', 'Product created successfully')
-      }
+      Alert.alert('Success', editingProduct ? 'Product updated successfully' : 'Product created successfully')
       setModalVisible(false)
       loadProducts()
     } catch (e: any) {
       Alert.alert('Error', 'Failed to save product')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const pickProductImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Allow access to photos to upload product images')
+        return
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsEditing: true })
+      if (!res.canceled && res.assets?.[0]?.uri) {
+        setSelectedImage(res.assets[0].uri)
+      }
+    } catch (err) {
+      console.error('Image pick error', err)
+      Alert.alert('Error', 'Failed to pick image')
     }
   }
 
@@ -301,6 +346,16 @@ export default function OwnerProductsScreen() {
                 placeholderTextColor={colors.textMuted}
                 multiline
               />
+
+              <Text style={styles.modalLabel}>Image</Text>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <TouchableOpacity onPress={pickProductImage} style={[styles.addButton, { paddingVertical: 8 }]}> 
+                  <Text style={styles.addButtonText}>{selectedImage ? 'Change Image' : 'Pick Image'}</Text>
+                </TouchableOpacity>
+                {selectedImage ? (
+                  <Image source={{ uri: selectedImage }} style={{ width: 64, height: 64, borderRadius: 8 }} />
+                ) : null}
+              </View>
 
               <Text style={styles.modalLabel}>Price *</Text>
               <TextInput

@@ -63,7 +63,13 @@ export default function LoginScreen({ navigation }: any) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.logoSection}>
-            <View style={styles.logoContainer} />
+            <View style={styles.logoContainer}>
+              <View style={styles.logoRingOuter} />
+              <View style={styles.logoRingInner} />
+              <View style={styles.logoMark}>
+                <Text style={styles.logoMarkText}>MS</Text>
+              </View>
+            </View>
             <Text style={styles.appName}>MY STORE</Text>
             <Text style={styles.welcomeText}>Welcome Back!</Text>
             <Text style={styles.subtitleText}>Sign in to continue to your account</Text>
@@ -148,14 +154,45 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: radii.xl,
-    backgroundColor: colors.primary,
+    width: 104,
+    height: 104,
+    borderRadius: 28,
+    backgroundColor: colors.bgCard,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    overflow: 'hidden',
     ...shadows.md,
+  },
+  logoRingOuter: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: colors.primary + '25',
+  },
+  logoRingInner: {
+    position: 'absolute',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: colors.primary + '45',
+  },
+  logoMark: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoMarkText: {
+    color: colors.textInverse,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   appName: {
     ...typography.caption,

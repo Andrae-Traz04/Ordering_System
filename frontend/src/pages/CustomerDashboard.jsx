@@ -242,9 +242,14 @@ function CartSidebar({ cart, onClose, onUpdateQty, onRemove, onPlaceOrder, placi
                 borderRadius: 12,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                overflow: 'hidden'
               }}>
-                {item.emoji || '📦'}
+                {item.image ? (
+                  <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <span style={{ fontSize: 24 }}>{item.emoji || '📦'}</span>
+                )}
               </div>
 
               <div style={{ flex: 1 }}>
@@ -814,8 +819,12 @@ useEffect(() => {
                               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(124,58,237,0.14)' }}
                               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)';    e.currentTarget.style.boxShadow = '0 1px 8px rgba(155,109,255,0.06)' }}
                             >
-                              <div style={{ background: C.softBg, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, position: 'relative' }}>
-                                {product.emoji || '📦'}
+                              <div style={{ background: C.softBg, height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, position: 'relative', overflow: 'hidden' }}>
+                                {product.image ? (
+                                  <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                ) : (
+                                  <span style={{ fontSize: 48 }}>{product.emoji || '📦'}</span>
+                                )}
                                 {product.badge && (
                                   <span style={{
                                     position: 'absolute', top: 10, right: 10,

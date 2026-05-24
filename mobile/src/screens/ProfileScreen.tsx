@@ -200,14 +200,47 @@ export default function ProfileScreen() {
         onPress: async () => {
           setLoading(true)
           try {
-            // Update profile without image (image uploaded separately)
-            await updateProfile({
-              first_name: firstName,
-              last_name: lastName,
-              email,
-              address,
-            })
-            
+            // Build payload with only changed fields to avoid server validation on unchanged values
+            const payload: any = {}
+            if (firstName !== (user?.first_name ?? '')) payload.first_name = firstName
+            if (lastName !== (user?.last_name ?? '')) payload.last_name = lastName
+            if (email !== (user?.email ?? '')) payload.email = email
+            const userAddress = (user as any)?.address ?? ''
+            if (address !== userAddress) payload.address = address
+
+            if (Object.keys(payload).length === 0) {
+              Alert.alert('No Changes', 'No changes were made to your profile.')
+              setLoading(false)
+              return
+            }
+
+            // Try PUT first (server implements MeView.put). If it fails, try a PATCH fallback.
+            let res: any = null
+            try {
+              res = await updateProfile(payload)
+            } catch (primaryErr: any) {
+              // Try alternate endpoint (if available)
+              try {
+                // updateProfileData is a PATCH to /users/profile/ in client; use as fallback
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const { updateProfileData } = require('../api/client')
+                res = await updateProfileData(payload)
+              } catch (fallbackErr: any) {
+                throw primaryErr
+              }
+            }
+
+            const returned = res?.data
+            if (returned) {
+              setFirstName(returned.first_name ?? firstName)
+              setLastName(returned.last_name ?? lastName)
+              setEmail(returned.email ?? email)
+              const profileImage = returned.profile?.profile_image || returned.profile_image || returned.avatar_url || null
+              if (profileImage) setProfileUri(profileImage)
+              const returnedAddress = returned.address ?? (returned.profile && returned.profile.address)
+              if (returnedAddress !== undefined && returnedAddress !== null) setAddress(returnedAddress)
+            }
+
             await refreshUser()
             Alert.alert('Success', 'Profile updated successfully.')
           } catch (e: any) {
@@ -216,10 +249,12 @@ export default function ProfileScreen() {
               logout()
               return
             }
-            const msg = e?.response?.data 
-              ? Object.values(e.response.data).flat().join(', ') 
-              : 'Failed to update profile'
-            Alert.alert('Error', msg)
+
+            // Surface detailed server error to help debugging
+            const serverData = e?.response?.data
+            const msg = serverData ? JSON.stringify(serverData) : (e?.message || 'Failed to update profile')
+            Alert.alert('Error saving profile', msg)
+            console.error('Profile save error:', e)
           } finally {
             setLoading(false)
           }
