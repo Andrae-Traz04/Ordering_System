@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { confirmPasswordReset } from '@/api/ordersApi';
 import '../ResetPassword.css';
 
 export default function ResetPassword() {
@@ -50,13 +50,10 @@ export default function ResetPassword() {
     
     setLoading(true);
     try {
-      const response = await axios.post(
-        `http://localhost:8000/api/v1/auth/reset-password/${userId}/${token}/`,
-        {
-          new_password: newPassword,
-          confirm_password: confirmPassword,
-        }
-      );
+      const response = await confirmPasswordReset(userId, token, {
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
       
       setStatus('success');
       setMessage(response.data.message);

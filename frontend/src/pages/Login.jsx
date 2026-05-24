@@ -69,6 +69,10 @@ export default function Login() {
             />
           </div>
 
+          <div className="footer-link" style={{ textAlign: 'right', marginTop: '-8px', marginBottom: '16px' }}>
+            <Link to="/forgot-password">Forgot Password?</Link>
+          </div>
+
           <button type="submit" className="capsule-btn" disabled={loading}>
             {loading ? 'Signing in...' : 'Log In'}
           </button>

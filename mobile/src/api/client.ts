@@ -170,6 +170,10 @@ export const register = (data: any) => {
 export const activateAccount = (uid: string, token: string) => api.post(`/auth/activate/${uid}/${token}/`)
 // Auth endpoints in backend are mounted under /api/v1/auth/*
 export const login = (data: any) => api.post('/auth/login/', data)
+export const requestPasswordReset = (email: string) => api.post('/auth/request-reset/', { email })
+export const confirmPasswordReset = (userId: string | number, token: string, payload: { new_password: string; confirm_password: string }) => {
+  return api.post(`/auth/reset-password/${userId}/${token}/`, payload)
+}
 
 
 export const logout = (refresh: string) => api.post('/auth/logout/', { refresh })

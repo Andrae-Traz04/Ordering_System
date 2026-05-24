@@ -11,10 +11,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native'
-import axios from 'axios'
+import { confirmPasswordReset } from '../api/client'
 import { colors, radii, spacing, typography, shadows, typeScale } from '../theme/design'
-
-const API_BASE_URL = 'YOUR_API_BASE_URL' // Replace with your actual API URL
 
 function calcStrength(pw: string) {
   const length6 = pw.length >= 6
@@ -88,8 +86,10 @@ export default function ResetPasswordScreen({ route }: any) {
 
     setSubmitting(true)
     try {
-      const url = `${API_BASE_URL}/auth/password-reset/confirm/${userId}/${token}/`
-      await axios.post(url, { new_password: password, token, uid: userId })
+      await confirmPasswordReset(userId, token, {
+        new_password: password,
+        confirm_password: confirm,
+      })
       setErrorStage('success')
       setTimeout(() => navigation.navigate('Login'), 3000)
     } catch (e: any) {

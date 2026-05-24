@@ -82,6 +82,8 @@ API.interceptors.response.use(
 export const register = (data) => API.post('/auth/register/', data)
 export const activateAccount = (uid, token) => API.post(`/auth/activate/${uid}/${token}/`)
 export const login    = (data) => API.post('/auth/login/', data)
+export const requestPasswordReset = (email) => API.post('/auth/request-reset/', { email })
+export const confirmPasswordReset = (userId, token, payload) => API.post(`/auth/reset-password/${userId}/${token}/`, payload)
 export const logout   = ()     => {
   const refresh = localStorage.getItem('refresh_token')
   return API.post('/auth/logout/', { refresh })
