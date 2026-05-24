@@ -28,7 +28,7 @@ fi
 source venv/bin/activate
 
 echo "[4/10] Installing Python dependencies"
-pip install --upgrade pip
+pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 
 if [ ! -f .env ]; then
