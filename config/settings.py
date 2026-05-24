@@ -74,7 +74,7 @@ except Exception:
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.app')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-x7gl.vercel.app')
 # Default to local filesystem storage; if cloudinary is installed we'll override below
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 CLOUDINARY_STORAGE = {
@@ -158,11 +158,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app')
+CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-x7gl.vercel.app')
 
 CSRF_TRUSTED_ORIGINS = env_list(
     'CSRF_TRUSTED_ORIGINS',
-    'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app',
+    'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-x7gl.vercel.app',
 )
 
 for origin in (os.getenv('FRONTEND_URL', ''), os.getenv('RENDER_EXTERNAL_URL', '')):
@@ -239,7 +239,7 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 #  FRONTEND URL (for activation links)
 # ─────────────────────────────────────────────
 
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.app')  # Live Vercel server
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-x7gl.vercel.app')  # Live Vercel server
 
 # ─────────────────────────────────────────────
 #  ACTIVATION TOKEN TIMEOUT (seconds)
