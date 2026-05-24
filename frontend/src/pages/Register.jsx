@@ -85,8 +85,10 @@ export default function Register() {
         <form onSubmit={submit}>
           <div className="input-row">
             <div className="input-group">
-              <label>First name</label>
+              <label htmlFor="register-first-name">First name</label>
               <input
+                id="register-first-name"
+                name="first_name"
                 type="text"
                 className="capsule-input"
                 placeholder="Enter first name"
@@ -97,8 +99,10 @@ export default function Register() {
             </div>
 
             <div className="input-group">
-              <label>Last name</label>
+              <label htmlFor="register-last-name">Last name</label>
               <input
+                id="register-last-name"
+                name="last_name"
                 type="text"
                 className="capsule-input"
                 placeholder="Enter last name"
@@ -110,8 +114,10 @@ export default function Register() {
           </div>
 
           <div className="input-group">
-            <label>Email</label>
+            <label htmlFor="register-email">Email</label>
             <input
+              id="register-email"
+              name="email"
               type="email"
               className="capsule-input"
               placeholder="you@example.com"
@@ -122,8 +128,10 @@ export default function Register() {
           </div>
 
           <div className="input-group">
-            <label>Username</label>
+            <label htmlFor="register-username">Username</label>
             <input
+              id="register-username"
+              name="username"
               type="text"
               className="capsule-input"
               placeholder="Pick a username"
@@ -134,8 +142,10 @@ export default function Register() {
           </div>
 
           <div className="input-group">
-            <label>Profile picture</label>
+            <label htmlFor="register-profile-picture">Profile picture</label>
             <input
+              id="register-profile-picture"
+              name="profile_image"
               type="file"
               accept="image/*"
               className="capsule-input file-input"
@@ -150,8 +160,10 @@ export default function Register() {
           </div>
 
           <div className="input-group">
-            <label>Password</label>
+            <label htmlFor="register-password">Password</label>
             <input
+              id="register-password"
+              name="password"
               type="password"
               className="capsule-input"
               placeholder="Create a password"
@@ -162,8 +174,10 @@ export default function Register() {
           </div>
 
           <div className="input-group">
-            <label>Confirm password</label>
+            <label htmlFor="register-confirm-password">Confirm password</label>
             <input
+              id="register-confirm-password"
+              name="confirm_password"
               type="password"
               className="capsule-input"
               placeholder="Re-enter your password"
