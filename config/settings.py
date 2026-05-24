@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from urllib.parse import urlparse
 
 try:
     from dotenv import load_dotenv
@@ -26,7 +27,26 @@ def env_list(name: str, default: str = ''):
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-order-system-key-2024')  # Change this in production!
 DEBUG = env_bool('DEBUG', True)
-ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '*')
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com')
+
+if '*' not in ALLOWED_HOSTS:
+    extra_hosts = []
+
+    frontend_host = urlparse(os.getenv('FRONTEND_URL', '')).hostname
+    if frontend_host:
+        extra_hosts.append(frontend_host)
+
+    render_url_host = urlparse(os.getenv('RENDER_EXTERNAL_URL', '')).hostname
+    if render_url_host:
+        extra_hosts.append(render_url_host)
+
+    render_host = os.getenv('RENDER_EXTERNAL_HOSTNAME', '')
+    if render_host:
+        extra_hosts.append(render_host)
+
+    for host in extra_hosts:
+        if host and host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(host)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -139,6 +159,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app')
+
+CSRF_TRUSTED_ORIGINS = env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app',
+)
+
+for origin in (os.getenv('FRONTEND_URL', ''), os.getenv('RENDER_EXTERNAL_URL', '')):
+    origin = origin.rstrip('/')
+    if origin and origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(origin)
 
 DJOSER = {
     'SEND_ACTIVATION_EMAIL': env_bool('SEND_ACTIVATION_EMAIL', True),
