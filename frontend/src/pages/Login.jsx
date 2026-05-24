@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import ChatbotWidget from '@/components/ChatbotWidget'
 
 export default function Login() {
   const { login: loginUser } = useAuth()
@@ -89,6 +90,7 @@ export default function Login() {
           <p>Pick up where you left off and keep things moving.</p>
         </div>
       </div>
+      <ChatbotWidget />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');

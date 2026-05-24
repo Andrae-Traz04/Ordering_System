@@ -3,15 +3,22 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.shortcuts import render
 from django.conf import settings
+from io import BytesIO
+from pathlib import Path
+import re
 from rest_framework import status
+from rest_framework.generics import ListCreateAPIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from bs4 import BeautifulSoup
+from pypdf import PdfReader
+import requests
 
-from .models import Author, Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product, OwnerApplication
+from .models import Author, Customer, Order, OrderItem, StatusHistory, Review, UserProfile, Product, OwnerApplication, KnowledgeBase, ChatMessage
 from .serializers import (
     AuthorSerializer,
     RegisterSerializer,
@@ -26,6 +33,8 @@ from .serializers import (
     OwnerApplicationSerializer,
     OwnerApplicationCreateSerializer,
     OwnerApplicationReviewSerializer,
+    KnowledgeBaseSerializer,
+    ChatMessageSerializer,
 )
 from .email_utils import send_activation_email, send_password_reset_email
 
@@ -48,6 +57,140 @@ def is_admin(user):
 def is_staff(user):
     """Admins and staff-level users who can manage orders and products."""
     return get_role(user) in ['admin', 'owner']
+
+
+OLLAMA_MODEL = getattr(settings, 'OLLAMA_MODEL', 'qwen2.5:0.5b')
+OLLAMA_URL = getattr(settings, 'OLLAMA_URL', 'http://localhost:11434')
+STRICT_CHAT_REFUSAL = 'I don\'t know based on the website information available.'
+STRICT_CHAT_SYSTEM = (
+    'You are the official FAQ assistant for this ordering website. '
+    'Always answer as an FAQ entry: start with a single concise answer (1-2 sentences), '
+    'then optionally provide up to three short bullet steps or clarifying notes. '
+    'Only use information found in the provided website knowledge base context — do not use outside knowledge or speculate. '
+    f'If the question cannot be answered from the knowledge base, reply exactly: {STRICT_CHAT_REFUSAL} '
+    'When you use information from the knowledge base, include a "Source:" line naming the knowledge base title and URL when available.'
+)
+
+
+def _extract_pdf_text(file_obj):
+    if not file_obj:
+        return ''
+
+    try:
+        reader = PdfReader(file_obj)
+        pages = []
+        for page in reader.pages:
+            try:
+                pages.append(page.extract_text() or '')
+            except Exception:
+                continue
+        return '\n'.join(pages).strip()
+    except Exception:
+        return ''
+
+
+def _extract_website_text(url):
+    if not url:
+        return ''
+
+    try:
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+        for tag in soup(['script', 'style', 'noscript']):
+            tag.decompose()
+        text = soup.get_text('\n', strip=True)
+        return text
+    except Exception:
+        return ''
+
+
+def _tokenize_chat_query(text):
+    stop_words = {
+        'the', 'and', 'for', 'with', 'about', 'this', 'that', 'what', 'when', 'where', 'which',
+        'who', 'why', 'how', 'can', 'could', 'would', 'should', 'will', 'your', 'you', 'are',
+        'from', 'into', 'have', 'has', 'had', 'was', 'were', 'been', 'being', 'there', 'their',
+        'here', 'our', 'but', 'not', 'cant', 'dont', 'doesnt', 'isnt', 'im', 'i', 'me', 'my',
+    }
+    tokens = re.findall(r"[a-z0-9]+", (text or '').lower())
+    return [token for token in tokens if len(token) > 2 and token not in stop_words]
+
+
+def _build_knowledge_entries():
+    entries = []
+    for item in KnowledgeBase.objects.all().order_by('-created_at'):
+        entry_chunks = []
+        if item.title:
+            entry_chunks.append(f"Title: {item.title}")
+        if item.text_content:
+            entry_chunks.append(item.text_content)
+        if item.pdf_file:
+            pdf_text = _extract_pdf_text(item.pdf_file)
+            if pdf_text:
+                entry_chunks.append(pdf_text)
+        if item.website_url:
+            website_text = _extract_website_text(item.website_url)
+            if website_text:
+                entry_chunks.append(f"Source URL: {item.website_url}\n{website_text}")
+
+        content = '\n\n'.join(chunk for chunk in entry_chunks if chunk).strip()
+        if content:
+            entries.append({
+                'title': item.title,
+                'url': item.website_url,
+                'content': content,
+            })
+
+    return entries
+
+
+def _build_relevant_knowledge_context(user_message):
+    entries = _build_knowledge_entries()
+    tokens = _tokenize_chat_query(user_message)
+
+    if not entries:
+        return [], ''
+
+    scored_entries = []
+    for entry in entries:
+        haystack = ' '.join([entry.get('title') or '', entry.get('url') or '', entry.get('content') or '']).lower()
+        score = sum(1 for token in tokens if token in haystack)
+        scored_entries.append((score, entry))
+
+    scored_entries.sort(key=lambda item: item[0], reverse=True)
+    selected = [entry for score, entry in scored_entries[:3] if score > 0]
+
+    if not selected:
+        selected = [entry for _, entry in scored_entries[:2]]
+
+    context_parts = []
+    sources = []
+    for entry in selected:
+        snippet = entry['content'][:4000]
+        context_parts.append(f"Title: {entry.get('title') or 'Knowledge Base Entry'}\n{snippet}")
+        if entry.get('url'):
+            sources.append(entry['url'])
+
+    return sources, '\n\n---\n\n'.join(context_parts).strip()[:12000]
+
+
+def _call_ollama(prompt, system=None):
+    response = requests.post(
+        f"{OLLAMA_URL.rstrip('/')}/api/generate",
+        json={
+            'model': OLLAMA_MODEL,
+            'prompt': prompt,
+            'system': system or STRICT_CHAT_SYSTEM,
+            'options': {
+                'temperature': 0.1,
+            },
+            'stream': False,
+        },
+        timeout=60,
+    )
+    response.raise_for_status()
+    data = response.json()
+    return data.get('response', '').strip()
 
 
 # ─────────────────────────────────────────────
@@ -852,6 +995,58 @@ class UserRoleUpdateView(APIView):
             'role':     new_role,
             'detail':   f"Role updated to {new_role}.",
         })
+
+
+class KnowledgeBaseView(ListCreateAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = KnowledgeBase.objects.all().order_by('-created_at')
+    serializer_class = KnowledgeBaseSerializer
+
+
+class ChatbotView(ListCreateAPIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = ChatMessage.objects.all().order_by('created_at')
+    serializer_class = ChatMessageSerializer
+
+    def create(self, request, *args, **kwargs):
+        user_message = (request.data or {}).get('message', '').strip()
+        if not user_message:
+            return Response({'detail': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_chat = ChatMessage.objects.create(role='user', message=user_message)
+
+        sources, context = _build_relevant_knowledge_context(user_message)
+        if not context:
+            ai_response = STRICT_CHAT_REFUSAL
+        else:
+            prompt = f"""
+{STRICT_CHAT_SYSTEM}
+
+Knowledge:
+{context}
+
+User question:
+{user_message}
+
+Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
+""".strip()
+
+            try:
+                ai_response = _call_ollama(prompt)
+                if not ai_response:
+                    ai_response = STRICT_CHAT_REFUSAL
+            except Exception as exc:
+                ai_response = f'Chatbot error: {exc}'
+
+        ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
+
+        return Response({
+            'user': ChatMessageSerializer(user_chat).data,
+            'assistant': ChatMessageSerializer(ai_chat).data,
+            'sources': sources,
+        }, status=status.HTTP_201_CREATED)
 
 
 # ─────────────────────────────────────────────

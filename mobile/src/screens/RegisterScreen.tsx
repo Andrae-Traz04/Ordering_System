@@ -31,6 +31,8 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [profileUri, setProfileUri] = useState<string | null>(null)
+  const [profileBase64, setProfileBase64] = useState<string | null>(null)
+  const [profileMimeType, setProfileMimeType] = useState<string | null>(null)
 
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -45,21 +47,37 @@ export default function RegisterScreen() {
   }, [firstName, lastName, username])
 
   const pickProfilePhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Photo access is required to add a profile picture.')
-      return
-    }
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      console.log('ImagePicker permission:', permission)
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Photo access is required to add a profile picture.')
+        return
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    })
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+        base64: true,
+      })
 
-    if (!result.canceled && result.assets?.[0]?.uri) {
-      setProfileUri(result.assets[0].uri)
+      console.log('ImagePicker result:', result)
+      if (result?.canceled) {
+        return
+      }
+
+      const picked = result?.assets?.[0]
+      if (picked?.uri) {
+        setProfileUri(picked.uri)
+        setProfileBase64(picked.base64 ?? null)
+        setProfileMimeType(picked.mimeType ?? null)
+      } else {
+        Alert.alert('Error', 'No image selected or unable to read image URI.')
+      }
+    } catch (err) {
+      console.error('pickProfilePhoto error:', err)
+      Alert.alert('Error', 'Failed to pick photo. Check logs for details.')
     }
   }
 
@@ -96,12 +114,17 @@ export default function RegisterScreen() {
         const filename = profileUri.split('/').pop() || 'profile.jpg'
         const extension = (filename.match(/\.(\w+)$/)?.[1] || 'jpg').toLowerCase()
         const mimeType = extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg'
-
-        form.append('profile_image', {
-          uri: profileUri,
-          name: filename,
-          type: mimeType,
-        } as any)
+        // If we have base64 (picked while online) prefer saving that for offline persistence
+        if (profileBase64) {
+          form.append('profile_image_base64', profileBase64)
+          form.append('profile_image_type', profileMimeType || mimeType)
+        } else {
+          form.append('profile_image', {
+            uri: profileUri,
+            name: filename,
+            type: mimeType,
+          } as any)
+        }
       }
 
       await register(form)
@@ -114,6 +137,30 @@ export default function RegisterScreen() {
         ? Object.values(e.response.data).flat().join(', ')
         : e?.message || 'Registration failed'
       setErrorMsg(msg)
+
+      // If network error (no response) save pending registration to AsyncStorage to upload later
+      if (!e?.response) {
+        try {
+          const { savePendingRegistration } = await import('../utils/offlineUploads')
+          const pendingPayload: any = {
+            first_name: firstName,
+            last_name: lastName,
+            email,
+            username,
+            password,
+            confirm_password: confirmPassword,
+            role: 'customer',
+          }
+          if (profileBase64) {
+            pendingPayload.profile_image_base64 = profileBase64
+            pendingPayload.profile_image_type = profileMimeType || 'image/jpeg'
+          }
+          await savePendingRegistration(pendingPayload)
+          Alert.alert('Offline', 'You appear to be offline. Registration will be completed once online.')
+        } catch (saveErr) {
+          console.error('Failed to save pending registration', saveErr)
+        }
+      }
     } finally {
       setLoading(false)
     }

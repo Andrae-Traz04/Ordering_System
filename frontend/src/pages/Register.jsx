@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import ChatbotWidget from '@/components/ChatbotWidget'
 
 
 
@@ -216,6 +217,7 @@ export default function Register() {
           <p>Experience the joy of perfect ordering.</p>
         </div>
       </div>
+      <ChatbotWidget />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');

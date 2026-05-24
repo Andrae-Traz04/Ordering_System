@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils.dateparse import parse_date
-from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review, OwnerApplication
+from .models import UserProfile, Customer, Product, Order, OrderItem, StatusHistory, Review, OwnerApplication, KnowledgeBase, ChatMessage
 from .models import Author
 
 
@@ -266,6 +266,18 @@ class OwnerApplicationReviewSerializer(serializers.ModelSerializer):
         validated_data['reviewed_by'] = self.context['request'].user
         validated_data['reviewed_at'] = timezone.now()
         return super().update(instance, validated_data)
+
+
+class KnowledgeBaseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KnowledgeBase
+        fields = '__all__'
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = '__all__'
 
 
 # ─────────────────────────────────────────────

@@ -1,5 +1,5 @@
-import axios from "axios";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { sendChatMessage, fetchChatbotInfo } from "@/api/ordersApi";
 
 function ChatbotWidget() {
 
@@ -10,6 +10,18 @@ function ChatbotWidget() {
   const [messages, setMessages] = useState([]);
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadInfo = async () => {
+      try {
+        await fetchChatbotInfo();
+      } catch (error) {
+        console.warn("Chatbot info unavailable", error);
+      }
+    };
+
+    loadInfo();
+  }, []);
 
   const sendMessage = async () => {
 
@@ -26,16 +38,12 @@ function ChatbotWidget() {
 
     try {
 
-      const res = await axios.post(
-        "http://127.0.0.1:8000/api/v1/chat/",
-        {
-          message
-        }
-      );
+      const res = await sendChatMessage(message);
 
       const botMessage = {
         role: "assistant",
-        text: res.data.assistant.message
+        text: res.data.assistant?.message || res.data.response || "No response received.",
+        sources: res.data.sources || []
       };
 
       setMessages((prev) => [...prev, botMessage]);
@@ -60,7 +68,7 @@ function ChatbotWidget() {
   return (
     <>
       {/* Floating Button */}
-      <button
+          <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: "fixed",
@@ -70,7 +78,7 @@ function ChatbotWidget() {
           height: "60px",
           borderRadius: "50%",
           border: "none",
-          backgroundColor: "#2563eb",
+          backgroundColor: "#E4405F",
           color: "white",
           fontSize: "24px",
           cursor: "pointer",
@@ -104,12 +112,12 @@ function ChatbotWidget() {
           <div
             style={{
               padding: "15px",
-              backgroundColor: "#2563eb",
+              backgroundColor: "#E4405F",
               color: "white",
               fontWeight: "bold"
             }}
           >
-            AI Assistant
+            FAQ Assistant
           </div>
 
           {/* Messages */}
@@ -131,25 +139,37 @@ function ChatbotWidget() {
                 style={{
                   alignSelf:
                     msg.role === "user"
-                      ? "flex-end"
-                      : "flex-start",
+                        ? "flex-end"
+                        : "flex-start",
 
-                  backgroundColor:
-                    msg.role === "user"
-                      ? "#2563eb"
-                      : "#f1f1f1",
+                    backgroundColor:
+                      msg.role === "user"
+                        ? "#E4405F"
+                        : "#f1f1f1",
 
-                  color:
-                    msg.role === "user"
-                      ? "white"
-                      : "black",
+                    color:
+                      msg.role === "user"
+                        ? "white"
+                        : "black",
 
                   padding: "10px",
                   borderRadius: "10px",
                   maxWidth: "80%"
                 }}
               >
-                {msg.text}
+                <div>{msg.text}</div>
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#333' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Source{msg.sources.length>1? 's':''}:</div>
+                    <ul style={{ paddingLeft: 18, margin: 0 }}>
+                      {msg.sources.map((s, i) => (
+                        <li key={i} style={{ marginBottom: 2 }}>
+                          <a href={s} target="_blank" rel="noreferrer">{s}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
             ))}

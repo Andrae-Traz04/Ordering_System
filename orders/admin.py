@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Customer, Order, OrderItem, StatusHistory, UserProfile, Review
+from .models import Customer, Order, OrderItem, StatusHistory, UserProfile, Review, KnowledgeBase, ChatMessage
 
 
 class OrderItemInline(admin.TabularInline):
@@ -47,3 +47,15 @@ class UserProfileAdmin(admin.ModelAdmin):
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ['order', 'customer', 'rating', 'created_at']
     list_filter = ['rating']
+
+
+@admin.register(KnowledgeBase)
+class KnowledgeBaseAdmin(admin.ModelAdmin):
+    list_display = ['title', 'website_url', 'created_at']
+    search_fields = ['title', 'text_content', 'website_url']
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ['role', 'created_at']
+    list_filter = ['role']

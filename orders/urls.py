@@ -82,4 +82,6 @@ urlpatterns = [
     path('chatbot/', chatbot_query, name='chatbot-query'),
     path('chatbot/stream/', chatbot_stream, name='chatbot-stream'),
     path('chatbot/info/', chatbot_info, name='chatbot-info'),
+    path('chat/', views.ChatbotView.as_view(), name='chatbot-api'),
+    path('knowledge/', views.KnowledgeBaseView.as_view(), name='knowledge-base-api'),
 ]

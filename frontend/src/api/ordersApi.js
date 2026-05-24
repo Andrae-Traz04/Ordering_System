@@ -129,5 +129,5 @@ export const fetchOwnerApplication = (id) => API.get(`/owner-applications/${id}/
 export const reviewOwnerApplication = (id, data) => API.post(`/owner-applications/${id}/review/`, data)
 
 // Chatbot
-export const sendChatMessage = (message) => API.post('/chatbot/', { message })
-export const fetchChatbotInfo = () => API.get('/chatbot/info/')
+export const sendChatMessage = (message) => API.post('/chat/', { message })
+export const fetchChatbotInfo = () => API.get('/knowledge/')
