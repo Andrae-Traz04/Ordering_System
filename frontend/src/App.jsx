@@ -20,6 +20,7 @@ function ResponsiveLayout({ children }) {
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 import ActivationPending from '@/pages/ActivationPending'
 import ActivateAccount from '@/pages/ActivateAccount'
 import AdminDashboard from '@/pages/AdminDashboard'
@@ -75,6 +76,8 @@ export default function App() {
        {/* Auth Routes */}
        <Route path="/activation-pending" element={<ActivationPending />} />
        <Route path="/activate/:uid/:token" element={<ActivateAccount />} />
+       <Route path="/reset-password/:userId/:token" element={<ResetPassword />} />
+      <Route path="/reset-password/:userId/:token/" element={<ResetPassword />} />
        <Route path="/forgot-password" element={<ForgotPassword />} />
          <Route path="/login"    element={!authChecked ? null : (!user ? 
            <Login /> 

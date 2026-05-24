@@ -64,7 +64,7 @@ def send_password_reset_email(user):
     """
     try:
         token = default_token_generator.make_token(user)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password/{user.pk}/{token}/"
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{user.pk}/{token}"
         
         context = {
             'user': user,
@@ -91,7 +91,7 @@ def send_password_reset_email(user):
         print(f"✗ Failed to send password reset email: {str(e)}")
         # Ensure we still return the reset URL for development fallback
         token = default_token_generator.make_token(user)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password/{user.pk}/{token}/"
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{user.pk}/{token}"
         return False, reset_url
 
 

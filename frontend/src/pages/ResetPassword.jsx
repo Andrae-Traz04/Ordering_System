@@ -60,7 +60,7 @@ export default function ResetPassword() {
       
       // Redirect to login after 3 seconds
       setTimeout(() => {
-        navigate('/login');
+        navigate('/login', { replace: true });
       }, 3000);
     } catch (error) {
       setStatus('error');
@@ -195,7 +195,7 @@ export default function ResetPassword() {
             <p>{message}</p>
             <p className="redirect-text">Redirecting to login in 3 seconds...</p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login', { replace: true })}
               className="btn-primary"
             >
               Go to Login Now

@@ -91,7 +91,12 @@ export default function ResetPasswordScreen({ route }: any) {
         confirm_password: confirm,
       })
       setErrorStage('success')
-      setTimeout(() => navigation.navigate('Login'), 3000)
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        })
+      }, 3000)
     } catch (e: any) {
       const msg = e?.response?.data ? Object.values(e.response.data).flat().join(', ') : e?.message || 'Reset failed'
       setErrorStage('error')
