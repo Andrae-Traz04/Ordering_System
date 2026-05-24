@@ -1,7 +1,17 @@
 import axios from 'axios'
 
-const API = axios.create({ baseURL: '/api/v1' })
-const REFRESH_API = axios.create({ baseURL: '/' })
+const normalizeBaseUrl = (value, fallback) => {
+  if (!value) return fallback
+  return value.replace(/\/$/, '')
+}
+
+const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_BASE_URL, '/api/v1')
+const REFRESH_BASE_URL = API_BASE_URL.endsWith('/api/v1')
+  ? API_BASE_URL.replace(/\/api\/v1$/, '') || '/'
+  : API_BASE_URL
+
+const API = axios.create({ baseURL: API_BASE_URL })
+const REFRESH_API = axios.create({ baseURL: REFRESH_BASE_URL })
 
 let refreshPromise = null
 

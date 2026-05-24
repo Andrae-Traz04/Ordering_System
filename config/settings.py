@@ -1,13 +1,27 @@
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
+
+
+def env_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def env_list(name: str, default: str = ''):
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(',') if item.strip()]
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-order-system-key-2024')  # Change this in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+DEBUG = env_bool('DEBUG', True)
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '*')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -35,7 +49,7 @@ except Exception:
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-FRONTEND_URL = 'http://localhost:5173'
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 # Default to local filesystem storage; if cloudinary is installed we'll override below
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 CLOUDINARY_STORAGE = {
@@ -58,6 +72,7 @@ except Exception:
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -88,8 +103,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.sqlite3'),
+        'NAME': os.getenv('DB_NAME', str(BASE_DIR / 'db.sqlite3')),
+        'USER': os.getenv('DB_USER', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', ''),
+        'PORT': os.getenv('DB_PORT', ''),
     }
 }
 
@@ -101,17 +120,27 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+
+# Whitenoise serves static files efficiently in production deployments.
+STATICFILES_STORAGE = os.getenv(
+    'STATICFILES_STORAGE',
+    'whitenoise.storage.CompressedManifestStaticFilesStorage' if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+)
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
 
 DJOSER = {
-    'SEND_ACTIVATION_EMAIL': True,
+    'SEND_ACTIVATION_EMAIL': env_bool('SEND_ACTIVATION_EMAIL', True),
     'USER_CREATE_PASSWORD_RETYPE': True,
     'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'EMAIL_FRONTEND_DOMAIN': 'localhost:5173',
-    'EMAIL_FRONTEND_PROTOCOL': 'http',
+    'EMAIL_FRONTEND_DOMAIN': os.getenv('EMAIL_FRONTEND_DOMAIN', 'localhost:5173'),
+    'EMAIL_FRONTEND_PROTOCOL': os.getenv('EMAIL_FRONTEND_PROTOCOL', 'http'),
     'EMAIL_FRONTEND_SITE_NAME': 'AMU Bowls',
     'SERIALIZERS': {
         'user_create': 'orders.serializers.DjoserUserCreateSerializer',
@@ -150,13 +179,13 @@ SPECTACULAR_SETTINGS = {
 # Control email backend via environment variable
 # USE_CONSOLE_EMAIL=True  -> prints to console (development, no SMTP needed)
 # USE_CONSOLE_EMAIL=False -> sends real emails via Gmail SMTP (production/testing)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'mathewpolinar5@gmail.com'
-EMAIL_HOST_PASSWORD = 'xgjd mzku sulm mbwi'
-DEFAULT_FROM_EMAIL = 'mathewpolinar5@gmail.com' # Must match EMAIL_HOST_USER for Gmail
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 
 # ⚠️  IMPORTANT FOR GMAIL - FOLLOW THESE STEPS:
 # 1. Enable 2-Factor Authentication on your Google Account: https://myaccount.google.com/security
@@ -175,7 +204,7 @@ DEFAULT_FROM_EMAIL = 'mathewpolinar5@gmail.com' # Must match EMAIL_HOST_USER for
 #  FRONTEND URL (for activation links)
 # ─────────────────────────────────────────────
 
-FRONTEND_URL = 'http://localhost:5173'  # Vite dev server
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')  # Vite dev server
 
 # ─────────────────────────────────────────────
 #  ACTIVATION TOKEN TIMEOUT (seconds)
@@ -184,4 +213,14 @@ FRONTEND_URL = 'http://localhost:5173'  # Vite dev server
 ACTIVATION_TOKEN_EXPIRE_HOURS = 24
 
 # Backend URL used for activation fallback links (change if your API runs on a different host/port)
-BACKEND_URL = 'http://localhost:8000'
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8000')
+
+
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = env_bool('SECURE_SSL_REDIRECT', False)
+    SESSION_COOKIE_SECURE = env_bool('SESSION_COOKIE_SECURE', True)
+    CSRF_COOKIE_SECURE = env_bool('CSRF_COOKIE_SECURE', True)
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'

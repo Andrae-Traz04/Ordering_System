@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../Activate.css'; // Create this file with styles
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '')
+
 export default function Activate() {
   const { userId, token } = useParams();
   const navigate = useNavigate();
@@ -20,7 +22,7 @@ export default function Activate() {
   const activateAccount = async () => {
     try {
       const response = await axios.post(
-        `http://localhost:8000/api/auth/activate/${userId}/${token}/`
+        `${API_BASE_URL}/auth/activate/${userId}/${token}/`
       );
       setStatus('success');
       setMessage(response.data.message || 'Account activated successfully!');
@@ -53,7 +55,7 @@ export default function Activate() {
       }
 
       const response = await axios.post(
-        'http://localhost:8000/api/auth/resend-activation/',
+        `${API_BASE_URL}/auth/resend-activation/`,
         { email }
       );
       

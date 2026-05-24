@@ -176,12 +176,158 @@ Frontend runs at → `http://localhost:5173`
 
 ---
 
-### Step 8 — Start the Mobile development server
+### Step 8 — Install mobile dependencies
+
+Open a **third terminal**:
+```bash
+cd mobile
+npm install
+```
+
+---
+
+### Step 9 — Start the Mobile development server
 
 Open a **third terminal**:
 ```bash
 cd mobile
 npx expo start
+```
+
+Mobile runs in Expo DevTools (QR for Android/iOS, or emulator/simulator).
+
+---
+
+## Run Backend + Frontend + Mobile Together
+
+Use three terminals in parallel:
+
+**Terminal 1 — Backend (Django):**
+```bash
+source .venv/Scripts/activate
+python manage.py runserver
+```
+
+**Terminal 2 — Frontend (React + Vite):**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+**Terminal 3 — Mobile (Expo):**
+```bash
+cd mobile
+npm install
+npx expo start
+```
+
+Run backend first, then frontend, then mobile.
+
+### Full Terminal Commands (Copy/Paste)
+
+#### Local Development (Windows PowerShell)
+
+**Terminal 1 - Backend**
+```powershell
+cd C:\Users\Acer\Ordering_System
+python -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+**Terminal 2 - Frontend**
+```powershell
+cd C:\Users\Acer\Ordering_System\frontend
+npm install
+npm run dev
+```
+
+**Terminal 3 - Mobile**
+```powershell
+cd C:\Users\Acer\Ordering_System\mobile
+npm install
+npx expo start
+```
+
+#### Local Development (macOS/Linux)
+
+**Terminal 1 - Backend**
+```bash
+cd ~/Ordering_System
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+**Terminal 2 - Frontend**
+```bash
+cd ~/Ordering_System/frontend
+npm install
+npm run dev
+```
+
+**Terminal 3 - Mobile**
+```bash
+cd ~/Ordering_System/mobile
+npm install
+npx expo start
+```
+
+#### Ubuntu Server Deployment Commands
+
+```bash
+ssh root@YOUR_SERVER_IP
+cd /var/www
+git clone https://github.com/coderist1/Ordering_System.git
+cd Ordering_System
+chmod +x scripts/deploy_ubuntu.sh
+./scripts/deploy_ubuntu.sh
+```
+
+#### PostgreSQL Manual Setup Commands (Alternative)
+
+```bash
+sudo -u postgres psql
+CREATE DATABASE mydb;
+CREATE USER myuser WITH PASSWORD 'strongpassword';
+GRANT ALL PRIVILEGES ON DATABASE mydb TO myuser;
+\c mydb
+GRANT ALL ON SCHEMA public TO myuser;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO myuser;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO myuser;
+ALTER SCHEMA public OWNER TO myuser;
+```
+
+Or run:
+```bash
+sudo -u postgres psql -f scripts/postgres_setup.sql
+```
+
+#### Service and Nginx Commands
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable ordering-system
+sudo systemctl restart ordering-system
+sudo systemctl restart nginx
+sudo nginx -t
+sudo systemctl status ordering-system
+sudo systemctl status nginx
+```
+
+#### Firewall Commands
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw --force enable
+sudo ufw status
 ```
 
 ### Email activation setup
@@ -375,4 +521,41 @@ python manage.py runserver
 ```bash
 cd frontend
 npm run dev
+```
+
+---
+
+## Ubuntu Deployment (Django + PostgreSQL + Gunicorn + Nginx)
+
+This repository now includes deployment templates and a helper script:
+
+- `.env.example` - production environment variable template
+- `scripts/deploy_ubuntu.sh` - automated server bootstrap + app deploy
+- `scripts/postgres_setup.sql` - database/user grants
+- `deploy/gunicorn.service` - systemd service template
+- `deploy/nginx.ordering-system.conf` - Nginx site template
+
+### Quick deploy
+
+```bash
+chmod +x scripts/deploy_ubuntu.sh
+./scripts/deploy_ubuntu.sh
+```
+
+### Then configure
+
+1. Edit `.env` on the server with production values.
+2. Update `server_name` in Nginx config to your domain or server IP.
+3. Restart services:
+
+```bash
+sudo systemctl restart ordering-system
+sudo systemctl restart nginx
+```
+
+### Verify
+
+```bash
+sudo systemctl status ordering-system
+sudo systemctl status nginx
 ```

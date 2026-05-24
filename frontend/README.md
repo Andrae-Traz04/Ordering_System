@@ -1,16 +1,75 @@
-# React + Vite
+# Frontend (React + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This app can run locally or be deployed independently (for example to Vercel).
 
-Currently, two official plugins are available:
+## Required Environment Variable
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The frontend uses this variable at build/runtime:
 
-## React Compiler
+```bash
+VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+If frontend and backend are served from the same domain with reverse proxy, you can use:
 
-## Expanding the ESLint configuration
+```bash
+VITE_API_BASE_URL=/api/v1
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Local Run Commands
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Production Build Commands
+
+```bash
+cd frontend
+npm install
+npm run build
+npm run preview
+```
+
+## Deploy to Vercel (CLI)
+
+1. Install CLI:
+
+```bash
+npm install -g vercel
+```
+
+2. Deploy:
+
+```bash
+cd frontend
+vercel
+```
+
+3. Set production env var in Vercel project settings:
+
+```bash
+VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
+```
+
+4. Push production deploy:
+
+```bash
+vercel --prod
+```
+
+## Deploy to Vercel (Git Integration)
+
+1. Import this repository into Vercel.
+2. Set Root Directory to `frontend`.
+3. Set build command: `npm run build`.
+4. Set output directory: `dist`.
+5. Add env var `VITE_API_BASE_URL`.
+6. Deploy.
+
+## Notes
+
+- `vercel.json` already includes SPA rewrite to `index.html`.
+- Ensure backend CORS allows your frontend domain.
