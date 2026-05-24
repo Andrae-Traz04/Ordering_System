@@ -3,7 +3,7 @@ import os
 from urllib.parse import urlparse
 
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
 except Exception:
     load_dotenv = None
 
@@ -85,7 +85,7 @@ CLOUDINARY_STORAGE = {
 
 # Try to use Cloudinary storage when available, otherwise fall back to local storage
 try:
-    from cloudinary_storage.storage import MediaCloudinaryStorage
+    from cloudinary_storage.storage import MediaCloudinaryStorage  # type: ignore[import-not-found]
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     storage = MediaCloudinaryStorage()
 except Exception:
