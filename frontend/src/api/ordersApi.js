@@ -130,4 +130,5 @@ export const reviewOwnerApplication = (id, data) => API.post(`/owner-application
 
 // Chatbot
 export const sendChatMessage = (message) => API.post('/chat/', { message })
+export const sendPublicChatMessage = (message) => API.post('/chat/public/', { message })
 export const fetchChatbotInfo = () => API.get('/knowledge/')

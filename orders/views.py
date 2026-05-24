@@ -64,10 +64,11 @@ OLLAMA_URL = getattr(settings, 'OLLAMA_URL', 'http://localhost:11434')
 STRICT_CHAT_REFUSAL = 'I don\'t know based on the website information available.'
 STRICT_CHAT_SYSTEM = (
     'You are the official FAQ assistant for this ordering website. '
-    'Always answer as an FAQ entry: start with a single concise answer (1-2 sentences), '
-    'then optionally provide up to three short bullet steps or clarifying notes. '
-    'Only use information found in the provided website knowledge base context — do not use outside knowledge or speculate. '
+    'Answer the user in a way that is directly aligned with their question: begin with a single, concise sentence that explicitly answers the user’s question (do not begin with unrelated background). '
+    'If helpful, follow the first sentence with up to three short bullet steps or clarifying notes. '
+    'Only use information found in the provided website knowledge base context — do not add outside knowledge or speculate. '
     f'If the question cannot be answered from the knowledge base, reply exactly: {STRICT_CHAT_REFUSAL} '
+    'If the user’s question is ambiguous or missing details, ask one brief clarifying question instead of guessing. '
     'When you use information from the knowledge base, include a "Source:" line naming the knowledge base title and URL when available.'
 )
 
@@ -1015,6 +1016,54 @@ class ChatbotView(ListCreateAPIView):
         if not user_message:
             return Response({'detail': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        user_chat = ChatMessage.objects.create(role='user', message=user_message)
+
+        sources, context = _build_relevant_knowledge_context(user_message)
+        if not context:
+            ai_response = STRICT_CHAT_REFUSAL
+        else:
+            prompt = f"""
+{STRICT_CHAT_SYSTEM}
+
+Knowledge:
+{context}
+
+User question:
+{user_message}
+
+Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
+""".strip()
+
+            try:
+                ai_response = _call_ollama(prompt)
+                if not ai_response:
+                    ai_response = STRICT_CHAT_REFUSAL
+            except Exception as exc:
+                ai_response = f'Chatbot error: {exc}'
+
+        ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
+
+        return Response({
+            'user': ChatMessageSerializer(user_chat).data,
+            'assistant': ChatMessageSerializer(ai_chat).data,
+            'sources': sources,
+        }, status=status.HTTP_201_CREATED)
+
+
+class ChatbotPublicView(ListCreateAPIView):
+    """Public FAQ chatbot: allows unauthenticated users to ask site-specific questions.
+    Uses the same KB retrieval + Ollama call as ChatbotView but permits anonymous access.
+    """
+    permission_classes = [AllowAny]
+    queryset = ChatMessage.objects.all().order_by('created_at')
+    serializer_class = ChatMessageSerializer
+
+    def create(self, request, *args, **kwargs):
+        user_message = (request.data or {}).get('message', '').strip()
+        if not user_message:
+            return Response({'detail': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save user message (anonymous)
         user_chat = ChatMessage.objects.create(role='user', message=user_message)
 
         sources, context = _build_relevant_knowledge_context(user_message)

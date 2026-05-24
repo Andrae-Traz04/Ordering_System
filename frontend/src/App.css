@@ -17,6 +17,16 @@
   }
 }
 
+:root {
+  --accent: #9B6DFF; /* lighter purple */
+  --accent-bg: rgba(155,109,255,0.08);
+  --accent-border: rgba(155,109,255,0.25);
+  --border: #E9E7F8;
+  --text-h: #111827;
+  --social-bg: #fff;
+  --shadow: 0 6px 24px rgba(16,24,40,0.08);
+}
+
 .hero {
   position: relative;
 

@@ -133,7 +133,7 @@ export default function Login() {
           gap: 8px;
         }
 
-        .logo-sparkle { color: #E4405F; }
+        .logo-sparkle { color: var(--accent); }
 
         .text-header h2 {
           font-size: 32px;
@@ -183,8 +183,8 @@ export default function Login() {
           transition: all 0.3s ease;
         }
 
-        .capsule-input:focus {
-          border-color: #E4405F;
+          .capsule-input:focus {
+          border-color: var(--accent);
           background: #fff;
           box-shadow: 0 4px 12px rgba(228, 64, 95, 0.1);
         }
@@ -222,8 +222,8 @@ export default function Login() {
           color: #666;
         }
 
-        .footer-link a {
-          color: #E4405F;
+          .footer-link a {
+          color: var(--accent);
           text-decoration: none;
           font-weight: 600;
           margin-left: 5px;

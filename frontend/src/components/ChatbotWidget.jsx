@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { sendChatMessage, fetchChatbotInfo } from "@/api/ordersApi";
+import { sendChatMessage, sendPublicChatMessage, fetchChatbotInfo } from "@/api/ordersApi";
 
 function ChatbotWidget() {
 
@@ -37,8 +37,7 @@ function ChatbotWidget() {
     setLoading(true);
 
     try {
-
-      const res = await sendChatMessage(message);
+      const res = await sendChatMessage(message)
 
       const botMessage = {
         role: "assistant",
@@ -78,7 +77,7 @@ function ChatbotWidget() {
           height: "60px",
           borderRadius: "50%",
           border: "none",
-          backgroundColor: "#E4405F",
+          backgroundColor: "#2563eb",
           color: "white",
           fontSize: "24px",
           cursor: "pointer",
@@ -112,12 +111,12 @@ function ChatbotWidget() {
           <div
             style={{
               padding: "15px",
-              backgroundColor: "#E4405F",
+              backgroundColor: "#2563eb",
               color: "white",
               fontWeight: "bold"
             }}
           >
-            FAQ Assistant
+            AI Assistant
           </div>
 
           {/* Messages */}
@@ -144,7 +143,7 @@ function ChatbotWidget() {
 
                     backgroundColor:
                       msg.role === "user"
-                        ? "#E4405F"
+                        ? "#2563eb"
                         : "#f1f1f1",
 
                     color:
