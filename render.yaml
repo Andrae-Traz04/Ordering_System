@@ -4,7 +4,8 @@ services:
     runtime: python
     plan: free
     buildCommand: python -m pip install --upgrade pip setuptools wheel && python -m pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    # Ensure pkg_resources is available even if the runtime image starts without setuptools.
+    startCommand: python -m pip show setuptools >/dev/null 2>&1 || python -m pip install --no-cache-dir setuptools && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
