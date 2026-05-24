@@ -41,8 +41,10 @@ export default function Login() {
 
         <form onSubmit={submit}>
           <div className="input-group">
-            <label>Email</label>
+            <label htmlFor="login-email">Email</label>
             <input
+              id="login-email"
+              name="email"
               type="email"
               className="capsule-input"
               placeholder="you@example.com"
@@ -55,8 +57,10 @@ export default function Login() {
           </div>
 
           <div className="input-group">
-            <label>Password</label>
+            <label htmlFor="login-password">Password</label>
             <input
+              id="login-password"
+              name="password"
               type="password"
               className="capsule-input"
               placeholder="Enter your password"
