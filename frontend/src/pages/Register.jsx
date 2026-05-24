@@ -86,59 +86,63 @@ export default function Register() {
           <div className="input-row">
             <div className="input-group">
               <label htmlFor="register-first-name">First name</label>
-              <input
-                id="register-first-name"
-                name="first_name"
-                type="text"
-                className="capsule-input"
-                placeholder="Enter first name"
-                value={form.first_name}
-                onChange={e => setForm({ ...form, first_name: e.target.value })}
-                required
-              />
+               <input
+                 id="register-first-name"
+                 name="first_name"
+                 type="text"
+                 className="capsule-input"
+                 placeholder="Enter first name"
+                 value={form.first_name}
+                 onChange={e => setForm({ ...form, first_name: e.target.value })}
+                 required
+                 autoComplete="given-name"
+               />
             </div>
 
             <div className="input-group">
               <label htmlFor="register-last-name">Last name</label>
-              <input
-                id="register-last-name"
-                name="last_name"
-                type="text"
-                className="capsule-input"
-                placeholder="Enter last name"
-                value={form.last_name}
-                onChange={e => setForm({ ...form, last_name: e.target.value })}
-                required
-              />
+               <input
+                 id="register-last-name"
+                 name="last_name"
+                 type="text"
+                 className="capsule-input"
+                 placeholder="Enter last name"
+                 value={form.last_name}
+                 onChange={e => setForm({ ...form, last_name: e.target.value })}
+                 required
+                 autoComplete="family-name"
+               />
             </div>
           </div>
 
           <div className="input-group">
             <label htmlFor="register-email">Email</label>
-            <input
-              id="register-email"
-              name="email"
-              type="email"
-              className="capsule-input"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={e => setForm({ ...form, email: e.target.value })}
-              required
-            />
+             <input
+               id="register-email"
+               name="email"
+               type="email"
+               className="capsule-input"
+               placeholder="you@example.com"
+               value={form.email}
+               onChange={e => setForm({ ...form, email: e.target.value })}
+               required
+               autoComplete="email"
+             />
           </div>
 
           <div className="input-group">
             <label htmlFor="register-username">Username</label>
-            <input
-              id="register-username"
-              name="username"
-              type="text"
-              className="capsule-input"
-              placeholder="Pick a username"
-              value={form.username}
-              onChange={e => setForm({ ...form, username: e.target.value })}
-              required
-            />
+             <input
+               id="register-username"
+               name="username"
+               type="text"
+               className="capsule-input"
+               placeholder="Pick a username"
+               value={form.username}
+               onChange={e => setForm({ ...form, username: e.target.value })}
+               required
+               autoComplete="username"
+             />
           </div>
 
           <div className="input-group">
@@ -161,30 +165,32 @@ export default function Register() {
 
           <div className="input-group">
             <label htmlFor="register-password">Password</label>
-            <input
-              id="register-password"
-              name="password"
-              type="password"
-              className="capsule-input"
-              placeholder="Create a password"
-              value={form.password}
-              onChange={e => setForm({ ...form, password: e.target.value })}
-              required
-            />
+             <input
+               id="register-password"
+               name="password"
+               type="password"
+               className="capsule-input"
+               placeholder="Create a password"
+               value={form.password}
+               onChange={e => setForm({ ...form, password: e.target.value })}
+               required
+               autoComplete="new-password"
+             />
           </div>
 
           <div className="input-group">
             <label htmlFor="register-confirm-password">Confirm password</label>
-            <input
-              id="register-confirm-password"
-              name="confirm_password"
-              type="password"
-              className="capsule-input"
-              placeholder="Re-enter your password"
-              value={form.confirm_password}
-              onChange={e => setForm({ ...form, confirm_password: e.target.value })}
-              required
-            />
+             <input
+               id="register-confirm-password"
+               name="confirm_password"
+               type="password"
+               className="capsule-input"
+               placeholder="Re-enter your password"
+               value={form.confirm_password}
+               onChange={e => setForm({ ...form, confirm_password: e.target.value })}
+               required
+               autoComplete="new-password"
+             />
           </div>
 
 

@@ -85,7 +85,7 @@ const Profile = () => {
     }
   };
 
-  const renderField = (label, name, value, type = 'text') => (
+  const renderField = (label, name, value, type = 'text', autoComplete) => (
     <div className="form-group">
       <label htmlFor={name}>{label}</label>
       {isEditing ? (
@@ -95,6 +95,7 @@ const Profile = () => {
           name={name}
           value={value}
           onChange={handleChange}
+          autoComplete={autoComplete}
         />
       ) : (
         <p>{value || 'Not set'}</p>
@@ -143,9 +144,9 @@ const Profile = () => {
 
       <form className="profile-form" onSubmit={handleSubmit}>
         <div className="form-grid">
-          {renderField('First Name', 'first_name', formData.first_name)}
-          {renderField('Last Name', 'last_name', formData.last_name)}
-          {renderField('Email', 'email', formData.email, 'email')}
+          {renderField('First Name', 'first_name', formData.first_name, 'text', 'given-name')}
+          {renderField('Last Name', 'last_name', formData.last_name, 'text', 'family-name')}
+          {renderField('Email', 'email', formData.email, 'email', 'email')}
           {renderField('Address', 'address', formData.profile.address)}
           {renderField('Age', 'age', formData.profile.age, 'number')}
           {renderField('Birthday', 'birthday', formData.profile.birthday, 'date')}

@@ -109,6 +109,7 @@ export default function ResetPassword() {
                   placeholder="Enter new password"
                   disabled={loading}
                   className={errors.newPassword ? 'input-error' : ''}
+                  autoComplete="new-password"
                 />
                 {errors.newPassword && (
                   <span className="error-message">{errors.newPassword}</span>
@@ -147,6 +148,7 @@ export default function ResetPassword() {
                   placeholder="Confirm new password"
                   disabled={loading}
                   className={errors.confirmPassword ? 'input-error' : ''}
+                  autoComplete="new-password"
                 />
                 {errors.confirmPassword && (
                   <span className="error-message">{errors.confirmPassword}</span>

@@ -73,21 +73,24 @@ export default function CreateOrder() {
                 <label>Customer Name *</label>
                 <input value={form.customer_name}
                   onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                  placeholder="Juan Dela Cruz" />
+                  placeholder="Juan Dela Cruz"
+                  autoComplete="name" />
                 {errors.customer_name && <span className="error-text">{errors.customer_name}</span>}
               </div>
               <div className="form-group">
                 <label>Email *</label>
                 <input type="email" value={form.customer_email}
                   onChange={e => setForm({ ...form, customer_email: e.target.value })}
-                  placeholder="juan@example.com" />
+                  placeholder="juan@example.com"
+                  autoComplete="email" />
                 {errors.customer_email && <span className="error-text">{errors.customer_email}</span>}
               </div>
               <div className="form-group">
                 <label>Phone</label>
                 <input value={form.customer_phone}
                   onChange={e => setForm({ ...form, customer_phone: e.target.value })}
-                  placeholder="+63 912 345 6789" />
+                  placeholder="+63 912 345 6789"
+                  autoComplete="tel" />
               </div>
               <div className="form-group">
                 <label>Notes</label>
