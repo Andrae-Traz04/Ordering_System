@@ -68,6 +68,45 @@ FAQ_ITEMS = [
             '- Confirm the order and wait for the confirmation email'
         ),
         'website_url': f'{FRONTEND}/orders'
+    },
+    {
+        'title': 'FAQ: Ordering Process Variant 1',
+        'text_content': (
+            'Question: What is the process of ordering?\n\n'
+            'Answer: Browse products, add desired items to your cart, then proceed to checkout to enter delivery and payment details. Review your order and confirm to place it. You will receive an order confirmation email with details and an order number.\n\n'
+            'Steps:\n'
+            '- Browse products and click "Add to cart" for items you want\n'
+            '- Open your cart and click "Checkout"\n'
+            '- Enter shipping and payment information\n'
+            '- Confirm the order and wait for the confirmation email'
+        ),
+        'website_url': f'{FRONTEND}/orders'
+    },
+    {
+        'title': 'FAQ: Ordering Process Variant 2',
+        'text_content': (
+            'Question: How do I order?\n\n'
+            'Answer: Browse products, add desired items to your cart, then proceed to checkout to enter delivery and payment details. Review your order and confirm to place it. You will receive an order confirmation email with details and an order number.\n\n'
+            'Steps:\n'
+            '- Browse products and click "Add to cart" for items you want\n'
+            '- Open your cart and click "Checkout"\n'
+            '- Enter shipping and payment information\n'
+            '- Confirm the order and wait for the confirmation email'
+        ),
+        'website_url': f'{FRONTEND}/orders'
+    },
+    {
+        'title': 'FAQ: Ordering Process Variant 3',
+        'text_content': (
+            'Question: How do I checkout?\n\n'
+            'Answer: Browse products, add desired items to your cart, then proceed to checkout to enter delivery and payment details. Review your order and confirm to place it. You will receive an order confirmation email with details and an order number.\n\n'
+            'Steps:\n'
+            '- Browse products and click "Add to cart" for items you want\n'
+            '- Open your cart and click "Checkout"\n'
+            '- Enter shipping and payment information\n'
+            '- Confirm the order and wait for the confirmation email'
+        ),
+        'website_url': f'{FRONTEND}/orders'
     }
 ]
 
