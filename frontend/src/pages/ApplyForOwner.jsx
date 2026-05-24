@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { createOwnerApplication } from '@/api/ordersApi'
+import { getApiErrorMessage } from '@/api/getApiErrorMessage'
 
 // ── Design tokens ────────────────────────────────────────────────
 const C = {
@@ -143,19 +144,7 @@ export default function ApplyForOwner() {
       alert('Application submitted successfully! You will be notified once reviewed.')
       navigate('/profile')
     } catch (err) {
-      console.error(err)
-      const data = err.response?.data
-      let msg = 'Application submission failed.'
-
-      if (data) {
-        if (typeof data === 'string') {
-          msg = data
-        } else if (typeof data === 'object') {
-          msg = Object.values(data).flat().join(' ')
-        }
-      }
-
-      alert(msg)
+      alert(getApiErrorMessage(err, 'Application submission failed.'))
     } finally {
       setLoading(false)
     }

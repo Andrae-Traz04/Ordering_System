@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import ChatbotWidget from '@/components/ChatbotWidget'
+import { getApiErrorMessage } from '@/api/getApiErrorMessage'
 
 
 
@@ -60,28 +61,7 @@ export default function Register() {
         state: { email: result?.email || form.email.trim().toLowerCase() },
       })
     } catch (err) {
-      console.error(err)
-      const data = err.response?.data
-      let msg = 'Registration failed.'
-      
-      if (err.response) {
-        if (data) {
-           if (typeof data === 'string') {
-             msg = data
-           } else if (typeof data === 'object') {
-             // Combine all error messages
-             msg = Object.values(data).flat().join(' ')
-           }
-        } else {
-           msg = `Error ${err.response.status}: ${err.response.statusText}`
-        }
-      } else if (err.request) {
-        msg = 'No response from server. Is Django running?'
-      } else if (err.message) {
-        msg = err.message
-      }
-
-      setError(msg)
+      setError(getApiErrorMessage(err, 'Registration failed.'))
     } finally {
       setLoading(false)
     }

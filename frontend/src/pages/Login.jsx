@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import ChatbotWidget from '@/components/ChatbotWidget'
+import { getApiErrorMessage } from '@/api/getApiErrorMessage'
 
 export default function Login() {
   const { login: loginUser } = useAuth()
@@ -18,10 +19,7 @@ export default function Login() {
       await loginUser(form.email, form.password)
       navigate('/profile')
     } catch (err) {
-      console.error(err)
-      const data = err.response?.data
-      const msg = data?.detail || data?.error || 'Login failed.'
-      setError(msg)
+      setError(getApiErrorMessage(err, 'Login failed.'))
     } finally {
       setLoading(false)
     }
