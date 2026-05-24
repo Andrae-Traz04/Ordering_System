@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { sendChatMessage, sendPublicChatMessage, fetchChatbotInfo } from "@/api/ordersApi";
+import { sendChatMessage, sendPublicChatMessage } from "@/api/ordersApi";
 
 function ChatbotWidget() {
 
@@ -12,15 +12,8 @@ function ChatbotWidget() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const loadInfo = async () => {
-      try {
-        await fetchChatbotInfo();
-      } catch (error) {
-        console.warn("Chatbot info unavailable", error);
-      }
-    };
-
-    loadInfo();
+    // Chatbot knowledge endpoints are protected on the backend, so the widget
+    // should not hit them on anonymous page load.
   }, []);
 
   const sendMessage = async () => {
