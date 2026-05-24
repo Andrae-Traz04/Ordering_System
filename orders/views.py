@@ -1,6 +1,9 @@
+import logging
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
+from django.db import transaction
 from django.shortcuts import render
 from django.conf import settings
 from io import BytesIO
@@ -40,6 +43,9 @@ from .email_utils import send_activation_email, send_password_reset_email
 import requests
 from django.core.files.base import ContentFile
 from urllib.parse import urlparse
+
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────
@@ -371,32 +377,47 @@ class RegisterView(APIView):
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user  = serializer.save()
-            
-            # Manually update profile fields that might be skipped by RegisterSerializer
-            profile, _ = UserProfile.objects.get_or_create(user=user)
-            if 'profile_image' in request.FILES:
-                profile.profile_image = request.FILES['profile_image']
-                profile.save()
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # Send activation email
-            success, activation_url = send_activation_email(user)
-            
-            user_serializer = UserSerializer(user, context={'request': request})
+        try:
+            with transaction.atomic():
+                user = serializer.save()
+
+                # Manually update profile fields that might be skipped by RegisterSerializer
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                if 'profile_image' in request.FILES:
+                    profile.profile_image = request.FILES['profile_image']
+                    profile.save()
+
+                # Send activation email
+                success, activation_url = send_activation_email(user)
+
             response_data = {
-                'user': user_serializer.data,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'role': getattr(user.profile, 'role', 'user'),
+                },
+                'email': user.email,
                 'message': 'Registration successful! Please check your email to activate your account.',
                 'detail': 'Activation link sent to your email. It will expire in 24 hours.',
             }
-            
+
             # DEV FALLBACK: If email is blocked by firewall/ISP, give link directly to frontend
             if not success and settings.DEBUG:
                 response_data['dev_activation_url'] = activation_url
                 response_data['detail'] = 'Email timed out. Used DEV fallback activation link.'
-                
+
             return Response(response_data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception('Registration failed')
+            error_detail = str(exc) if settings.DEBUG else 'Registration failed on the server.'
+            return Response(
+                {'error': 'Registration failed.', 'detail': error_detail},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ActivateEmailView(APIView):
