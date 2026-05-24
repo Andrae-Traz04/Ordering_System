@@ -28,7 +28,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
-    role = serializers.CharField(source='profile.role', read_only=True)
+    role = serializers.SerializerMethodField()
     profile_image = serializers.ImageField(required=False, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     age = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -41,6 +41,10 @@ class UserSerializer(serializers.ModelSerializer):
             'profile', 'profile_image', 'address', 'age', 'birthday',
         ]
         read_only_fields = ['id', 'username']
+
+    def get_role(self, obj):
+        profile = getattr(obj, 'profile', None)
+        return getattr(profile, 'role', 'user')
 
     def update(self, instance, validated_data):
         profile_data = validated_data.pop('profile', {})

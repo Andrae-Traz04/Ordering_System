@@ -398,7 +398,7 @@ class RegisterView(APIView):
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
-                    'role': getattr(user.profile, 'role', 'user'),
+                    'role': getattr(getattr(user, 'profile', None), 'role', 'user'),
                 },
                 'email': user.email,
                 'message': 'Registration successful! Please check your email to activate your account.',
