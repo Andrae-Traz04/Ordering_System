@@ -230,7 +230,7 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 # 3. Copy that password to your .env file:
 #    EMAIL_HOST_USER=your-email@gmail.com
 #    EMAIL_HOST_PASSWORD=xxxx xxxx xxxx xxxx  (the 16-char password from Google)
-# 4. Set USE_CONSOLE_EMAIL=False in .env to use real SMTP
+# 4. Set USE_CONSOLE_EMAIL=False in .env to use real    
 # 5. Test with: python manage.py shell
 #    >>> from django.core.mail import send_mail
 #    >>> send_mail('Test', 'Test message', 'from@gmail.com', ['to@gmail.com'], fail_silently=False)
