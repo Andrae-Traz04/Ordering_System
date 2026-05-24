@@ -194,6 +194,32 @@ def _call_ollama(prompt, system=None):
     return data.get('response', '').strip()
 
 
+def _find_exact_qa_match(user_message):
+    """Return (answer_text, title, url) if a KnowledgeBase entry contains
+    an explicit 'Question: {user_message}' followed by 'Answer: ...'.
+    Case-insensitive match on the question line."""
+    qm = (user_message or '').strip()
+    if not qm:
+        return None
+    for item in KnowledgeBase.objects.all().order_by('-created_at'):
+        content = (item.text_content or '')
+        # Look for a 'Question:' line containing the exact question
+        m = re.search(r"Question:\s*(.+)", content, flags=re.IGNORECASE)
+        if m:
+            qtext = m.group(1).strip()
+            if qtext.lower() == qm.lower():
+                # Extract 'Answer:' section following the question
+                a_match = re.search(r"Answer:\s*(.*?)($|\n\n[A-Z][a-z]+:|\nSteps:)", content, flags=re.IGNORECASE | re.DOTALL)
+                if a_match:
+                    answer = a_match.group(1).strip()
+                else:
+                    # Fallback: use whole content after question
+                    post = content[m.end():].strip()
+                    answer = post.split('\n\n')[0].strip()
+                return answer, (item.title or 'Knowledge Base'), (item.website_url or '')
+    return None
+
+
 # ─────────────────────────────────────────────
 #  PERMISSION CLASSES
 # ─────────────────────────────────────────────
@@ -1018,11 +1044,19 @@ class ChatbotView(ListCreateAPIView):
 
         user_chat = ChatMessage.objects.create(role='user', message=user_message)
 
-        sources, context = _build_relevant_knowledge_context(user_message)
-        if not context:
-            ai_response = STRICT_CHAT_REFUSAL
+        # Fast-path: if there's an exact Q/A pair, return that answer directly (FAQ-first)
+        qa = _find_exact_qa_match(user_message)
+        if qa:
+            answer_text, title, url = qa
+            ai_text = answer_text.strip()
+            source_line = f"{title} ({url})" if url else title
+            ai_response = f"{ai_text}\n\nSource: {source_line}"
         else:
-            prompt = f"""
+            sources, context = _build_relevant_knowledge_context(user_message)
+            if not context:
+                ai_response = STRICT_CHAT_REFUSAL
+            else:
+                prompt = f"""
 {STRICT_CHAT_SYSTEM}
 
 Knowledge:
@@ -1034,12 +1068,12 @@ User question:
 Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
 """.strip()
 
-            try:
-                ai_response = _call_ollama(prompt)
-                if not ai_response:
-                    ai_response = STRICT_CHAT_REFUSAL
-            except Exception as exc:
-                ai_response = f'Chatbot error: {exc}'
+                try:
+                    ai_response = _call_ollama(prompt)
+                    if not ai_response:
+                        ai_response = STRICT_CHAT_REFUSAL
+                except Exception as exc:
+                    ai_response = f'Chatbot error: {exc}'
 
         ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
 
@@ -1062,9 +1096,23 @@ class ChatbotPublicView(ListCreateAPIView):
         user_message = (request.data or {}).get('message', '').strip()
         if not user_message:
             return Response({'detail': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
         # Save user message (anonymous)
         user_chat = ChatMessage.objects.create(role='user', message=user_message)
+
+        # Fast-path: if there's an exact Q/A pair in the KB, return that answer directly
+        qa = _find_exact_qa_match(user_message)
+        if qa:
+            answer_text, title, url = qa
+            ai_text = answer_text.strip()
+            source_line = f"{title} ({url})" if url else title
+            ai_response = f"{ai_text}\n\nSource: {source_line}"
+            ai_chat = ChatMessage.objects.create(role='assistant', message=ai_response)
+            sources = [url] if url else []
+            return Response({
+                'user': ChatMessageSerializer(user_chat).data,
+                'assistant': ChatMessageSerializer(ai_chat).data,
+                'sources': sources,
+            }, status=status.HTTP_201_CREATED)
 
         sources, context = _build_relevant_knowledge_context(user_message)
         if not context:
@@ -1081,6 +1129,14 @@ User question:
 
 Respond strictly as an FAQ entry. Begin with a concise direct answer (one or two sentences). If step-by-step help is required, add up to three short bullets. End with a source line: "Source: <title> (<url>)" for the primary knowledge entry used. If the knowledge does not contain the answer, reply with the exact refusal sentence.
 """.strip()
+
+            # DEBUG: log retrieval context for public view as well
+            try:
+                print('DEBUG_PUBLIC_CHAT_SOURCES:', sources)
+                print('DEBUG_PUBLIC_CHAT_CONTEXT_SNIPPET:', (context or '')[:2000])
+                print('DEBUG_PUBLIC_CHAT_PROMPT_SNIPPET:', prompt[:2000])
+            except Exception:
+                pass
 
             try:
                 ai_response = _call_ollama(prompt)

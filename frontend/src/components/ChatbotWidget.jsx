@@ -37,7 +37,11 @@ function ChatbotWidget() {
     setLoading(true);
 
     try {
-      const res = await sendChatMessage(message)
+      // Use authenticated chat if access token exists, otherwise use public chat
+      const hasToken = !!localStorage.getItem('access_token')
+      const apiCall = hasToken ? sendChatMessage : sendPublicChatMessage
+
+      const res = await apiCall(message)
 
       const botMessage = {
         role: "assistant",
