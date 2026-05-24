@@ -4,17 +4,13 @@ This app can run locally or be deployed independently (for example to Vercel).
 
 ## Required Environment Variable
 
-The frontend uses this variable at build/runtime:
-
-```bash
-VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
-```
-
-If frontend and backend are served from the same domain with reverse proxy, you can use:
+The frontend uses this variable during local development:
 
 ```bash
 VITE_API_BASE_URL=/api/v1
 ```
+
+In production, the app now stays same-origin and always uses `/api/v1` through the Vercel rewrite.
 
 ## Local Run Commands
 
@@ -51,7 +47,7 @@ vercel
 3. Set production env var in Vercel project settings:
 
 ```bash
-VITE_API_BASE_URL=https://your-backend-domain.com/api/v1
+VITE_API_BASE_URL=/api/v1
 ```
 
 4. Push production deploy:
@@ -71,5 +67,6 @@ vercel --prod
 
 ## Notes
 
-- `vercel.json` already includes SPA rewrite to `index.html`.
-- Ensure backend CORS allows your frontend domain.
+- `vercel.json` rewrites `/api/v1/*` to the Render backend, so browser requests stay same-origin.
+- Keep `VITE_API_BASE_URL=/api/v1` in Vercel for consistency with local development.
+- The frontend ignores any absolute API URL in production so it does not fall back to cross-origin requests.
