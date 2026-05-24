@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "EAS Android APK Build",
+			"type": "shell",
+			"command": "npx eas-cli build -p android --profile preview --non-interactive",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

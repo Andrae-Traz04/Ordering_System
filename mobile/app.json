@@ -29,6 +29,12 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "102c5339-454c-4048-955c-d27b4d95366f"
+      }
+    },
+    "owner": "sanggre"
   }
 }
