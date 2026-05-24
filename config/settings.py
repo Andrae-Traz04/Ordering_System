@@ -54,7 +54,7 @@ except Exception:
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.app')
 # Default to local filesystem storage; if cloudinary is installed we'll override below
 DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 CLOUDINARY_STORAGE = {
@@ -138,7 +138,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
+CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,https://ordering-system-6rn1.vercel.app')
 
 DJOSER = {
     'SEND_ACTIVATION_EMAIL': env_bool('SEND_ACTIVATION_EMAIL', True),
@@ -209,7 +209,7 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 #  FRONTEND URL (for activation links)
 # ─────────────────────────────────────────────
 
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')  # Vite dev server
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ordering-system-6rn1.vercel.app')  # Live Vercel server
 
 # ─────────────────────────────────────────────
 #  ACTIVATION TOKEN TIMEOUT (seconds)
